@@ -8,8 +8,8 @@ import {
   Dice5,
   Dices,
   Landmark,
+  PieChart,
   Shield,
-  TrendingUp,
   BriefcaseBusiness,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
@@ -238,58 +238,120 @@ const showPendingPanel = computed(() => {
   <main class="flex h-screen w-full flex-col overflow-hidden bg-background text-foreground">
     <!-- Top bar -->
     <header
-      class="shrink-0 flex items-center justify-between gap-4 border-b border-border bg-secondary/50 px-4 py-3 backdrop-blur-sm sm:px-6 sm:py-4"
+      class="shrink-0 flex h-14 items-center justify-between gap-2 border-b border-border bg-secondary/50 px-3 py-2.5 backdrop-blur-sm sm:h-16 sm:gap-4 sm:px-6 sm:py-3"
     >
-      <div class="flex items-center gap-3">
-        <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <TrendingUp class="h-5 w-5" />
-        </div>
-        <h1 class="text-lg font-semibold tracking-tight sm:text-xl">原始资本积累</h1>
-      </div>
-      <div class="flex items-center gap-2 sm:gap-4">
-        <span
-          v-if="gameStore.currentPlayer"
-          class="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium sm:text-sm"
-        >
-          <span
-            class="inline-block h-3 w-3 rounded-full"
-            :style="{ backgroundColor: gameStore.currentPlayer.color }"
-          />
-          当前玩家：{{ gameStore.currentPlayer.name }}
-        </span>
-        <!-- 失业状态徽章 -->
-        <span
-          v-if="gameStore.currentPlayer?.isUnemployed"
-          class="inline-flex items-center gap-1 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive sm:text-sm"
-        >
-          <BriefcaseBusiness class="h-3.5 w-3.5" />
-          失业中 (剩{{ gameStore.currentPlayer.unemploymentTurns }}回合)
-        </span>
-        <!-- 双骰 buff 徽章 -->
-        <span
-          v-if="gameStore.currentPlayer?.doubleDiceNextTurn"
-          class="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary animate-pulse sm:text-sm"
-        >
-          <Dices class="h-3.5 w-3.5" />
-          下次双骰
-        </span>
+      <!-- 左侧：返回 + 阶段 + 回合 -->
+      <div class="flex items-center gap-2 sm:gap-3">
         <button
           type="button"
-          :disabled="!gameStore.canCurrentPlayerEnterFastTrack"
-          class="inline-flex h-9 items-center justify-center gap-1 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:px-5 sm:text-sm"
+          class="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
+          title="返回首页"
+          @click="goHome"
+        >
+          <ArrowLeft class="h-5 w-5" />
+        </button>
+        <div class="hidden sm:block">
+          <h1 class="text-base font-semibold">原始资本积累</h1>
+          <p class="text-xs text-muted-foreground">第 {{ gameStore.turnNumber }} 回合</p>
+        </div>
+      </div>
+
+      <!-- 中间：当前玩家 -->
+      <div class="flex items-center gap-2">
+        <span
+          v-if="gameStore.currentPlayer"
+          class="h-3 w-3 rounded-full"
+          :style="{ backgroundColor: gameStore.currentPlayer.color }"
+        />
+        <span class="text-sm font-medium">
+          {{ gameStore.currentPlayer?.name ?? '—' }}
+        </span>
+        <!-- 状态徽章（紧凑版） -->
+        <span
+          v-if="gameStore.currentPlayer?.isUnemployed"
+          class="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive"
+        >
+          <BriefcaseBusiness class="h-3 w-3" />
+          失业
+        </span>
+        <span
+          v-if="gameStore.currentPlayer?.doubleDiceNextTurn"
+          class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary animate-pulse"
+        >
+          <Dices class="h-3 w-3" />
+          双骰
+        </span>
+      </div>
+
+      <!-- 右侧：操作按钮 -->
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <!-- 银行 -->
+        <button
+          type="button"
+          class="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-muted"
+          title="银行"
+          @click="showBankModal = true"
+        >
+          <Landmark class="h-5 w-5" />
+        </button>
+        <!-- 财务报表（切换到左侧面板财务 Tab） -->
+        <button
+          type="button"
+          class="hidden sm:flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-muted"
+          title="财务报表"
+          @click="sidePanelTab = 'balance'"
+        >
+          <PieChart class="h-5 w-5" />
+        </button>
+        <!-- 买保险（仅在可购买时显示） -->
+        <button
+          v-if="canBuyInsurance"
+          type="button"
+          class="flex h-9 w-9 items-center justify-center rounded-full bg-success/20 text-success transition hover:bg-success/30"
+          title="买保险"
+          @click="gameStore.buyInsurance()"
+        >
+          <Shield class="h-5 w-5" />
+        </button>
+        <!-- 进入资本游戏（仅在可进入时显示） -->
+        <button
+          v-if="gameStore.canCurrentPlayerEnterFastTrack"
+          type="button"
+          class="hidden sm:inline-flex h-9 items-center gap-1 rounded-full bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/20"
           @click="enterFastTrack"
         >
           进入资本游戏
-          <ArrowRight class="h-4 w-4" />
+          <ArrowRight class="h-3.5 w-3.5" />
         </button>
-        <button
-          type="button"
-          class="inline-flex h-9 items-center gap-1 rounded-[var(--radius-md)] px-2 text-xs font-semibold text-muted-foreground hover:bg-secondary sm:px-3 sm:text-sm"
-          @click="goHome"
-        >
-          <ArrowLeft class="h-4 w-4" />
-          <span class="hidden sm:inline">返回首页</span>
-        </button>
+        <!-- 主操作按钮 -->
+        <Transition name="main-btn" mode="out-in">
+          <!-- 掷骰子（idle 状态） -->
+          <button
+            v-if="gameStore.turnStatus === 'idle'"
+            key="roll"
+            type="button"
+            class="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm shadow-primary/20 transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:px-5"
+            @click="onRollDice"
+          >
+            <Dices v-if="gameStore.currentPlayer?.doubleDiceNextTurn" class="h-4 w-4" />
+            <Dice5 v-else class="h-4 w-4" />
+            <span class="hidden sm:inline">
+              {{ gameStore.currentPlayer?.doubleDiceNextTurn ? '掷双骰' : '掷骰子' }}
+            </span>
+          </button>
+          <!-- 结束回合（resolving 状态） -->
+          <button
+            v-else
+            key="end"
+            type="button"
+            class="inline-flex h-9 items-center gap-1.5 rounded-full bg-secondary px-4 text-sm font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:px-5"
+            :disabled="gameStore.turnStatus === 'rolling'"
+            @click="onEndTurn"
+          >
+            <span class="hidden sm:inline">结束回合</span>
+            <ArrowRight class="h-4 w-4" />
+          </button>
+        </Transition>
       </div>
     </header>
 
@@ -850,73 +912,34 @@ const showPendingPanel = computed(() => {
       </section>
     </div>
 
-    <!-- Bottom action bar -->
+    <!-- Bottom info bar -->
     <footer
-      class="shrink-0 border-t border-border bg-secondary/50 px-4 py-3 backdrop-blur-sm sm:px-6 sm:py-4"
+      class="shrink-0 border-t border-border bg-secondary/50 px-4 py-2 text-xs backdrop-blur-sm sm:px-6 sm:py-2.5"
     >
-      <!-- Info row -->
-      <div class="mb-3 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span
-            class="inline-block h-3.5 w-3.5 rounded-full ring-2 ring-background"
-            :style="{ backgroundColor: gameStore.currentPlayer?.color }"
-          />
-          <span class="text-sm font-medium text-foreground">
-            {{ gameStore.currentPlayer?.name }}
-          </span>
-          <span class="text-xs text-muted-foreground">
-            · {{ gameStore.turnStatus === 'idle' ? '等待掷骰子' : gameStore.turnStatus === 'rolling' ? '掷骰中...' : '操作中' }}
-          </span>
+      <div class="flex items-center justify-between gap-4" v-if="gameStore.currentPlayer">
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-1.5">
+            <span class="text-muted-foreground">现金</span>
+            <span class="font-semibold text-foreground">
+              {{ formatMoney(gameStore.currentPlayer.cash) }}
+            </span>
+          </div>
+          <div class="hidden sm:flex items-center gap-1.5">
+            <span class="text-muted-foreground">月现金流</span>
+            <span
+              class="font-semibold"
+              :class="gameStore.currentPlayer.cashFlow >= 0 ? 'text-success' : 'text-destructive'"
+            >
+              {{ gameStore.currentPlayer.cashFlow >= 0 ? '+' : '' }}{{ formatMoney(gameStore.currentPlayer.cashFlow) }}
+            </span>
+          </div>
         </div>
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            class="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-foreground transition hover:bg-muted"
-            :title="'银行'"
-            @click="showBankModal = true"
-          >
-            <Landmark class="h-5 w-5" />
-          </button>
-          <button
-            v-if="canBuyInsurance"
-            type="button"
-            class="flex h-10 w-10 items-center justify-center rounded-full bg-success/20 text-success transition hover:bg-success/30"
-            :title="'买保险'"
-            @click="gameStore.buyInsurance()"
-          >
-            <Shield class="h-5 w-5" />
-          </button>
+        <div class="flex items-center gap-1.5">
+          <span class="text-muted-foreground">
+            {{ gameStore.turnStatus === 'idle' ? '等待掷骰子' : gameStore.turnStatus === 'rolling' ? '掷骰中...' : '操作中' }}
+          </span>
         </div>
       </div>
-
-      <!-- Main action button -->
-      <Transition name="main-btn" mode="out-in">
-        <!-- Roll dice button (idle state) -->
-        <button
-          v-if="gameStore.turnStatus === 'idle'"
-          key="roll"
-          type="button"
-          class="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground shadow-lg shadow-primary/30 transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-          @click="onRollDice"
-        >
-          <Dices v-if="gameStore.currentPlayer?.doubleDiceNextTurn" class="h-6 w-6" />
-          <Dice5 v-else class="h-6 w-6" />
-          {{ gameStore.currentPlayer?.doubleDiceNextTurn ? '掷 双 骰' : '掷 骰 子' }}
-        </button>
-
-        <!-- End turn button (resolving state) -->
-        <button
-          v-else
-          key="end"
-          type="button"
-          class="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-secondary text-base font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-          :disabled="gameStore.turnStatus === 'rolling'"
-          @click="onEndTurn"
-        >
-          结 束 回 合
-          <ArrowRight class="h-5 w-5" />
-        </button>
-      </Transition>
     </footer>
 
     <!-- Bank modal -->
