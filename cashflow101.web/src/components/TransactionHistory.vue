@@ -44,6 +44,7 @@ const typeLabels: Record<TransactionType, string> = {
   expense: '支出',
   doodad: '生活意外',
   charity: '慈善',
+  charity_protect: '慈善保护',
   child: '子女',
   layoff: '失业',
   stock_buy: '买入股票',
@@ -61,6 +62,7 @@ const typeLabels: Record<TransactionType, string> = {
   story_gain: '故事收益',
   story_loss: '故事损失',
   stock_split: '股票拆分',
+  bankrupt: '破产',
 }
 
 // 资产类型中文标签

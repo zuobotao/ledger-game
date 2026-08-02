@@ -1025,9 +1025,9 @@ export const useGameStore = defineStore('game', () => {
     }
 
     recordTransaction('stock_sell', total, `机会卖出 ${symbol} 股票`, player.id, {
-      symbol,
-      price,
-      quantity: sellQty,
+      assetSymbol: symbol,
+      unitPrice: price,
+      assetQuantity: sellQty,
     })
     recalcPlayerFinancials(player)
     return true
@@ -1631,14 +1631,14 @@ export const useGameStore = defineStore('game', () => {
     // 清空所有资产和负债
     player.assets = []
     player.liabilities = player.liabilities.filter(
-      (l) => l.category !== 'bank_loan' && l.category !== 'other',
+      (l) => l.category !== 'bank_loan',
     )
     player.cash = 0
     player.savings = 0
     player.passiveIncome = 0
     recalcPlayerFinancials(player)
 
-    recordTransaction('bankruptcy', 0, '宣告破产', player.id)
+    recordTransaction('bankrupt', 0, '宣告破产', player.id)
 
     setPending(
       'bankrupt',

@@ -61,7 +61,7 @@ function enterFastTrack() {
 watch(
   () => gameStore.canCurrentPlayerEnterFastTrack,
   (canEnter) => {
-    if (canEnter && !fastTrackOfferShown.value && !gameStore.isCurrentPlayerAI) {
+    if (canEnter && !fastTrackOfferShown.value && !gameStore.currentPlayer?.isAI) {
       fastTrackOfferShown.value = true
       showRatRaceSummary.value = true
     }

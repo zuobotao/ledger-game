@@ -41,7 +41,7 @@ const fastTrackProgress = computed(() => {
     cashPercent,
     cash,
     dreamPrice,
-    dreamName: dream?.title ?? '',
+    dreamName: dream?.name ?? '',
     hasDream: !!dream,
   }
 })

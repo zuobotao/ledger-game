@@ -229,6 +229,7 @@ export type TransactionType =
   | 'story_gain'
   | 'story_loss'
   | 'stock_split'
+  | 'bankrupt'
   | 'other'
 
 export interface TransactionRecord {
