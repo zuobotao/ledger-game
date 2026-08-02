@@ -1149,6 +1149,12 @@ export const useGameStore = defineStore('game', () => {
       const cell = getRatRaceCell(pos)
       if (cell.type === 'payday') {
         messages.push(handlePayday(player))
+        // 退休后停止处理
+        if (phase.value === 'finished') {
+          turnStatus.value = 'finished'
+          saveState()
+          return
+        }
       }
     }
 
@@ -1242,6 +1248,7 @@ export const useGameStore = defineStore('game', () => {
           setPending('layoff', '你的慈善捐赠为你赢得了人脉支持，这次裁员安然无恙！')
           recordTransaction('charity_protect', 0, '慈善保护：避免失业', player.id)
         } else if (player.hasInsurance) {
+          player.hasInsurance = false
           setPending('layoff', '你遭遇了裁员，但保险生效，避免了失业。')
         } else {
           player.isUnemployed = true
@@ -1891,6 +1898,8 @@ export const useGameStore = defineStore('game', () => {
     player.isUnemployed = false
     player.unemploymentTurns = 0
     player.doubleDiceNextTurn = false
+    player.hasUnemploymentInsurance = false
+    player.hasInsurance = false
     turnStatus.value = 'idle'
     lastRoll.value = 0
     clearPending()
@@ -1921,6 +1930,9 @@ export const useGameStore = defineStore('game', () => {
         gameMonth.value += 1
         if (config.value.ageLimit && gameMonth.value >= MAX_AGE_MONTHS) {
           triggerRetirement()
+          turnStatus.value = 'finished'
+          saveState()
+          return
         }
         setPending(null, `现金流日：获得 ${formatMoney(payout)}。`)
         break
