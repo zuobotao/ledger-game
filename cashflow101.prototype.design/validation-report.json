@@ -16,15 +16,12 @@
   },
   "operatingMode": "free-explore",
   "renderBlockingErrorCount": 0,
-  "softWarningCount": 12,
+  "softWarningCount": 9,
   "renderBlockingErrors": [],
   "errorSignatures": [],
   "softWarnings": [
     "[orchestration-summary] runtime-orchestration-summary.json is missing skillProvenance.name/version/version_source. Version provenance will be reported as observed_unknown by external evaluators.",
     "[repair-ledger] validationRepairLedger[0].repairActions[] is missing",
-    "[repair-ledger] validationRepairLedger[0].revalidationReportPath is missing",
-    "[repair-ledger] validationRepairLedger[0].revalidationReportHash is missing",
-    "[repair-ledger] validationRepairLedger[0].revalidationSuccess should be a boolean",
     "[html-quality] colors_and_type.css: free-explore brand CSS must use one primary hue only; forbidden secondary/accent brand variables found (--apple-secondary, --apple-secondary-foreground, --apple-accent, --apple-accent-foreground, --secondary, --secondary-foreground, --accent, --accent-foreground, --sidebar-accent, --sidebar-accent-foreground). Use --state-success/warning/error/info only for semantic states.",
     "[html-quality] colors_and_type.css: ordinary/static shadow tokens must keep every shadow alpha <= 0.05; deeper shadows are allowed only for floating-layer tokens such as modal/popover/dropdown/drawer/overlay (--shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.05), --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05), --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.05), --shadow-xl: 0 16px 40px -10px rgba(0, 0, 0, 0.10), 0 8px 16px -8px rgba(0, 0, 0, 0.06), --shadow-2xl: 0 24px 64px -12px rgba(0, 0, 0, 0.12)).",
     "[html-quality] card.html: free-explore pages must not use secondary/accent brand variables. Use the single primary hue, neutral tints, or --state-success/warning/error/info for real semantic states.",
@@ -36,14 +33,11 @@
   "repairPlanHints": [],
   "repairActionTable": [],
   "errorCount": 0,
-  "warningCount": 12,
+  "warningCount": 9,
   "errors": [],
   "warnings": [
     "[orchestration-summary] runtime-orchestration-summary.json is missing skillProvenance.name/version/version_source. Version provenance will be reported as observed_unknown by external evaluators.",
     "[repair-ledger] validationRepairLedger[0].repairActions[] is missing",
-    "[repair-ledger] validationRepairLedger[0].revalidationReportPath is missing",
-    "[repair-ledger] validationRepairLedger[0].revalidationReportHash is missing",
-    "[repair-ledger] validationRepairLedger[0].revalidationSuccess should be a boolean",
     "[html-quality] colors_and_type.css: free-explore brand CSS must use one primary hue only; forbidden secondary/accent brand variables found (--apple-secondary, --apple-secondary-foreground, --apple-accent, --apple-accent-foreground, --secondary, --secondary-foreground, --accent, --accent-foreground, --sidebar-accent, --sidebar-accent-foreground). Use --state-success/warning/error/info only for semantic states.",
     "[html-quality] colors_and_type.css: ordinary/static shadow tokens must keep every shadow alpha <= 0.05; deeper shadows are allowed only for floating-layer tokens such as modal/popover/dropdown/drawer/overlay (--shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.05), --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05), --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.05), --shadow-xl: 0 16px 40px -10px rgba(0, 0, 0, 0.10), 0 8px 16px -8px rgba(0, 0, 0, 0.06), --shadow-2xl: 0 24px 64px -12px rgba(0, 0, 0, 0.12)).",
     "[html-quality] card.html: free-explore pages must not use secondary/accent brand variables. Use the single primary hue, neutral tints, or --state-success/warning/error/info for real semantic states.",
@@ -56,7 +50,7 @@
     "declared": true,
     "restoreMode": false,
     "maxFullValidationRuns": 2,
-    "validationHistoryCount": 1,
+    "validationHistoryCount": 2,
     "repairLedgerCount": 1,
     "softWarningsTriggerRepair": false,
     "terminalState": null,
@@ -88,7 +82,7 @@
       "read_status": "unknown"
     },
     "renderBlockingErrorCount": 0,
-    "softWarningCount": 12,
+    "softWarningCount": 9,
     "renderBlockingErrors": [],
     "repairActionTable": [],
     "nextCheck": {
@@ -105,7 +99,7 @@
     ]
   },
   "projectFileHashes": {
-    ".design": "fc63f23fad27692d888b8dcd983a5732d387f0ac7f447d02d88414489be142c7",
+    ".design": "8f990abd3d992db910fb95787f403ead8b74040bb8bfb9d218431122772a880c",
     "colors_and_type.css": "c64cd4ffa07c912cba7ccb2da73cf3d9ab9e52857ae7a15bf7d8b0c8b5dd29b1",
     "runtime-orchestration-summary.json": "bfbb758b3ea9c4e9f4e604b05ac02521d594ef8cc24dd0a5068456d9fdde1514",
     "pages/card.html": "f8d423a4645d867ad83880363d53fdfa420a7766b30054ba5365da59a6a5ae47",
@@ -157,5 +151,5 @@
   "designDir": "/Users/zuoyang/Documents/trae_projects/ledger101/cashflow101.prototype.design",
   "expectedPages": null,
   "requireInteractions": null,
-  "checkedAt": "2026-08-02T03:49:26.712Z"
+  "checkedAt": "2026-08-02T06:02:42.622Z"
 }

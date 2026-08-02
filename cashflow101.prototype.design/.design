@@ -1,19 +1,4 @@
 {
-  "version": "1.0.0",
-  "name": "Cashflow 101 游戏原型",
-  "description": "现金流 101 网页游戏 UI 原型：首页、设置、老鼠赛跑棋盘、卡片弹窗、快车道",
-  "config": {
-    "designLibrary": {
-      "name": "苹果",
-      "id": "dl_builtin_apple",
-      "path": "/Users/zuoyang/.trae-cn/design_libraries/dl_builtin_apple",
-      "prefix": "apple",
-      "version": null,
-      "scope": null,
-      "versionSource": null
-    },
-    "themeMode": "light"
-  },
   "data": [
     {
       "id": "page-home",
@@ -21,6 +6,12 @@
       "title": "首页",
       "version": 1,
       "createdAt": 1754102400000,
+      "canvasData": {
+        "x": 0,
+        "y": 0,
+        "group": 0,
+        "order": 1
+      },
       "devMetadata": {
         "htmlSrc": "pages/home.html",
         "interactions": [
@@ -31,12 +22,6 @@
             "trigger": "click"
           }
         ]
-      },
-      "canvasData": {
-        "x": 0,
-        "y": 0,
-        "group": 0,
-        "order": 1
       }
     },
     {
@@ -45,6 +30,12 @@
       "title": "游戏设置",
       "version": 1,
       "createdAt": 1754102400000,
+      "canvasData": {
+        "x": 620,
+        "y": 0,
+        "group": 0,
+        "order": 2
+      },
       "devMetadata": {
         "htmlSrc": "pages/setup.html",
         "interactions": [
@@ -55,12 +46,6 @@
             "trigger": "click"
           }
         ]
-      },
-      "canvasData": {
-        "x": 320,
-        "y": 0,
-        "group": 0,
-        "order": 2
       }
     },
     {
@@ -69,6 +54,12 @@
       "title": "老鼠赛跑棋盘",
       "version": 1,
       "createdAt": 1754102400000,
+      "canvasData": {
+        "x": 1240,
+        "y": 0,
+        "group": 0,
+        "order": 3
+      },
       "devMetadata": {
         "htmlSrc": "pages/ratrace.html",
         "interactions": [
@@ -85,12 +76,6 @@
             "trigger": "click"
           }
         ]
-      },
-      "canvasData": {
-        "x": 640,
-        "y": 0,
-        "group": 0,
-        "order": 3
       }
     },
     {
@@ -99,15 +84,15 @@
       "title": "机会卡片",
       "version": 1,
       "createdAt": 1754102400000,
-      "devMetadata": {
-        "htmlSrc": "pages/card.html",
-        "interactions": []
-      },
       "canvasData": {
-        "x": 960,
+        "x": 1860,
         "y": 0,
         "group": 0,
         "order": 4
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/card.html",
+        "interactions": []
       }
     },
     {
@@ -116,46 +101,30 @@
       "title": "快车道",
       "version": 1,
       "createdAt": 1754102400000,
+      "canvasData": {
+        "x": 1860,
+        "y": 377,
+        "group": 0,
+        "order": 5
+      },
       "devMetadata": {
         "htmlSrc": "pages/fasttrack.html",
         "interactions": []
-      },
-      "canvasData": {
-        "x": 1280,
-        "y": 0,
-        "group": 0,
-        "order": 5
       }
     }
   ],
-  "interactions": [
-    {
-      "from": "page-home",
-      "to": "page-setup",
-      "type": "navigate",
-      "trigger": "click",
-      "domId": "btn-start"
+  "config": {
+    "autoLayout": true,
+    "deviceType": "desktop",
+    "designLibrary": {
+      "name": "苹果",
+      "id": "dl_builtin_apple",
+      "path": "/Users/zuoyang/.trae-cn/design_libraries/dl_builtin_apple",
+      "prefix": "apple",
+      "version": null,
+      "scope": null,
+      "versionSource": null
     },
-    {
-      "from": "page-setup",
-      "to": "page-ratrace",
-      "type": "navigate",
-      "trigger": "click",
-      "domId": "btn-begin"
-    },
-    {
-      "from": "page-ratrace",
-      "to": "page-card",
-      "type": "overlay",
-      "trigger": "click",
-      "domId": "cell-opportunity"
-    },
-    {
-      "from": "page-ratrace",
-      "to": "page-fasttrack",
-      "type": "navigate",
-      "trigger": "click",
-      "domId": "btn-fasttrack"
-    }
-  ]
+    "themeMode": "light"
+  }
 }
