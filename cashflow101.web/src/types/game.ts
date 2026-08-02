@@ -61,6 +61,7 @@ export interface Player {
   hasInsurance: boolean
   childrenCount: number
   doubleDiceNextTurn: boolean
+  charityProtection: boolean
   dream?: Dream
   isAI: boolean
   aiDifficulty?: 'easy' | 'medium' | 'hard'
@@ -205,6 +206,7 @@ export type TransactionType =
   | 'insurance_buy'
   | 'doodad'
   | 'charity'
+  | 'charity_protect'
   | 'child'
   | 'layoff'
   | 'story_gain'

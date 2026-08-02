@@ -209,6 +209,7 @@ function createPlayer(
     hasInsurance: config.insurance,
     childrenCount: 0,
     doubleDiceNextTurn: false,
+    charityProtection: false,
     dream,
     isAI,
     aiDifficulty,
@@ -430,6 +431,7 @@ export const useGameStore = defineStore('game', () => {
         const patched: Player = { ...p }
         patched.unemploymentTurns ??= 0
         patched.doubleDiceNextTurn ??= false
+        patched.charityProtection ??= false
         patched.isAI ??= false
         if (!patched.financialStatement) {
           patched.financialStatement = createFinancialStatement()
@@ -947,13 +949,17 @@ export const useGameStore = defineStore('game', () => {
         break
       }
       case 'layoff': {
-        if (player.hasInsurance) {
+        if (player.charityProtection) {
+          player.charityProtection = false
+          setPending('layoff', '你的慈善捐赠为你赢得了人脉支持，这次裁员安然无恙！')
+          recordTransaction('charity_protect', 0, '慈善保护：避免失业', player.id)
+        } else if (player.hasInsurance) {
           setPending('layoff', '你遭遇了裁员，但保险生效，避免了失业。')
         } else {
           player.isUnemployed = true
-          player.unemploymentTurns = 2
+          player.unemploymentTurns = 1
           recalcPlayerFinancials(player)
-          setPending('layoff', '裁员：你失去了工作，将跳过接下来 2 个回合的工资。')
+          setPending('layoff', '裁员：你失去了工作，将跳过 1 个回合的工资。')
         }
         break
       }
@@ -989,8 +995,9 @@ export const useGameStore = defineStore('game', () => {
     const paid = requireLoanForPayment(donation, '慈善捐赠', () => {
       player.cash -= donation
       player.doubleDiceNextTurn = true
+      player.charityProtection = true
       recordTransaction('charity', -donation, '慈善捐赠')
-      setPending(null, `你捐赠了 ${formatMoney(donation)}，下回合掷双骰。`)
+      setPending(null, `你捐赠了 ${formatMoney(donation)}，下回合掷双骰，同时获得慈善保护（下次裁员免疫）。`)
       turnStatus.value = 'resolving'
       saveState()
     })

@@ -13,6 +13,7 @@ import {
   TrendingUp,
   BriefcaseBusiness,
   PieChart,
+  HeartHandshake,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import type { Asset, Liability, MarketEventCard, OpportunityCard, StoryCard } from '@/types/game'
@@ -383,6 +384,14 @@ const showPendingPanel = computed(() => {
         >
           <Dices class="h-3 w-3" />
           双骰
+        </span>
+        <span
+          v-if="gameStore.currentPlayer?.charityProtection"
+          class="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400"
+          title="慈善保护：下次遭遇裁员时免疫"
+        >
+          <HeartHandshake class="h-3 w-3" />
+          慈善保护
         </span>
       </div>
 
