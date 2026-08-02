@@ -27,10 +27,11 @@ import type { Player, TransactionRecord, CardHistoryRecord } from '@/types/game'
 
 interface Props {
   player: Player
-  phase: 'rat_race_end' | 'victory' | 'game_over'
+  phase: 'rat_race_end' | 'victory' | 'game_over' | 'retirement'
   totalTurns: number
   ratRaceTurns?: number
   fastTrackTurns?: number
+  totalMonths?: number
 }
 
 const props = defineProps<Props>()
@@ -105,8 +106,44 @@ const resultInfo = computed(() => {
         primaryBtnText: '再来一局',
         showClose: false,
       }
+    case 'retirement':
+      return {
+        title: '退休结算',
+        subtitle: '40 年投资旅程结束',
+        icon: Trophy,
+        iconColor: 'text-amber-400',
+        iconBg: 'bg-amber-500/15',
+        gradientFrom: 'from-amber-400',
+        gradientTo: 'to-orange-400',
+        primaryBtnText: '再来一局',
+        showClose: false,
+      }
   }
 })
+
+// 退休排名数据
+const retirementRanking = computed(() => {
+  const allPlayers = gameStore.players
+  const activePlayers = allPlayers.filter((p) => !p.isBankrupt)
+  const ranked = [...activePlayers].sort((a, b) => {
+    const netA = calcNetWorth(a)
+    const netB = calcNetWorth(b)
+    return netB - netA
+  })
+  return ranked.map((p, index) => ({
+    rank: index + 1,
+    player: p,
+    netWorth: calcNetWorth(p),
+    isWinner: index === 0,
+    isCurrentPlayer: p.id === props.player.id,
+  }))
+})
+
+function calcNetWorth(p: Player): number {
+  const assetValue = p.assets.reduce((sum, a) => sum + (a.marketPrice ?? a.cost) * a.quantity, 0)
+  const liabilityValue = p.liabilities.reduce((sum, l) => sum + l.amount, 0)
+  return p.cash + p.savings + assetValue - liabilityValue
+}
 
 const finalNetWorth = computed(() => {
   const p = props.player
@@ -556,6 +593,37 @@ const cashFlowSparkline = computed(() => {
             />
           </button>
           <div v-show="expandedSections.has('overview')" class="section-body">
+            <!-- 退休排名（仅退休模式显示） -->
+            <div v-if="phase === 'retirement'" class="retirement-ranking">
+              <h4 class="subsection-title">净资产排名</h4>
+              <div class="ranking-list">
+                <div
+                  v-for="item in retirementRanking"
+                  :key="item.player.id"
+                  class="ranking-item"
+                  :class="{
+                    winner: item.isWinner,
+                    'is-current': item.isCurrentPlayer,
+                  }"
+                >
+                  <div class="ranking-rank">
+                    <Trophy v-if="item.isWinner" class="h-5 w-5 text-amber-400" />
+                    <span v-else class="rank-number">{{ item.rank }}</span>
+                  </div>
+                  <div class="ranking-player">
+                    <span
+                      class="player-color-dot"
+                      :style="{ backgroundColor: item.player.color }"
+                    />
+                    <span class="player-name">{{ item.player.name }}</span>
+                    <span v-if="item.isCurrentPlayer" class="current-badge">你</span>
+                  </div>
+                  <div class="ranking-networth" :class="item.netWorth >= 0 ? 'text-success' : 'text-destructive'">
+                    {{ formatMoneyCompact(item.netWorth) }}
+                  </div>
+                </div>
+              </div>
+            </div>
             <!-- 关键指标卡片 -->
             <div class="stats-grid">
               <div class="stat-card">
@@ -1598,6 +1666,85 @@ const cashFlowSparkline = computed(() => {
 
 .footer-btn.secondary:hover {
   background: var(--color-border);
+}
+
+/* Retirement ranking */
+.retirement-ranking {
+  margin-bottom: 16px;
+}
+
+.ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--color-secondary);
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+}
+
+.ranking-item.winner {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(251, 146, 60, 0.1));
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+.ranking-item.is-current {
+  border-color: var(--color-primary);
+}
+
+.ranking-rank {
+  width: 28px;
+  text-align: center;
+}
+
+.rank-number {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-muted-foreground);
+}
+
+.ranking-player {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+.player-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.player-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.current-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-weight: 600;
+}
+
+.ranking-networth {
+  font-size: 14px;
+  font-weight: 700;
 }
 
 /* Scrollbar */

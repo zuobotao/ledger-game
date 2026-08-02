@@ -28,9 +28,12 @@ import type {
 import {
   BANK_CONFIG,
   FAST_TRACK_BOARD_SIZE,
+  MAX_AGE_MONTHS,
   MAX_CHILDREN,
   PLAYER_COLORS,
   RAT_RACE_BOARD_SIZE,
+  START_AGE,
+  UNEMPLOYMENT_INSURANCE_RATE,
 } from '@/types/game'
 import { getCareerById, getRandomCareer } from '@/data/careers'
 import { getFastTrackCell, getRatRaceCell } from '@/data/board'
@@ -139,6 +142,16 @@ function recalcPlayerFinancials(player: Player): void {
   player.cashFlow = player.totalIncome - player.totalExpenses
 }
 
+function calcPlayerNetWorth(player: Player): number {
+  const assetsValue = player.assets.reduce(
+    (sum, a) => sum + (a.marketPrice ?? a.cost) * a.quantity,
+    0,
+  )
+  const totalAssets = player.cash + player.savings + assetsValue
+  const totalLiabilities = player.liabilities.reduce((sum, l) => sum + l.amount, 0)
+  return totalAssets - totalLiabilities
+}
+
 function createFinancialSnapshot(player: Player, turn: number): FinancialSnapshot {
   const stockValue = player.assets
     .filter((a) => a.type === 'stock')
@@ -210,9 +223,11 @@ function createPlayer(
     isUnemployed: false,
     unemploymentTurns: 0,
     hasInsurance: config.insurance,
+    hasUnemploymentInsurance: false,
     childrenCount: 0,
     doubleDiceNextTurn: false,
     charityProtection: false,
+    ageMonths: 0,
     dream,
     isAI,
     aiDifficulty,
@@ -243,12 +258,15 @@ export const useGameStore = defineStore('game', () => {
     bigFamily: false,
     mortgage: false,
     fastStart: false,
+    ageLimit: true,
   })
   const winnerId = ref<string | null>(null)
+  const gameEndReason = ref<'victory' | 'retirement' | null>(null)
   const turnStatus = ref<TurnStatus>('idle')
   const lastRoll = ref(0)
   const lastDiceValues = ref<number[]>([])
   const turnNumber = ref(1)
+  const gameMonth = ref(0)
   const pendingAction = ref<PendingAction>({ type: null, card: null, message: '' })
   const marketEvent = ref<MarketEventCard | null>(null)
   const marketEventState = ref<MarketEventState | null>(null)
@@ -264,6 +282,16 @@ export const useGameStore = defineStore('game', () => {
 
   const currentPlayer = computed<Player | null>(() => players.value[currentPlayerIndex.value] ?? null)
   const isGameStarted = computed(() => phase.value === 'rat_race' || phase.value === 'fast_track')
+
+  const currentPlayerAge = computed(() => {
+    const p = currentPlayer.value
+    if (!p) return { years: START_AGE, months: 0, percent: 0, totalMonths: 0 }
+    const totalMonths = p.ageMonths ?? 0
+    const years = START_AGE + Math.floor(totalMonths / 12)
+    const months = totalMonths % 12
+    const percent = Math.min(100, (totalMonths / MAX_AGE_MONTHS) * 100)
+    return { years, months, percent, totalMonths }
+  })
 
   // 当前查看的玩家（用于多人模式下切换查看其他玩家面板）
   const viewingPlayer = computed<Player | null>(() => {
@@ -426,9 +454,11 @@ export const useGameStore = defineStore('game', () => {
       phase: phase.value,
       config: config.value,
       winnerId: winnerId.value,
+      gameEndReason: gameEndReason.value,
       turnStatus: turnStatus.value,
       lastRoll: lastRoll.value,
       turnNumber: turnNumber.value,
+      gameMonth: gameMonth.value,
       pendingAction: pendingAction.value,
       marketEvent: marketEvent.value,
       marketEventState: marketEventState.value,
@@ -450,6 +480,8 @@ export const useGameStore = defineStore('game', () => {
         patched.doubleDiceNextTurn ??= false
         patched.charityProtection ??= false
         patched.isAI ??= false
+        patched.ageMonths ??= 0
+        patched.hasUnemploymentInsurance ??= false
         if (!patched.financialStatement) {
           patched.financialStatement = createFinancialStatement()
         }
@@ -462,9 +494,11 @@ export const useGameStore = defineStore('game', () => {
       phase.value = state.phase ?? 'setup'
       config.value = state.config ?? config.value
       winnerId.value = state.winnerId ?? null
+      gameEndReason.value = state.gameEndReason ?? null
       turnStatus.value = state.turnStatus ?? 'idle'
       lastRoll.value = state.lastRoll ?? 0
       turnNumber.value = state.turnNumber ?? 1
+      gameMonth.value = state.gameMonth ?? 0
       pendingAction.value = state.pendingAction ?? { type: null, card: null, message: '' }
       marketEvent.value = state.marketEvent ?? null
       marketEventState.value = state.marketEventState ?? null
@@ -652,14 +686,42 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function handlePayday(player: Player): string {
+    let msg = ''
     if (player.isUnemployed) {
-      player.cash -= player.totalExpenses
-      recordTransaction('expense', -player.totalExpenses, '失业支出', player.id)
-      return `失业中：没有工资，仍需支付 ${formatMoney(player.totalExpenses)} 支出。`
+      if (player.hasUnemploymentInsurance) {
+        // 失业+有失业保险：领全额工资
+        player.cash += player.cashFlow
+        recordTransaction('unemployment_insurance_benefit', player.cashFlow, '失业保险金', player.id)
+        msg = `失业中：失业保险生效，领取 ${formatMoney(player.cashFlow)} 全额工资。`
+      } else {
+        // 失业+无保险：扣支出
+        player.cash -= player.totalExpenses
+        recordTransaction('expense', -player.totalExpenses, '失业支出', player.id)
+        msg = `失业中：没有工资，仍需支付 ${formatMoney(player.totalExpenses)} 支出。`
+      }
+    } else {
+      // 就业：先扣失业保险保费，再发工资
+      let premium = 0
+      if (player.hasUnemploymentInsurance) {
+        premium = Math.round(player.salary * UNEMPLOYMENT_INSURANCE_RATE)
+        player.cash -= premium
+        recordTransaction('unemployment_insurance_premium', -premium, '失业保险保费', player.id)
+      }
+      player.cash += player.cashFlow
+      recordTransaction('salary', player.cashFlow, '发工资', player.id)
+      msg = `发工资：获得 ${formatMoney(player.cashFlow)} 现金流${premium > 0 ? `，扣除失业保险 ${formatMoney(premium)}` : ''}。`
     }
-    player.cash += player.cashFlow
-    recordTransaction('salary', player.cashFlow, '发工资', player.id)
-    return `发工资：获得 ${formatMoney(player.cashFlow)} 现金流。`
+
+    // 年龄递增
+    player.ageMonths += 1
+    gameMonth.value += 1
+
+    // 检查退休
+    if (config.value.ageLimit && gameMonth.value >= MAX_AGE_MONTHS) {
+      triggerRetirement()
+    }
+
+    return msg
   }
 
   function requireLoanForPayment(amount: number, reason: string, onResolved: () => void): boolean {
@@ -1663,6 +1725,7 @@ export const useGameStore = defineStore('game', () => {
     const active = activePlayers.value
     if (active.length === 1 && players.value.length > 1) {
       winnerId.value = active[0]!.id
+      gameEndReason.value = 'victory'
       phase.value = 'finished'
       turnStatus.value = 'finished'
       saveState()
@@ -1785,6 +1848,38 @@ export const useGameStore = defineStore('game', () => {
     return true
   }
 
+  function toggleUnemploymentInsurance(): boolean {
+    const player = currentPlayer.value
+    if (!player || phase.value !== 'rat_race') return false
+    player.hasUnemploymentInsurance = !player.hasUnemploymentInsurance
+    const action = player.hasUnemploymentInsurance ? '参保' : '停保'
+    recordTransaction('other', 0, `失业保险${action}`, player.id)
+    saveState()
+    return true
+  }
+
+  function triggerRetirement() {
+    const activePlayers = players.value.filter((p) => !p.isBankrupt)
+    if (activePlayers.length === 0) {
+      phase.value = 'finished'
+      turnStatus.value = 'finished'
+      saveState()
+      return
+    }
+    // 按净资产排序
+    const sorted = [...activePlayers].sort((a, b) => {
+      const netA = calcPlayerNetWorth(a)
+      const netB = calcPlayerNetWorth(b)
+      return netB - netA
+    })
+    winnerId.value = sorted[0].id
+    gameEndReason.value = 'retirement'
+    phase.value = 'finished'
+    turnStatus.value = 'finished'
+    recordTransaction('age_retire', 0, '退休结算')
+    saveState()
+  }
+
   function enterFastTrack(): boolean {
     const player = currentPlayer.value
     if (!player || !checkFinancialFreedom()) return false
@@ -1820,6 +1915,13 @@ export const useGameStore = defineStore('game', () => {
       case 'cashflow': {
         const payout = player.cashFlow * 100
         player.cash += payout
+        recordTransaction('salary', payout, '现金流日', player.id)
+        // FastTrack 现金流日也推进年龄
+        player.ageMonths += 1
+        gameMonth.value += 1
+        if (config.value.ageLimit && gameMonth.value >= MAX_AGE_MONTHS) {
+          triggerRetirement()
+        }
         setPending(null, `现金流日：获得 ${formatMoney(payout)}。`)
         break
       }
@@ -1895,6 +1997,7 @@ export const useGameStore = defineStore('game', () => {
 
     player.cash -= dream.price
     winnerId.value = player.id
+    gameEndReason.value = 'victory'
     phase.value = 'finished'
     turnStatus.value = 'finished'
     saveState()
@@ -1937,6 +2040,16 @@ export const useGameStore = defineStore('game', () => {
         if (AIDecision.decideBuyInsurance(player, difficulty)) {
           await sleep(300)
           buyInsurance()
+        }
+      }
+
+      // 6.5 AI 失业保险决策（仅老鼠圈）
+      if (phase.value === 'rat_race' && turnStatus.value === 'resolving') {
+        const difficulty: AIDifficulty = (player.aiDifficulty as AIDifficulty) ?? 'medium'
+        const shouldInsure = AIDecision.decideUnemploymentInsurance(player, difficulty)
+        if (shouldInsure !== player.hasUnemploymentInsurance) {
+          await sleep(200)
+          toggleUnemploymentInsurance()
         }
       }
 
@@ -2246,10 +2359,13 @@ export const useGameStore = defineStore('game', () => {
     phase,
     config,
     winnerId,
+    gameEndReason,
     turnStatus,
     lastRoll,
     lastDiceValues,
     turnNumber,
+    gameMonth,
+    currentPlayerAge,
     pendingAction,
     marketEvent,
     marketEventState,
@@ -2317,6 +2433,7 @@ export const useGameStore = defineStore('game', () => {
     enterFastTrack,
     buyDream,
     buyInsurance,
+    toggleUnemploymentInsurance,
     acknowledgeMessage,
     maxBankLoanAmount,
     totalBankLoanAmount,

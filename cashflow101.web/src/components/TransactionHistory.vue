@@ -24,8 +24,8 @@ const investmentSubFilter = ref<InvestmentSubFilter>('all')
 const soldAssetTypeFilter = ref<SoldAssetTypeFilter>('all')
 
 // 交易类型分类映射
-const incomeTypes: TransactionType[] = ['salary', 'passive_income']
-const expenseTypes: TransactionType[] = ['expense', 'doodad', 'charity', 'child', 'layoff', 'story_loss']
+const incomeTypes: TransactionType[] = ['salary', 'passive_income', 'unemployment_insurance_benefit']
+const expenseTypes: TransactionType[] = ['expense', 'doodad', 'charity', 'child', 'layoff', 'story_loss', 'unemployment_insurance_premium']
 const investmentBuyTypes: TransactionType[] = ['stock_buy', 'real_estate_buy', 'business_buy']
 const investmentSellTypes: TransactionType[] = ['stock_sell', 'real_estate_sell', 'business_sell']
 const investmentTypes: TransactionType[] = [...investmentBuyTypes, ...investmentSellTypes, 'stock_split']
@@ -63,6 +63,9 @@ const typeLabels: Record<TransactionType, string> = {
   story_loss: '故事损失',
   stock_split: '股票拆分',
   bankrupt: '破产',
+  age_retire: '退休',
+  unemployment_insurance_premium: '失业保险费',
+  unemployment_insurance_benefit: '失业保险金',
 }
 
 // 资产类型中文标签

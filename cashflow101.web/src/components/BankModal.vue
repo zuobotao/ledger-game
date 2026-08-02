@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Landmark, X, PieChart } from 'lucide-vue-next'
+import { Landmark, X, PieChart, Shield, AlertCircle } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
+import { UNEMPLOYMENT_INSURANCE_RATE } from '@/types/game'
 import type { Asset } from '@/types/game'
 import FinancialStatement from './FinancialStatement.vue'
 
 const props = defineProps<{
   show: boolean
+  initialTab?: 'deposit' | 'loan' | 'repay' | 'assets' | 'statement' | 'insurance'
 }>()
 
 const emit = defineEmits<{
@@ -15,7 +17,7 @@ const emit = defineEmits<{
 
 const store = useGameStore()
 
-type TabKey = 'deposit' | 'loan' | 'repay' | 'assets' | 'statement'
+type TabKey = 'deposit' | 'loan' | 'repay' | 'assets' | 'statement' | 'insurance'
 const activeTab = ref<TabKey>('deposit')
 
 const depositAmount = ref<number>(0)
@@ -129,11 +131,51 @@ function formatMoney(n: number): string {
   return `$${Math.round(n).toLocaleString()}`
 }
 
-// Reset inputs when modal closes
+// --- Insurance tab ---
+const hasLayoffInsurance = computed(() => store.currentPlayer?.hasInsurance ?? false)
+const hasUnemploymentInsurance = computed(() => store.currentPlayer?.hasUnemploymentInsurance ?? false)
+
+const layoffInsuranceCost = computed(() => {
+  if (!store.currentPlayer) return 0
+  return store.currentPlayer.totalExpenses * 6
+})
+
+const monthlyPremium = computed(() => {
+  if (!store.currentPlayer) return 0
+  return Math.round(store.currentPlayer.salary * UNEMPLOYMENT_INSURANCE_RATE)
+})
+
+const canBuyLayoffInsurance = computed(() => {
+  const p = store.currentPlayer
+  if (!p || store.phase !== 'rat_race' || p.hasInsurance) return false
+  return p.cash >= layoffInsuranceCost.value
+})
+
+function handleBuyLayoffInsurance() {
+  const ok = store.buyInsurance()
+  if (ok) {
+    showSuccess('已购买裁员保险')
+  }
+}
+
+function handleToggleUnemploymentInsurance() {
+  const wasInsured = hasUnemploymentInsurance.value
+  const ok = store.toggleUnemploymentInsurance()
+  if (ok) {
+    const msg = wasInsured ? '已停保失业保险' : '已参保失业保险'
+    showSuccess(msg)
+  }
+}
+
+// Reset inputs when modal closes, set initial tab when opens
 watch(
   () => props.show,
   (val) => {
-    if (!val) {
+    if (val) {
+      if (props.initialTab) {
+        activeTab.value = props.initialTab
+      }
+    } else {
       depositAmount.value = 0
       loanAmount.value = 0
       repayAmount.value = 0
@@ -141,6 +183,7 @@ watch(
       if (successTimer) clearTimeout(successTimer)
     }
   },
+  { immediate: true },
 )
 
 function handleOverlayClick(e: MouseEvent) {
@@ -248,6 +291,20 @@ function handleOverlayClick(e: MouseEvent) {
                 </span>
                 <span
                   v-if="activeTab === 'statement'"
+                  class="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full"
+                />
+              </button>
+              <button
+                class="flex-1 py-3 text-sm font-medium transition-colors relative"
+                :class="activeTab === 'insurance' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+                @click="activeTab = 'insurance'"
+              >
+                <span class="flex items-center justify-center gap-1">
+                  <Shield class="w-3.5 h-3.5" />
+                  保险
+                </span>
+                <span
+                  v-if="activeTab === 'insurance'"
                   class="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full"
                 />
               </button>
@@ -572,6 +629,125 @@ function handleOverlayClick(e: MouseEvent) {
               <!-- ====== Financial Statement Tab ====== -->
               <template v-else-if="activeTab === 'statement'">
                 <FinancialStatement />
+              </template>
+
+              <!-- ====== Insurance Tab ====== -->
+              <template v-else-if="activeTab === 'insurance'">
+                <div class="space-y-4">
+                  <!-- 裁员保险（一次性） -->
+                  <div
+                    class="rounded-xl border bg-background p-4"
+                    :class="hasLayoffInsurance ? 'border-emerald-500/30' : 'border-border'"
+                  >
+                    <div class="flex items-start justify-between mb-3">
+                      <div class="flex items-center gap-2.5">
+                        <div
+                          class="w-9 h-9 rounded-full flex items-center justify-center"
+                          :class="hasLayoffInsurance ? 'bg-emerald-500/15' : 'bg-secondary'"
+                        >
+                          <Shield
+                            class="w-5 h-5"
+                            :class="hasLayoffInsurance ? 'text-emerald-500' : 'text-muted-foreground'"
+                          />
+                        </div>
+                        <div>
+                          <h3 class="text-sm font-semibold text-foreground">裁员保险</h3>
+                          <p class="text-xs text-muted-foreground">一次性购买，终身有效</p>
+                        </div>
+                      </div>
+                      <span
+                        v-if="hasLayoffInsurance"
+                        class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-500"
+                      >
+                        已投保
+                      </span>
+                    </div>
+                    <p class="text-xs text-muted-foreground mb-3">
+                      当你遭遇「裁员」格子时，自动免疫失业，无需支付任何费用。
+                    </p>
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <span class="text-xs text-muted-foreground">保费</span>
+                        <div class="text-base font-semibold text-foreground">
+                          {{ formatMoney(layoffInsuranceCost) }}
+                        </div>
+                      </div>
+                      <button
+                        v-if="!hasLayoffInsurance"
+                        class="h-9 px-4 rounded-full text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        :class="canBuyLayoffInsurance
+                          ? 'bg-primary text-primary-foreground hover:brightness-110'
+                          : 'bg-secondary text-muted-foreground cursor-not-allowed'"
+                        :disabled="!canBuyLayoffInsurance"
+                        @click="handleBuyLayoffInsurance"
+                      >
+                        {{ canBuyLayoffInsurance ? '购买' : '现金不足' }}
+                      </button>
+                      <span
+                        v-else
+                        class="h-9 px-4 rounded-full text-sm font-medium bg-secondary text-muted-foreground flex items-center"
+                      >
+                        已生效
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- 失业保险（月缴） -->
+                  <div
+                    class="rounded-xl border bg-background p-4"
+                    :class="hasUnemploymentInsurance ? 'border-emerald-500/30' : 'border-border'"
+                  >
+                    <div class="flex items-start justify-between mb-3">
+                      <div class="flex items-center gap-2.5">
+                        <div
+                          class="w-9 h-9 rounded-full flex items-center justify-center"
+                          :class="hasUnemploymentInsurance ? 'bg-emerald-500/15' : 'bg-secondary'"
+                        >
+                          <AlertCircle
+                            class="w-5 h-5"
+                            :class="hasUnemploymentInsurance ? 'text-emerald-500' : 'text-muted-foreground'"
+                          />
+                        </div>
+                        <div>
+                          <h3 class="text-sm font-semibold text-foreground">失业保险</h3>
+                          <p class="text-xs text-muted-foreground">按月缴费，失业仍领工资</p>
+                        </div>
+                      </div>
+                      <span
+                        v-if="hasUnemploymentInsurance"
+                        class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-500"
+                      >
+                        参保中
+                      </span>
+                    </div>
+                    <p class="text-xs text-muted-foreground mb-3">
+                      失业期间照常领取全额工资（现金流），为你的收入托底。
+                    </p>
+                    <div class="flex items-center justify-between mb-3">
+                      <div>
+                        <span class="text-xs text-muted-foreground">月缴保费</span>
+                        <div class="text-base font-semibold text-foreground">
+                          {{ formatMoney(monthlyPremium) }}
+                          <span class="text-xs font-normal text-muted-foreground ml-1">
+                            （月薪 × 3%）
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="text-[11px] text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 mb-3 border border-border">
+                      保费每月发薪时自动从现金扣除，已缴保费不返还。失业期间不扣保费但仍享受保障。
+                    </div>
+                    <button
+                      class="w-full h-9 rounded-full text-sm font-semibold transition-all"
+                      :class="hasUnemploymentInsurance
+                        ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                        : 'bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25'"
+                      @click="handleToggleUnemploymentInsurance"
+                    >
+                      {{ hasUnemploymentInsurance ? '停保' : '参保' }}
+                    </button>
+                  </div>
+                </div>
               </template>
             </div>
           </div>

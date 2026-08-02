@@ -40,6 +40,11 @@ const router = createRouter({
       name: 'game-over',
       component: () => import('../views/GameOverView.vue'),
     },
+    {
+      path: '/retirement',
+      name: 'retirement',
+      component: () => import('../views/RetirementView.vue'),
+    },
   ],
 })
 

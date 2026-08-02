@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Bot,
+  Calendar,
   Dice5,
   Dices,
   Eye,
@@ -40,6 +41,11 @@ const gameStore = useGameStore()
 // 是否处于观战模式
 const isSpectator = computed(() => route.query.spectator === 'true')
 
+const ageDisplay = computed(() => {
+  const age = gameStore.currentPlayerAge
+  return `${age.years}岁${age.months}月`
+})
+
 function formatMoney(n: number): string {
   return `$${Math.round(n).toLocaleString()}`
 }
@@ -67,6 +73,19 @@ watch(
     }
   },
   { immediate: true },
+)
+
+// 游戏结束后跳转
+watch(
+  () => gameStore.winnerId,
+  (id) => {
+    if (id) {
+      setTimeout(() => {
+        const target = gameStore.gameEndReason === 'retirement' ? 'retirement' : 'victory'
+        router.push({ name: target })
+      }, 800)
+    }
+  },
 )
 
 function confirmEnterFastTrack() {
@@ -245,6 +264,25 @@ const canBuyInsurance = computed(() => {
   return p.cash >= cost && gameStore.turnStatus === 'idle' && !p.isAI
 })
 
+const hasAnyInsurance = computed(() => {
+  const p = gameStore.currentPlayer
+  return p?.hasInsurance || p?.hasUnemploymentInsurance || false
+})
+
+const showInsuranceButton = computed(() => {
+  const p = gameStore.currentPlayer
+  if (!p || gameStore.phase !== 'rat_race' || p.isAI) return false
+  // 至少有一个保险可操作（未买的可买，已买的可管理）
+  return true
+})
+
+const bankInitialTab = ref<'deposit' | 'loan' | 'repay' | 'assets' | 'statement' | 'insurance'>('deposit')
+
+function openBankInsuranceTab() {
+  bankInitialTab.value = 'insurance'
+  showBankModal.value = true
+}
+
 // 当前玩家是否是 AI
 const isCurrentPlayerAI = computed(() => {
   return gameStore.currentPlayer?.isAI ?? false
@@ -411,7 +449,10 @@ const showPendingPanel = computed(() => {
               观战模式
             </span>
           </h1>
-          <p class="text-xs text-muted-foreground">第 {{ gameStore.turnNumber }} 回合</p>
+          <p class="text-xs text-muted-foreground flex items-center gap-1">
+            <Calendar class="h-3 w-3" />
+            {{ ageDisplay }} · 第 {{ gameStore.turnNumber }} 回合
+          </p>
         </div>
       </div>
 
@@ -457,6 +498,14 @@ const showPendingPanel = computed(() => {
           <HeartHandshake class="h-3 w-3" />
           慈善保护
         </span>
+        <span
+          v-if="gameStore.currentPlayer?.hasUnemploymentInsurance"
+          class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-500"
+          title="失业保险：失业期间领取全额工资"
+        >
+          <Shield class="h-3 w-3" />
+          失业险
+        </span>
       </div>
 
       <!-- 右侧：操作按钮 -->
@@ -480,13 +529,18 @@ const showPendingPanel = computed(() => {
         >
           <PieChart class="h-5 w-5" />
         </button>
-        <!-- 买保险（仅在可购买时显示） -->
+        <!-- 保险（打开银行保险Tab） -->
         <button
-          v-if="canBuyInsurance"
+          v-if="showInsuranceButton"
           type="button"
-          class="flex h-9 w-9 items-center justify-center rounded-full bg-success/20 text-success transition hover:bg-success/30"
-          title="买保险"
-          @click="gameStore.buyInsurance()"
+          :class="[
+            'flex h-9 w-9 items-center justify-center rounded-full transition',
+            hasAnyInsurance
+              ? 'bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30'
+              : 'bg-success/20 text-success hover:bg-success/30',
+          ]"
+          :title="hasAnyInsurance ? '保险管理' : '购买保险'"
+          @click="openBankInsuranceTab"
         >
           <Shield class="h-5 w-5" />
         </button>
@@ -1431,7 +1485,7 @@ const showPendingPanel = computed(() => {
     </div>
 
     <!-- Bank modal -->
-    <BankModal :show="showBankModal" @close="showBankModal = false" />
+    <BankModal :show="showBankModal" :initial-tab="bankInitialTab" @close="showBankModal = false" />
 
     <!-- 老鼠圈结束总结 -->
     <Teleport to="body">

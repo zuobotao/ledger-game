@@ -59,9 +59,11 @@ export interface Player {
   isUnemployed: boolean
   unemploymentTurns: number
   hasInsurance: boolean
+  hasUnemploymentInsurance: boolean
   childrenCount: number
   doubleDiceNextTurn: boolean
   charityProtection: boolean
+  ageMonths: number
   dream?: Dream
   isAI: boolean
   aiDifficulty?: 'easy' | 'medium' | 'hard'
@@ -90,6 +92,7 @@ export interface GameConfig {
   bigFamily: boolean
   mortgage: boolean
   fastStart: boolean
+  ageLimit: boolean
 }
 
 export type GamePhase = 'setup' | 'rat_race' | 'fast_track' | 'finished'
@@ -230,6 +233,9 @@ export type TransactionType =
   | 'story_loss'
   | 'stock_split'
   | 'bankrupt'
+  | 'age_retire'
+  | 'unemployment_insurance_premium'
+  | 'unemployment_insurance_benefit'
   | 'other'
 
 export interface TransactionRecord {
@@ -269,9 +275,11 @@ export interface GameState {
   phase: GamePhase
   config: GameConfig
   winnerId: string | null
+  gameEndReason?: 'victory' | 'retirement' | null
   turnStatus: TurnStatus
   lastRoll: number
   turnNumber?: number
+  gameMonth?: number
   pendingAction: PendingAction
   marketEvent?: MarketEventCard | null
   marketEventState?: MarketEventState | null
@@ -370,6 +378,12 @@ export const MAX_CHILDREN = {
   normal: 3,
   bigFamily: 6,
 } as const
+
+export const START_AGE = 25
+export const RETIREMENT_AGE = 65
+export const MAX_AGE_MONTHS = (RETIREMENT_AGE - START_AGE) * 12
+
+export const UNEMPLOYMENT_INSURANCE_RATE = 0.03
 
 // ==================== v3 新增类型 ====================
 

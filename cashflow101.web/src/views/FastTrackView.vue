@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Banknote,
   Bot,
+  Calendar,
   Dices,
   Eye,
   Landmark,
@@ -37,6 +38,11 @@ const gameStore = useGameStore()
 
 // 是否处于观战模式
 const isSpectator = computed(() => route.query.spectator === 'true')
+
+const ageDisplay = computed(() => {
+  const age = gameStore.currentPlayerAge
+  return `${age.years}岁${age.months}月`
+})
 
 function formatMoney(n: number): string {
   return `$${Math.round(n).toLocaleString()}`
@@ -186,7 +192,8 @@ watch(
   (id) => {
     if (id) {
       setTimeout(() => {
-        router.push({ name: 'victory' })
+        const target = gameStore.gameEndReason === 'retirement' ? 'retirement' : 'victory'
+        router.push({ name: target })
       }, 500)
     }
   },
@@ -220,7 +227,10 @@ watch(
               观战模式
             </span>
           </h1>
-          <p class="text-xs text-muted-foreground">第 {{ gameStore.turnNumber }} 回合</p>
+          <p class="text-xs text-muted-foreground flex items-center gap-1">
+            <Calendar class="h-3 w-3" />
+            {{ ageDisplay }} · 第 {{ gameStore.turnNumber }} 回合
+          </p>
         </div>
       </div>
 

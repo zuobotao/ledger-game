@@ -370,6 +370,30 @@ export function decideBuyInsurance(
   }
 }
 
+/**
+ * 决策：是否参保失业保险（月缴型）
+ *
+ * @returns true = 参保，false = 停保/不参保
+ */
+export function decideUnemploymentInsurance(
+  player: Player,
+  difficulty: AIDifficulty,
+): boolean {
+  switch (difficulty) {
+    case 'easy':
+      // 始终参保（保守求稳）
+      return true
+    case 'medium':
+      // 现金 > 3个月支出时参保，否则停保
+      return player.cash >= player.totalExpenses * 3
+    case 'hard':
+      // 不参保（节省成本，靠现金储备应对）
+      return false
+    default:
+      return false
+  }
+}
+
 // ==================== 6. 慈善决策 ====================
 
 /**
