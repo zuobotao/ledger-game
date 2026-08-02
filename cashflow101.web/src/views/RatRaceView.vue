@@ -8,7 +8,6 @@ import {
   Dice5,
   Dices,
   Landmark,
-  RotateCcw,
   Shield,
   TrendingUp,
   BriefcaseBusiness,
@@ -18,6 +17,12 @@ import type { Asset, Liability, MarketEventCard, OpportunityCard } from '@/types
 import BankModal from '@/components/BankModal.vue'
 import DiceRoller from '@/components/DiceRoller.vue'
 import RatRaceBoard from '@/components/RatRaceBoard.vue'
+import TransactionHistory from '@/components/TransactionHistory.vue'
+import CardHistory from '@/components/CardHistory.vue'
+import StockQuantitySelector from '@/components/StockQuantitySelector.vue'
+import { History, Receipt, CreditCard, BarChart2 } from 'lucide-vue-next'
+import FinancialCharts from '@/components/FinancialCharts.vue'
+import StockPortfolioChart from '@/components/StockPortfolioChart.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -49,6 +54,28 @@ function onDiceAnimationDone() {
   showDiceAnimation.value = false
 }
 
+// ========== 棋盘中心卡片显示相关 ==========
+const showBoardCard = computed(() => {
+  return gameStore.pendingAction.type === 'opportunity' || gameStore.pendingAction.type === 'market'
+})
+
+const boardCardType = computed<'opportunity' | 'market' | null>(() => {
+  if (gameStore.pendingAction.type === 'opportunity') return 'opportunity'
+  if (gameStore.pendingAction.type === 'market') return 'market'
+  return null
+})
+
+const boardCardData = computed<OpportunityCard | MarketEventCard | null>(() => {
+  if (gameStore.pendingAction.type === 'opportunity' && gameStore.pendingAction.card) {
+    return gameStore.pendingAction.card as OpportunityCard
+  }
+  if (gameStore.pendingAction.type === 'market') {
+    return gameStore.marketEvent ?? (gameStore.pendingAction.card as MarketEventCard) ?? null
+  }
+  return null
+})
+
+// ========== 机会卡相关 ==========
 const opportunityCard = computed<OpportunityCard | null>(() => {
   if (gameStore.pendingAction.type === 'opportunity' && gameStore.pendingAction.card) {
     return gameStore.pendingAction.card as OpportunityCard
@@ -60,11 +87,35 @@ const maxOpportunityQuantity = computed(() => {
   const card = opportunityCard.value
   const player = gameStore.currentPlayer
   if (!card || !player || card.cost <= 0) return 1
-  if (card.maxQuantity) return card.maxQuantity
+
+  // 卖出卡：最大数量 = 持仓数量
+  if (card.action === 'sell' && card.type === 'stock' && card.symbol) {
+    const holding = gameStore.getStockHolding(card.symbol)
+    return holding?.quantity ?? 0
+  }
+
+  // 买入卡
+  if (card.maxQuantity) {
+    // 受现金限制
+    const maxByCash = Math.floor(player.cash / card.cost)
+    return Math.max(1, Math.min(card.maxQuantity, maxByCash))
+  }
   // 根据现金计算最大可购买数量
   return Math.max(1, Math.floor(player.cash / card.cost))
 })
 
+const isOpportunitySell = computed(() => {
+  const card = opportunityCard.value
+  return card?.type === 'stock' && card.action === 'sell'
+})
+
+const currentStockHolding = computed(() => {
+  const card = opportunityCard.value
+  if (!card || card.type !== 'stock' || !card.symbol) return null
+  return gameStore.getStockHolding(card.symbol)
+})
+
+// ========== 市场卡相关 ==========
 const marketCard = computed<MarketEventCard | null>(() => {
   if (gameStore.pendingAction.type === 'market') {
     return gameStore.marketEvent ?? (gameStore.pendingAction.card as MarketEventCard)
@@ -88,6 +139,8 @@ const sellableAssets = computed(() => {
 const opportunityQuantity = ref(1)
 const showBankModal = ref(false)
 const repayInputs = ref<Record<string, number>>({})
+const sidePanelTab = ref<'balance' | 'history' | 'stats'>('balance')
+const historyTab = ref<'transactions' | 'cards'>('transactions')
 
 const canBuyInsurance = computed(() => {
   const p = gameStore.currentPlayer
@@ -114,6 +167,10 @@ const sellQuantities = ref<Record<string, number>>({})
 
 function getSellQuantity(assetId: string): number {
   return sellQuantities.value[assetId] ?? 1
+}
+
+function setSellQuantity(assetId: string, val: number) {
+  sellQuantities.value[assetId] = val
 }
 
 function changeSellQty(assetId: string, delta: number) {
@@ -152,6 +209,12 @@ function onPayoffLiability(loan: Liability) {
 function onAcknowledge() {
   gameStore.acknowledgeMessage()
 }
+
+// 判断 pending action 浮层是否应该显示
+// 当有卡片在棋盘中心显示时，浮层仍然显示操作按钮
+const showPendingPanel = computed(() => {
+  return gameStore.pendingAction.type || gameStore.pendingAction.message
+})
 </script>
 
 <template>
@@ -215,11 +278,60 @@ function onAcknowledge() {
 
     <!-- Game area -->
     <div class="flex flex-1 flex-col overflow-hidden lg:flex-row">
-      <!-- Financial sheet -->
+      <!-- Left side panel -->
       <aside
-        class="order-2 shrink-0 overflow-y-auto border-t border-border bg-secondary/30 px-4 py-4 lg:order-1 lg:w-80 lg:border-t-0 lg:border-r lg:px-5 xl:w-96"
+        class="order-2 flex shrink-0 flex-col overflow-hidden border-t border-border bg-secondary/30 lg:order-1 lg:w-80 lg:border-t-0 lg:border-r xl:w-96"
       >
-        <div v-if="gameStore.currentPlayer" class="space-y-4">
+        <!-- Panel tabs -->
+        <div class="flex border-b border-border px-4 pt-3 lg:px-5">
+          <button
+            class="relative flex-1 pb-3 text-sm font-medium transition-colors"
+            :class="sidePanelTab === 'balance' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+            @click="sidePanelTab = 'balance'"
+          >
+            <span class="flex items-center justify-center gap-1.5">
+              <Receipt class="h-4 w-4" />
+              财务
+            </span>
+            <span
+              v-if="sidePanelTab === 'balance'"
+              class="absolute bottom-0 left-1/2 h-0.5 w-10 -translate-x-1/2 rounded-full bg-primary"
+            />
+          </button>
+          <button
+            class="relative flex-1 pb-3 text-sm font-medium transition-colors"
+            :class="sidePanelTab === 'history' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+            @click="sidePanelTab = 'history'"
+          >
+            <span class="flex items-center justify-center gap-1.5">
+              <History class="h-4 w-4" />
+              历史
+            </span>
+            <span
+              v-if="sidePanelTab === 'history'"
+              class="absolute bottom-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-primary"
+            />
+          </button>
+          <button
+            class="relative flex-1 pb-3 text-sm font-medium transition-colors"
+            :class="sidePanelTab === 'stats' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+            @click="sidePanelTab = 'stats'"
+          >
+            <span class="flex items-center justify-center gap-1.5">
+              <BarChart2 class="h-4 w-4" />
+              统计
+            </span>
+            <span
+              v-if="sidePanelTab === 'stats'"
+              class="absolute bottom-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-primary"
+            />
+          </button>
+        </div>
+
+        <!-- Panel content -->
+        <div class="flex-1 overflow-y-auto px-4 py-4 lg:px-5">
+          <!-- Balance sheet tab -->
+          <div v-if="sidePanelTab === 'balance' && gameStore.currentPlayer" class="space-y-4">
           <div class="flex items-center justify-between">
             <h2 class="text-base font-semibold">财务报表</h2>
             <span class="text-xs uppercase tracking-wider text-muted-foreground font-mono">
@@ -309,6 +421,15 @@ function onAcknowledge() {
             <div v-else class="text-sm text-muted-foreground">暂无资产</div>
           </section>
 
+          <!-- 股票投资组合 -->
+          <section
+            v-if="gameStore.currentPlayer?.assets.some(a => a.type === 'stock')"
+            class="rounded-2xl border border-border bg-background p-4 shadow-sm"
+          >
+            <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">股票组合</h3>
+            <StockPortfolioChart v-if="gameStore.currentPlayer" :player-id="gameStore.currentPlayer.id" />
+          </section>
+
           <section class="rounded-2xl border border-border bg-background p-4 shadow-sm">
             <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">负债</h3>
             <ul v-if="gameStore.currentPlayer.liabilities.length" class="space-y-2 text-sm">
@@ -350,45 +471,118 @@ function onAcknowledge() {
             </ul>
             <div v-else class="text-sm text-muted-foreground">无负债</div>
           </section>
+          </div>
+
+          <!-- History tab -->
+          <div v-else-if="sidePanelTab === 'history'" class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-base font-semibold">历史记录</h2>
+              <span class="text-xs text-muted-foreground">
+                共 {{ gameStore.transactions.length + gameStore.cardHistory.length }} 条
+              </span>
+            </div>
+
+            <!-- History sub-tabs -->
+            <div class="flex border-b border-border">
+              <button
+                class="relative flex-1 pb-2 text-xs font-medium transition-colors"
+                :class="historyTab === 'transactions' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+                @click="historyTab = 'transactions'"
+              >
+                <span class="flex items-center justify-center gap-1">
+                  <Receipt class="h-3.5 w-3.5" />
+                  交易记录
+                </span>
+                <span
+                  v-if="historyTab === 'transactions'"
+                  class="absolute bottom-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-primary"
+                />
+              </button>
+              <button
+                class="relative flex-1 pb-2 text-xs font-medium transition-colors"
+                :class="historyTab === 'cards' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+                @click="historyTab = 'cards'"
+              >
+                <span class="flex items-center justify-center gap-1">
+                  <CreditCard class="h-3.5 w-3.5" />
+                  抽卡记录
+                </span>
+                <span
+                  v-if="historyTab === 'cards'"
+                  class="absolute bottom-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-primary"
+                />
+              </button>
+            </div>
+
+            <TransactionHistory v-if="historyTab === 'transactions'" />
+            <CardHistory v-else />
+          </div>
+
+          <!-- Stats tab -->
+          <div v-else-if="sidePanelTab === 'stats'" class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-base font-semibold">财务统计</h2>
+              <span class="text-xs text-muted-foreground">
+                {{ gameStore.currentPlayer?.financialSnapshots.length ?? 0 }} 个快照
+              </span>
+            </div>
+            <FinancialCharts v-if="gameStore.currentPlayer" :player-id="gameStore.currentPlayer.id" />
+          </div>
         </div>
       </aside>
 
       <!-- Board -->
-      <section class="order-1 flex flex-1 flex-col overflow-hidden">
-        <div class="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-6">
-          <div class="mx-auto max-w-[680px]">
+      <section class="relative order-1 flex flex-1 flex-col overflow-hidden">
+        <div class="flex flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 lg:p-6">
+          <div class="h-full w-full max-h-full max-w-[680px]">
             <RatRaceBoard
               :players="gameStore.players"
               :current-position="gameStore.currentPlayer?.ratRacePosition ?? 0"
               :last-roll="gameStore.lastRoll"
               :turn-number="gameStore.turnNumber"
               :current-player-name="gameStore.currentPlayer?.name ?? ''"
+              :is-rolling="showDiceAnimation"
+              :dice-values="gameStore.lastDiceValues"
+              :show-card="showBoardCard"
+              :card-type="boardCardType"
+              :card-data="boardCardData"
             />
           </div>
         </div>
 
-        <!-- Pending action toast / modal area -->
-        <div
-          v-if="gameStore.pendingAction.type || gameStore.pendingAction.message"
-          class="mx-4 mb-4 rounded-2xl border border-border bg-background p-4 shadow-md lg:mx-6"
-        >
+        <!-- Pending action floating panel -->
+        <Transition name="slide-up">
+          <div
+            v-if="showPendingPanel"
+            class="pointer-events-none absolute bottom-0 left-0 right-0 z-20 px-3 pb-3 sm:px-6 sm:pb-4"
+          >
+            <div class="pointer-events-auto mx-auto max-w-[680px] rounded-2xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur-md">
           <div class="flex items-start gap-3">
-            <AlertCircle class="mt-0.5 h-5 w-5 text-primary" />
+            <AlertCircle v-if="!showBoardCard" class="mt-0.5 h-5 w-5 text-primary" />
             <div class="flex-1">
-              <p class="text-sm font-medium">{{ gameStore.pendingAction.message }}</p>
+              <!-- 非卡片类 pending action 显示消息 -->
+              <p v-if="!showBoardCard" class="text-sm font-medium">{{ gameStore.pendingAction.message }}</p>
 
-              <!-- Opportunity card -->
-              <div v-if="opportunityCard" class="mt-3 rounded-xl border border-border bg-secondary p-3">
-                <div class="text-xs uppercase tracking-wider text-muted-foreground">
-                  {{ opportunityCard.size === 'big' ? '大机会' : '小机会' }} · {{ opportunityCard.type }}
+              <!-- ========== 机会卡操作区（卡片内容显示在棋盘中心，这里只放操作控件） ========== -->
+              <div v-if="opportunityCard" class="card-action-panel">
+                <!-- 股票卖出卡：无持仓提示 -->
+                <div v-if="isOpportunitySell && maxOpportunityQuantity === 0" class="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  你当前没有 {{ opportunityCard.symbol }} 股票，无法卖出。
                 </div>
-                <div class="text-base font-semibold">{{ opportunityCard.title }}</div>
-                <p class="text-sm text-muted-foreground">{{ opportunityCard.description }}</p>
-                <div class="mt-2 flex items-center gap-4 text-sm">
-                  <span>价格：<span class="font-medium">{{ formatMoney(opportunityCard.cost) }}</span></span>
-                  <span>月现金流：<span class="font-medium text-success">{{ formatMoney(opportunityCard.cashFlow) }}</span></span>
-                </div>
-                <div class="mt-3 flex items-center gap-3">
+
+                <!-- 数量选择器（股票类且有有效最大数量时显示） -->
+                <StockQuantitySelector
+                  v-if="opportunityCard.type === 'stock' && maxOpportunityQuantity > 0"
+                  v-model="opportunityQuantity"
+                  :max-quantity="maxOpportunityQuantity"
+                  :unit-price="opportunityCard.cost"
+                  :mode="isOpportunitySell ? 'sell' : 'buy'"
+                  :available-cash="gameStore.currentPlayer?.cash"
+                  class="mb-3"
+                />
+
+                <!-- 非股票类数量选择器（保留原简单样式） -->
+                <div v-else-if="opportunityCard.type !== 'stock'" class="mb-3 flex items-center gap-3">
                   <label class="text-sm font-medium text-foreground">购买数量：</label>
                   <div class="flex items-center gap-1">
                     <button
@@ -419,24 +613,38 @@ function onAcknowledge() {
                     最多 {{ maxOpportunityQuantity }} 份
                   </span>
                 </div>
-                <div class="mt-2 flex items-center justify-between rounded-lg bg-muted px-3 py-2">
+
+                <!-- 总价显示（非股票类） -->
+                <div v-if="opportunityCard.type !== 'stock'" class="mb-3 flex items-center justify-between rounded-lg bg-muted px-3 py-2">
                   <span class="text-sm text-muted-foreground">总价：</span>
                   <span class="text-base font-bold text-foreground">
                     {{ formatMoney(opportunityCard.cost * opportunityQuantity) }}
                   </span>
                 </div>
-                <div class="mt-3 flex gap-2">
+
+                <!-- 操作按钮 -->
+                <div class="flex gap-2">
                   <button
+                    v-if="!isOpportunitySell"
                     type="button"
                     :disabled="gameStore.currentPlayer ? gameStore.currentPlayer.cash < opportunityCard.cost * opportunityQuantity : true"
-                    class="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
+                    class="flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
                     @click="onBuyOpportunity"
                   >
                     买入
                   </button>
                   <button
+                    v-else
                     type="button"
-                    class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted"
+                    :disabled="maxOpportunityQuantity === 0 || opportunityQuantity <= 0"
+                    class="flex-1 rounded-full bg-success px-4 py-2.5 text-sm font-semibold text-success-foreground hover:opacity-90 disabled:opacity-40"
+                    @click="onBuyOpportunity"
+                  >
+                    卖出
+                  </button>
+                  <button
+                    type="button"
+                    class="flex-1 rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted"
                     @click="onDeclineOpportunity"
                   >
                     放弃
@@ -444,8 +652,8 @@ function onAcknowledge() {
                 </div>
               </div>
 
-              <!-- Market event -->
-              <div v-if="marketCard && gameStore.pendingAction.type === 'market'" class="mt-3">
+              <!-- ========== 市场卡操作区 ========== -->
+              <div v-if="marketCard && gameStore.pendingAction.type === 'market'" class="card-action-panel">
                 <!-- 多玩家提示 -->
                 <div
                   v-if="gameStore.marketEventState"
@@ -470,7 +678,7 @@ function onAcknowledge() {
                   <div
                     v-for="asset in sellableAssets"
                     :key="asset.id"
-                    class="space-y-2 rounded-xl border border-border bg-secondary p-3"
+                    class="space-y-2 rounded-xl border border-border bg-secondary/50 p-3"
                   >
                     <div class="flex items-center justify-between">
                       <span class="text-sm font-medium">{{ asset.name }} ×{{ asset.quantity }}</span>
@@ -478,37 +686,20 @@ function onAcknowledge() {
                         单价 {{ formatMoney(getMarketPrice(asset)) }}
                       </span>
                     </div>
-                    <!-- 数量选择器（仅股票类） -->
-                    <div
+                    <!-- 数量选择器（股票类） -->
+                    <StockQuantitySelector
                       v-if="asset.type === 'stock' && asset.quantity > 1"
-                      class="flex items-center justify-between"
-                    >
-                      <span class="text-xs text-muted-foreground">卖出数量：</span>
-                      <div class="flex items-center gap-1">
-                        <button
-                          type="button"
-                          :disabled="getSellQuantity(asset.id) <= 1"
-                          class="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-sm font-bold transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
-                          @click="changeSellQty(asset.id, -1)"
-                        >
-                          −
-                        </button>
-                        <span class="w-8 text-center text-sm font-semibold">
-                          {{ getSellQuantity(asset.id) }}
-                        </span>
-                        <button
-                          type="button"
-                          :disabled="getSellQuantity(asset.id) >= asset.quantity"
-                          class="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-sm font-bold transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
-                          @click="changeSellQty(asset.id, 1)"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                    <div class="flex items-center justify-between">
+                      :model-value="getSellQuantity(asset.id)"
+                      @update:model-value="(v: number) => setSellQuantity(asset.id, v)"
+                      :max-quantity="asset.quantity"
+                      :unit-price="getMarketPrice(asset)"
+                      mode="sell"
+                      :show-quick-buttons="asset.quantity > 10"
+                    />
+                    <!-- 非股票类：直接显示可得金额 -->
+                    <div v-else class="flex items-center justify-between">
                       <span class="text-xs text-muted-foreground">
-                        可得：<span class="font-semibold text-success">{{ formatMoney(getMarketPrice(asset) * getSellQuantity(asset.id)) }}</span>
+                        可得：<span class="font-semibold text-success">{{ formatMoney(getMarketPrice(asset) * (asset.type === 'stock' ? getSellQuantity(asset.id) : asset.quantity)) }}</span>
                       </span>
                       <button
                         type="button"
@@ -518,6 +709,15 @@ function onAcknowledge() {
                         卖出
                       </button>
                     </div>
+                    <!-- 股票类：单独的卖出按钮行 -->
+                    <button
+                      v-if="asset.type === 'stock'"
+                      type="button"
+                      class="w-full rounded-full bg-primary py-2 text-xs font-semibold text-primary-foreground hover:opacity-90"
+                      @click="onSellAsset(asset)"
+                    >
+                      卖出 {{ getSellQuantity(asset.id) }} 股 · 可得 {{ formatMoney(getMarketPrice(asset) * getSellQuantity(asset.id)) }}
+                    </button>
                   </div>
                 </div>
                 <div v-else class="text-xs text-muted-foreground">
@@ -525,7 +725,7 @@ function onAcknowledge() {
                 </div>
                 <button
                   type="button"
-                  class="mt-3 w-full rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted"
+                  class="mt-3 w-full rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted"
                   @click="gameStore.dismissMarketEvent()"
                 >
                   {{ gameStore.marketEventState && gameStore.marketEventState.respondedIds.length < gameStore.players.length - 1 ? '下一位玩家' : '结束' }}
@@ -591,57 +791,86 @@ function onAcknowledge() {
                 </button>
               </div>
             </div>
+            </div>
+            </div>
           </div>
-        </div>
+        </Transition>
       </section>
     </div>
 
     <!-- Bottom action bar -->
     <footer
-      class="shrink-0 flex items-center justify-center gap-2 border-t border-border bg-secondary/50 px-4 py-3 backdrop-blur-sm sm:gap-3 sm:px-6 sm:py-4"
+      class="shrink-0 border-t border-border bg-secondary/50 px-4 py-3 backdrop-blur-sm sm:px-6 sm:py-4"
     >
-      <button
-        type="button"
-        :disabled="gameStore.turnStatus !== 'idle'"
-        class="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:px-6"
-        @click="onRollDice"
-      >
-        <Dices v-if="gameStore.currentPlayer?.doubleDiceNextTurn" class="h-5 w-5" />
-        <Dice5 v-else class="h-5 w-5" />
-        {{ gameStore.currentPlayer?.doubleDiceNextTurn ? '掷双骰' : '掷骰子' }}
-      </button>
-      <button
-        type="button"
-        class="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-secondary px-4 text-sm font-semibold text-secondary-foreground shadow-sm hover:bg-muted sm:h-12 sm:px-6"
-        @click="showBankModal = true"
-      >
-        <Landmark class="h-5 w-5" />
-        银行
-      </button>
-      <button
-        v-if="canBuyInsurance"
-        type="button"
-        class="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-success px-4 text-sm font-semibold text-success-foreground shadow-sm hover:opacity-90 sm:h-12 sm:px-6"
-        @click="gameStore.buyInsurance()"
-      >
-        <Shield class="h-5 w-5" />
-        买保险
-      </button>
-      <button
-        type="button"
-        :disabled="gameStore.turnStatus === 'idle'"
-        class="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-transparent px-4 text-sm font-semibold text-foreground hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 sm:h-12"
-        @click="onEndTurn"
-      >
-        <RotateCcw class="h-5 w-5" />
-        结束回合
-      </button>
+      <!-- Info row -->
+      <div class="mb-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span
+            class="inline-block h-3.5 w-3.5 rounded-full ring-2 ring-background"
+            :style="{ backgroundColor: gameStore.currentPlayer?.color }"
+          />
+          <span class="text-sm font-medium text-foreground">
+            {{ gameStore.currentPlayer?.name }}
+          </span>
+          <span class="text-xs text-muted-foreground">
+            · {{ gameStore.turnStatus === 'idle' ? '等待掷骰子' : gameStore.turnStatus === 'rolling' ? '掷骰中...' : '操作中' }}
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            class="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-foreground transition hover:bg-muted"
+            :title="'银行'"
+            @click="showBankModal = true"
+          >
+            <Landmark class="h-5 w-5" />
+          </button>
+          <button
+            v-if="canBuyInsurance"
+            type="button"
+            class="flex h-10 w-10 items-center justify-center rounded-full bg-success/20 text-success transition hover:bg-success/30"
+            :title="'买保险'"
+            @click="gameStore.buyInsurance()"
+          >
+            <Shield class="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+
+      <!-- Main action button -->
+      <Transition name="main-btn" mode="out-in">
+        <!-- Roll dice button (idle state) -->
+        <button
+          v-if="gameStore.turnStatus === 'idle'"
+          key="roll"
+          type="button"
+          class="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground shadow-lg shadow-primary/30 transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+          @click="onRollDice"
+        >
+          <Dices v-if="gameStore.currentPlayer?.doubleDiceNextTurn" class="h-6 w-6" />
+          <Dice5 v-else class="h-6 w-6" />
+          {{ gameStore.currentPlayer?.doubleDiceNextTurn ? '掷 双 骰' : '掷 骰 子' }}
+        </button>
+
+        <!-- End turn button (resolving state) -->
+        <button
+          v-else
+          key="end"
+          type="button"
+          class="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-secondary text-base font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+          :disabled="gameStore.turnStatus === 'rolling'"
+          @click="onEndTurn"
+        >
+          结 束 回 合
+          <ArrowRight class="h-5 w-5" />
+        </button>
+      </Transition>
     </footer>
 
     <!-- Bank modal -->
     <BankModal :show="showBankModal" @close="showBankModal = false" />
 
-    <!-- Dice roller animation -->
+    <!-- Dice roller animation (fullscreen fallback, can be removed later) -->
     <DiceRoller
       :show="showDiceAnimation"
       :values="gameStore.lastDiceValues"
@@ -649,3 +878,36 @@ function onAcknowledge() {
     />
   </main>
 </template>
+
+<style scoped>
+.main-btn-enter-active,
+.main-btn-leave-active {
+  transition: all 0.25s ease;
+}
+
+.main-btn-enter-from {
+  opacity: 0;
+  transform: translateY(8px) scale(0.96);
+}
+
+.main-btn-leave-to {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.96);
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* 卡片操作面板样式 */
+.card-action-panel {
+  width: 100%;
+}
+</style>

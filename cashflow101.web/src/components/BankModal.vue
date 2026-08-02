@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Landmark, X } from 'lucide-vue-next'
+import { Landmark, X, PieChart } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import type { Asset } from '@/types/game'
+import FinancialStatement from './FinancialStatement.vue'
 
 const props = defineProps<{
   show: boolean
@@ -14,7 +15,7 @@ const emit = defineEmits<{
 
 const store = useGameStore()
 
-type TabKey = 'deposit' | 'loan' | 'repay' | 'assets'
+type TabKey = 'deposit' | 'loan' | 'repay' | 'assets' | 'statement'
 const activeTab = ref<TabKey>('deposit')
 
 const depositAmount = ref<number>(0)
@@ -161,7 +162,7 @@ function handleOverlayClick(e: MouseEvent) {
         <Transition name="scale">
           <div
             v-if="show"
-            class="w-full max-w-md bg-popover text-popover-foreground border border-border rounded-[var(--radius-md)] shadow-xl overflow-hidden"
+            class="w-full max-w-lg bg-popover text-popover-foreground border border-border rounded-[var(--radius-md)] shadow-xl overflow-hidden"
           >
             <!-- Header -->
             <div class="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -233,6 +234,20 @@ function handleOverlayClick(e: MouseEvent) {
                 资产
                 <span
                   v-if="activeTab === 'assets'"
+                  class="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full"
+                />
+              </button>
+              <button
+                class="flex-1 py-3 text-sm font-medium transition-colors relative"
+                :class="activeTab === 'statement' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+                @click="activeTab = 'statement'"
+              >
+                <span class="flex items-center justify-center gap-1">
+                  <PieChart class="w-3.5 h-3.5" />
+                  财务报表
+                </span>
+                <span
+                  v-if="activeTab === 'statement'"
                   class="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full"
                 />
               </button>
@@ -552,6 +567,11 @@ function handleOverlayClick(e: MouseEvent) {
                     </div>
                   </div>
                 </div>
+              </template>
+
+              <!-- ====== Financial Statement Tab ====== -->
+              <template v-else-if="activeTab === 'statement'">
+                <FinancialStatement />
               </template>
             </div>
           </div>

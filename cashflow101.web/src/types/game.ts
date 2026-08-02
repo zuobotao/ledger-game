@@ -58,6 +58,22 @@ export interface Player {
   childrenCount: number
   doubleDiceNextTurn: boolean
   dream?: Dream
+  financialStatement: FinancialStatementState
+  financialSnapshots: FinancialSnapshot[]
+}
+
+export interface FinancialSnapshot {
+  turn: number
+  cash: number
+  totalAssets: number
+  totalLiabilities: number
+  netWorth: number
+  totalIncome: number
+  totalExpenses: number
+  monthlyCashFlow: number
+  stockValue: number
+  realEstateValue: number
+  businessValue: number
 }
 
 export interface GameConfig {
@@ -107,6 +123,7 @@ export interface OpportunityCard {
   cashFlow: number
   symbol?: string
   maxQuantity?: number
+  action?: 'buy' | 'sell'
 }
 
 export interface MarketEventCard {
@@ -159,6 +176,55 @@ export interface CardDeck {
   fastTrackOpportunity: OpportunityCard[]
 }
 
+export type TransactionType =
+  | 'salary'
+  | 'passive_income'
+  | 'expense'
+  | 'stock_buy'
+  | 'stock_sell'
+  | 'real_estate_buy'
+  | 'real_estate_sell'
+  | 'business_buy'
+  | 'business_sell'
+  | 'bank_loan'
+  | 'loan_repay'
+  | 'savings_deposit'
+  | 'savings_withdraw'
+  | 'insurance_buy'
+  | 'doodad'
+  | 'charity'
+  | 'child'
+  | 'layoff'
+  | 'other'
+
+export interface TransactionRecord {
+  id: string
+  turnNumber: number
+  playerId: string
+  type: TransactionType
+  amount: number
+  description: string
+  assetSymbol?: string
+  assetQuantity?: number
+  unitPrice?: number
+  timestamp: number
+}
+
+export type CardHistoryType = 'opportunity' | 'market' | 'doodad' | 'fast_track_opportunity'
+
+export interface CardHistoryRecord {
+  id: string
+  turnNumber: number
+  playerId: string
+  type: CardHistoryType
+  cardId: string
+  cardTitle: string
+  cardDescription: string
+  action?: 'accepted' | 'declined' | 'sold' | 'ignored'
+  amount?: number
+  timestamp: number
+}
+
 export interface GameState {
   players: Player[]
   currentPlayerIndex: number
@@ -172,6 +238,8 @@ export interface GameState {
   marketEvent?: MarketEventCard | null
   marketEventState?: MarketEventState | null
   decks?: CardDeck
+  transactions?: TransactionRecord[]
+  cardHistory?: CardHistoryRecord[]
 }
 
 export interface MarketEventState {
@@ -182,6 +250,48 @@ export interface MarketEventState {
 }
 
 export type TurnStatus = 'idle' | 'rolling' | 'resolving' | 'finished'
+
+export interface FinancialStatementState {
+  // 用户填写的值
+  userTotalAssets: number | null
+  userTotalLiabilities: number | null
+  userNetWorth: number | null
+  userPassiveIncome: number | null
+  userTotalIncome: number | null
+  userTotalExpenses: number | null
+  userMonthlyCashFlow: number | null
+  // 用户填写的其他资产/负债/支出
+  userOtherAssets: number | null
+  userOtherLiabilities: number | null
+  userOtherExpenses: number | null
+  // 校验结果
+  verified: Record<string, boolean>
+  // 已查看答案的项
+  viewedAnswers: string[]
+}
+
+// 财务报表中所有数值字段的联合类型
+export type FinancialStatementNumberField =
+  | 'userTotalAssets'
+  | 'userTotalLiabilities'
+  | 'userNetWorth'
+  | 'userPassiveIncome'
+  | 'userTotalIncome'
+  | 'userTotalExpenses'
+  | 'userMonthlyCashFlow'
+  | 'userOtherAssets'
+  | 'userOtherLiabilities'
+  | 'userOtherExpenses'
+
+// 需要校验的关键字段
+export type FinancialStatementKey =
+  | 'userTotalAssets'
+  | 'userTotalLiabilities'
+  | 'userNetWorth'
+  | 'userPassiveIncome'
+  | 'userTotalIncome'
+  | 'userTotalExpenses'
+  | 'userMonthlyCashFlow'
 
 export const PLAYER_COLORS = [
   { id: 'blue', name: '蓝色', value: '#007aff' },

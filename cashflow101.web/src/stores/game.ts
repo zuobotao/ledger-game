@@ -2,7 +2,13 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type {
   Asset,
+  CardHistoryRecord,
+  CardHistoryType,
   DoodadCard,
+  FinancialSnapshot,
+  FinancialStatementKey,
+  FinancialStatementNumberField,
+  FinancialStatementState,
   GameConfig,
   GamePhase,
   GameState,
@@ -13,6 +19,8 @@ import type {
   PendingAction,
   Player,
   PlayerColorId,
+  TransactionRecord,
+  TransactionType,
   TurnStatus,
 } from '@/types/game'
 import {
@@ -38,6 +46,23 @@ const STORAGE_KEY = 'cashflow101-game-state'
 
 function createId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+function createFinancialStatement(): FinancialStatementState {
+  return {
+    userTotalAssets: null,
+    userTotalLiabilities: null,
+    userNetWorth: null,
+    userPassiveIncome: null,
+    userTotalIncome: null,
+    userTotalExpenses: null,
+    userMonthlyCashFlow: null,
+    userOtherAssets: null,
+    userOtherLiabilities: null,
+    userOtherExpenses: null,
+    verified: {},
+    viewedAnswers: [],
+  }
 }
 
 function formatMoney(n: number): string {
@@ -107,6 +132,38 @@ function recalcPlayerFinancials(player: Player): void {
   player.cashFlow = player.totalIncome - player.totalExpenses
 }
 
+function createFinancialSnapshot(player: Player, turn: number): FinancialSnapshot {
+  const stockValue = player.assets
+    .filter((a) => a.type === 'stock')
+    .reduce((sum, a) => sum + (a.marketPrice ?? a.cost) * a.quantity, 0)
+  const realEstateValue = player.assets
+    .filter((a) => a.type === 'real_estate')
+    .reduce((sum, a) => sum + (a.marketPrice ?? a.cost) * a.quantity, 0)
+  const businessValue = player.assets
+    .filter((a) => a.type === 'business')
+    .reduce((sum, a) => sum + (a.marketPrice ?? a.cost) * a.quantity, 0)
+  const otherAssetsValue = player.assets
+    .filter((a) => a.type === 'other')
+    .reduce((sum, a) => sum + (a.marketPrice ?? a.cost) * a.quantity, 0)
+
+  const totalAssets = player.cash + player.savings + stockValue + realEstateValue + businessValue + otherAssetsValue
+  const totalLiabilities = player.liabilities.reduce((sum, l) => sum + l.amount, 0)
+
+  return {
+    turn,
+    cash: player.cash + player.savings,
+    totalAssets,
+    totalLiabilities,
+    netWorth: totalAssets - totalLiabilities,
+    totalIncome: player.totalIncome,
+    totalExpenses: player.totalExpenses,
+    monthlyCashFlow: player.cashFlow,
+    stockValue,
+    realEstateValue,
+    businessValue,
+  }
+}
+
 function createPlayer(
   name: string,
   colorId: PlayerColorId,
@@ -144,6 +201,8 @@ function createPlayer(
     hasInsurance: config.insurance,
     childrenCount: 0,
     doubleDiceNextTurn: false,
+    financialStatement: createFinancialStatement(),
+    financialSnapshots: [],
   }
 
   recalcPlayerFinancials(player)
@@ -178,6 +237,8 @@ export const useGameStore = defineStore('game', () => {
   const marketEvent = ref<MarketEventCard | null>(null)
   const marketEventState = ref<MarketEventState | null>(null)
   const decks = ref<CardDeck>(createDecks())
+  const transactions = ref<TransactionRecord[]>([])
+  const cardHistory = ref<CardHistoryRecord[]>([])
 
   const currentPlayer = computed<Player | null>(() => players.value[currentPlayerIndex.value] ?? null)
   const isGameStarted = computed(() => phase.value === 'rat_race' || phase.value === 'fast_track')
@@ -187,6 +248,146 @@ export const useGameStore = defineStore('game', () => {
     if (!p || phase.value !== 'rat_race') return false
     return p.passiveIncome >= p.totalExpenses
   })
+
+  // ========== 财务报表计算属性（正确答案） ==========
+  const correctTotalAssets = computed(() => {
+    const p = currentPlayer.value
+    if (!p) return 0
+    // 现金 + 储蓄 + 所有资产市值
+    const assetsValue = p.assets.reduce((sum, a) => {
+      return sum + (a.marketPrice ?? a.cost) * a.quantity
+    }, 0)
+    return p.cash + p.savings + assetsValue
+  })
+
+  const correctTotalLiabilities = computed(() => {
+    const p = currentPlayer.value
+    if (!p) return 0
+    return p.liabilities.reduce((sum, l) => sum + l.amount, 0)
+  })
+
+  const correctNetWorth = computed(() => {
+    return correctTotalAssets.value - correctTotalLiabilities.value
+  })
+
+  const correctPassiveIncome = computed(() => {
+    const p = currentPlayer.value
+    if (!p) return 0
+    return p.passiveIncome
+  })
+
+  const correctTotalIncome = computed(() => {
+    const p = currentPlayer.value
+    if (!p) return 0
+    return p.totalIncome
+  })
+
+  const correctTotalExpenses = computed(() => {
+    const p = currentPlayer.value
+    if (!p) return 0
+    return p.totalExpenses
+  })
+
+  const correctMonthlyCashFlow = computed(() => {
+    const p = currentPlayer.value
+    if (!p) return 0
+    return p.cashFlow
+  })
+
+  function getStockHolding(symbol: string): Asset | undefined {
+    const p = currentPlayer.value
+    if (!p) return undefined
+    return p.assets.find((a) => a.type === 'stock' && a.symbol === symbol)
+  }
+
+  function recordTransaction(
+    type: TransactionType,
+    amount: number,
+    description: string,
+    playerId?: string,
+    extra?: Partial<TransactionRecord>,
+  ) {
+    const record: TransactionRecord = {
+      id: createId(),
+      turnNumber: turnNumber.value,
+      playerId: playerId ?? currentPlayer.value?.id ?? '',
+      type,
+      amount,
+      description,
+      timestamp: Date.now(),
+      ...extra,
+    }
+    transactions.value.push(record)
+  }
+
+  function recordCardDrawn(
+    type: CardHistoryType,
+    card: { id: string; title: string; description: string },
+    playerId?: string,
+    action?: CardHistoryRecord['action'],
+    amount?: number,
+  ) {
+    const record: CardHistoryRecord = {
+      id: createId(),
+      turnNumber: turnNumber.value,
+      playerId: playerId ?? currentPlayer.value?.id ?? '',
+      type,
+      cardId: card.id,
+      cardTitle: card.title,
+      cardDescription: card.description,
+      action,
+      amount,
+      timestamp: Date.now(),
+    }
+    cardHistory.value.push(record)
+  }
+
+  // ========== 财务报表教育功能 ==========
+  function setFinancialStatementValue(field: FinancialStatementNumberField, value: number | null) {
+    const p = currentPlayer.value
+    if (!p) return
+    const fs = p.financialStatement as unknown as Record<string, number | null>
+    fs[field] = value
+    // 修改后清除该字段的校验状态
+    delete p.financialStatement.verified[field]
+    saveState()
+  }
+
+  function verifyFinancialItem(item: FinancialStatementKey): boolean {
+    const p = currentPlayer.value
+    if (!p) return false
+
+    const fs = p.financialStatement as unknown as Record<string, number | null>
+    const userValue = fs[item]
+    if (userValue === null || userValue === undefined) return false
+
+    const correctMap: Record<FinancialStatementKey, number> = {
+      userTotalAssets: correctTotalAssets.value,
+      userTotalLiabilities: correctTotalLiabilities.value,
+      userNetWorth: correctNetWorth.value,
+      userPassiveIncome: correctPassiveIncome.value,
+      userTotalIncome: correctTotalIncome.value,
+      userTotalExpenses: correctTotalExpenses.value,
+      userMonthlyCashFlow: correctMonthlyCashFlow.value,
+    }
+
+    const correct = correctMap[item]
+    if (correct === undefined) return false
+
+    const isCorrect = Math.round(userValue) === Math.round(correct)
+    p.financialStatement.verified[item] = isCorrect
+    saveState()
+    return isCorrect
+  }
+
+  function viewAnswer(item: string) {
+    const p = currentPlayer.value
+    if (!p) return
+    if (!p.financialStatement.viewedAnswers.includes(item)) {
+      p.financialStatement.viewedAnswers.push(item)
+    }
+    saveState()
+  }
 
   function saveState() {
     const state: GameState = {
@@ -202,6 +403,8 @@ export const useGameStore = defineStore('game', () => {
       marketEvent: marketEvent.value,
       marketEventState: marketEventState.value,
       decks: decks.value,
+      transactions: transactions.value,
+      cardHistory: cardHistory.value,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }
@@ -215,6 +418,12 @@ export const useGameStore = defineStore('game', () => {
         const patched: Player = { ...p }
         patched.unemploymentTurns ??= 0
         patched.doubleDiceNextTurn ??= false
+        if (!patched.financialStatement) {
+          patched.financialStatement = createFinancialStatement()
+        }
+        if (!patched.financialSnapshots) {
+          patched.financialSnapshots = []
+        }
         return patched
       })
       currentPlayerIndex.value = state.currentPlayerIndex ?? 0
@@ -228,6 +437,8 @@ export const useGameStore = defineStore('game', () => {
       marketEvent.value = state.marketEvent ?? null
       marketEventState.value = state.marketEventState ?? null
       decks.value = state.decks ?? createDecks()
+      transactions.value = state.transactions ?? []
+      cardHistory.value = state.cardHistory ?? []
       players.value.forEach(recalcPlayerFinancials)
     } catch {
       localStorage.removeItem(STORAGE_KEY)
@@ -250,6 +461,12 @@ export const useGameStore = defineStore('game', () => {
     marketEvent.value = null
     marketEventState.value = null
     decks.value = createDecks()
+    transactions.value = []
+    cardHistory.value = []
+    // 记录初始财务快照
+    players.value.forEach((p) => {
+      p.financialSnapshots.push(createFinancialSnapshot(p, 0))
+    })
     saveState()
     return true
   }
@@ -266,6 +483,8 @@ export const useGameStore = defineStore('game', () => {
     marketEvent.value = null
     marketEventState.value = null
     decks.value = createDecks()
+    transactions.value = []
+    cardHistory.value = []
     localStorage.removeItem(STORAGE_KEY)
   }
 
@@ -287,6 +506,15 @@ export const useGameStore = defineStore('game', () => {
   function moveToNextPlayer() {
     const count = players.value.length
     if (count === 0) return
+    // 为当前玩家记录财务快照
+    const currentP = currentPlayer.value
+    if (currentP) {
+      currentP.financialSnapshots.push(createFinancialSnapshot(currentP, turnNumber.value))
+      // 最多保留 100 个快照
+      if (currentP.financialSnapshots.length > 100) {
+        currentP.financialSnapshots.shift()
+      }
+    }
     const wasLastPlayer = currentPlayerIndex.value === count - 1
     currentPlayerIndex.value = (currentPlayerIndex.value + 1) % count
     if (wasLastPlayer) {
@@ -311,9 +539,11 @@ export const useGameStore = defineStore('game', () => {
   function handlePayday(player: Player): string {
     if (player.isUnemployed) {
       player.cash -= player.totalExpenses
+      recordTransaction('expense', -player.totalExpenses, '失业支出', player.id)
       return `失业中：没有工资，仍需支付 ${formatMoney(player.totalExpenses)} 支出。`
     }
     player.cash += player.cashFlow
+    recordTransaction('salary', player.cashFlow, '发工资', player.id)
     return `发工资：获得 ${formatMoney(player.cashFlow)} 现金流。`
   }
 
@@ -338,6 +568,7 @@ export const useGameStore = defineStore('game', () => {
   function applyDoodad(card: DoodadCard, player: Player): string {
     const paid = requireLoanForPayment(card.cost, `Doodad：${card.title}`, () => {
       player.cash -= card.cost
+      recordTransaction('doodad', -card.cost, card.title, player.id)
       setPending(null, `Doodad：${card.title}，支出 ${formatMoney(card.cost)}。`)
       turnStatus.value = 'resolving'
       saveState()
@@ -471,6 +702,14 @@ export const useGameStore = defineStore('game', () => {
     player.cash += price
     recalcPlayerFinancials(player)
 
+    const txType: TransactionType =
+      asset.type === 'stock' ? 'stock_sell' : asset.type === 'real_estate' ? 'real_estate_sell' : 'business_sell'
+    recordTransaction(txType, price, `卖出 ${asset.name}`, player.id, {
+      assetSymbol: asset.symbol,
+      assetQuantity: sellQty,
+      unitPrice: price / sellQty,
+    })
+
     const msg = `${player.name} 卖出 ${asset.name} ×${sellQty}，获得 ${formatMoney(price)}。`
     setPending(null, msg)
     turnStatus.value = 'resolving'
@@ -537,12 +776,14 @@ export const useGameStore = defineStore('game', () => {
       case 'opportunity': {
         const { card, remaining } = drawOpportunityCard(decks.value.opportunity)
         decks.value.opportunity = remaining
+        recordCardDrawn('opportunity', card)
         setPending('opportunity', `你遇到了一个${card.size === 'big' ? '大' : '小'}机会。`, card)
         break
       }
       case 'doodad': {
         const { card, remaining } = drawDoodadCard(decks.value.doodad)
         decks.value.doodad = remaining
+        recordCardDrawn('doodad', card)
         const msg = applyDoodad(card, player)
         if (pendingAction.value.type === 'need_loan') {
           turnStatus.value = 'resolving'
@@ -555,6 +796,7 @@ export const useGameStore = defineStore('game', () => {
       case 'market': {
         const { card, remaining } = drawMarketCard(decks.value.market)
         decks.value.market = remaining
+        recordCardDrawn('market', card)
         const msg = applyMarketEvent(card, player)
         setPending('market', msg, card)
         break
@@ -608,6 +850,7 @@ export const useGameStore = defineStore('game', () => {
     const paid = requireLoanForPayment(donation, '慈善捐赠', () => {
       player.cash -= donation
       player.doubleDiceNextTurn = true
+      recordTransaction('charity', -donation, '慈善捐赠')
       setPending(null, `你捐赠了 ${formatMoney(donation)}，下回合掷双骰。`)
       turnStatus.value = 'resolving'
       saveState()
@@ -623,10 +866,51 @@ export const useGameStore = defineStore('game', () => {
     saveState()
   }
 
+  function sellOpportunityStock(symbol: string, price: number, quantity: number): boolean {
+    const player = currentPlayer.value
+    if (!player) return false
+
+    const assetIndex = player.assets.findIndex((a) => a.type === 'stock' && a.symbol === symbol)
+    if (assetIndex === -1) return false
+    const asset = player.assets[assetIndex]!
+
+    if (asset.quantity < quantity) return false
+
+    const total = price * quantity
+    asset.quantity -= quantity
+    if (asset.quantity <= 0) {
+      player.assets.splice(assetIndex, 1)
+    }
+    player.cash += total
+    recalcPlayerFinancials(player)
+
+    recordTransaction('stock_sell', total, `卖出 ${symbol} 股票`, player.id, {
+      assetSymbol: symbol,
+      assetQuantity: quantity,
+      unitPrice: price,
+    })
+
+    setPending(null, `卖出 ${symbol} ×${quantity}，获得 ${formatMoney(total)}`)
+    turnStatus.value = 'resolving'
+    saveState()
+    return true
+  }
+
   function buyOpportunity(quantity = 1) {
     const player = currentPlayer.value
     const card = pendingAction.value.card as OpportunityCard | null
     if (!player || pendingAction.value.type !== 'opportunity' || !card) return false
+
+    // 卖出股票的机会卡
+    if (card.type === 'stock' && card.action === 'sell') {
+      const symbol = card.symbol!
+      const price = card.cost
+      const ok = sellOpportunityStock(symbol, price, quantity)
+      if (ok) {
+        recordCardDrawn('opportunity', card, player.id, 'sold', price * quantity)
+      }
+      return ok
+    }
 
     const cost = card.cost * quantity
     if (player.cash < cost) return false
@@ -649,6 +933,14 @@ export const useGameStore = defineStore('game', () => {
       player.assets.push(asset)
     }
     recalcPlayerFinancials(player)
+    const txType: TransactionType =
+      card.type === 'stock' ? 'stock_buy' : card.type === 'real_estate' ? 'real_estate_buy' : 'business_buy'
+    recordTransaction(txType, -cost, `买入 ${card.title}`, player.id, {
+      assetSymbol: card.symbol,
+      assetQuantity: quantity,
+      unitPrice: card.cost,
+    })
+    recordCardDrawn('opportunity', card, player.id, 'accepted', cost)
     setPending(null, `买入 ${card.title} ×${quantity}，支出 ${formatMoney(cost)}。`)
     turnStatus.value = 'resolving'
     saveState()
@@ -656,12 +948,20 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function declineOpportunity() {
+    const card = pendingAction.value.card as OpportunityCard | null
+    if (card) {
+      recordCardDrawn('opportunity', card, undefined, 'declined')
+    }
     setPending(null, '你放弃了这个机会。')
     turnStatus.value = 'resolving'
     saveState()
   }
 
   function dismissDoodad() {
+    const card = pendingAction.value.card as DoodadCard | null
+    if (card) {
+      recordCardDrawn('doodad', card, undefined, 'ignored', card.cost)
+    }
     turnStatus.value = 'resolving'
     saveState()
   }
@@ -727,6 +1027,7 @@ export const useGameStore = defineStore('game', () => {
     })
     player.expenses.other += payment
     recalcPlayerFinancials(player)
+    recordTransaction('bank_loan', rounded, '银行贷款')
     saveState()
     return true
   }
@@ -748,6 +1049,7 @@ export const useGameStore = defineStore('game', () => {
       player.liabilities.splice(index, 1)
     }
     recalcPlayerFinancials(player)
+    recordTransaction('loan_repay', -repayAmount, `还款 ${loan.name}`)
     saveState()
     return true
   }
@@ -761,6 +1063,7 @@ export const useGameStore = defineStore('game', () => {
 
     player.cash -= rounded
     player.savings += rounded
+    recordTransaction('savings_deposit', -rounded, '存款')
     saveState()
     return true
   }
@@ -774,6 +1077,7 @@ export const useGameStore = defineStore('game', () => {
 
     player.savings -= rounded
     player.cash += rounded
+    recordTransaction('savings_withdraw', rounded, '取款')
     saveState()
     return true
   }
@@ -812,6 +1116,7 @@ export const useGameStore = defineStore('game', () => {
 
     player.cash -= repayAmount
     recalcPlayerFinancials(player)
+    recordTransaction('loan_repay', -repayAmount, '偿还银行贷款')
     saveState()
     return true
   }
@@ -842,6 +1147,7 @@ export const useGameStore = defineStore('game', () => {
     }
     player.liabilities.splice(index, 1)
     recalcPlayerFinancials(player)
+    recordTransaction('loan_repay', -loan.amount, `还清 ${loan.name}`)
     saveState()
     return true
   }
@@ -859,6 +1165,7 @@ export const useGameStore = defineStore('game', () => {
     if (player.cash < cost) return false
     player.cash -= cost
     player.hasInsurance = true
+    recordTransaction('insurance_buy', -cost, '购买保险')
     saveState()
     return true
   }
@@ -971,15 +1278,29 @@ export const useGameStore = defineStore('game', () => {
     marketResponder,
     isMarketMyTurn,
     decks,
+    transactions,
+    cardHistory,
     currentPlayer,
     isGameStarted,
     canCurrentPlayerEnterFastTrack,
+    correctTotalAssets,
+    correctTotalLiabilities,
+    correctNetWorth,
+    correctPassiveIncome,
+    correctTotalIncome,
+    correctTotalExpenses,
+    correctMonthlyCashFlow,
+    setFinancialStatementValue,
+    verifyFinancialItem,
+    viewAnswer,
+    getStockHolding,
     startGame,
     resetGame,
     saveState,
     ratRaceRollDice,
     fastTrackRollDice,
     buyOpportunity,
+    sellOpportunityStock,
     declineOpportunity,
     sellAssetToMarket,
     dismissMarketEvent,
