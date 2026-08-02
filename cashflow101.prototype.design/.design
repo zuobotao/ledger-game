@@ -117,14 +117,15 @@
     "autoLayout": true,
     "deviceType": "desktop",
     "designLibrary": {
-      "name": "苹果",
-      "id": "dl_builtin_apple",
-      "path": "/Users/zuoyang/.trae-cn/design_libraries/dl_builtin_apple",
-      "prefix": "apple",
+      "name": "豆包",
+      "id": "dl_builtin_doubao",
+      "path": "/Users/zuoyang/.trae-cn/design_libraries/dl_builtin_doubao",
+      "prefix": "doubao",
       "version": null,
       "scope": null,
       "versionSource": null
     },
-    "themeMode": "light"
+    "themeMode": "dark",
+    "showEdge": true
   }
 }
