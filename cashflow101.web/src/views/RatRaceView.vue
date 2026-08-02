@@ -907,9 +907,9 @@ const showPendingPanel = computed(() => {
       </aside>
 
       <!-- Board -->
-      <section class="relative order-1 flex flex-1 flex-col overflow-hidden">
-        <div class="flex flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 lg:p-6">
-          <div class="h-full w-full max-h-full max-w-[680px]">
+      <section class="relative order-1 flex flex-1 flex-col overflow-hidden min-h-0">
+        <div class="flex flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 lg:p-6 min-h-0">
+          <div class="h-full w-full max-h-full max-w-[680px] min-h-0">
             <RatRaceBoard
               :players="gameStore.players"
               :current-position="gameStore.currentPlayer?.ratRacePosition ?? 0"
