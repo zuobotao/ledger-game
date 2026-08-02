@@ -12,6 +12,7 @@ import {
   Info,
   Sparkles,
   Shuffle,
+  Bot,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import { CAREERS, getCareerById, getRandomCareer } from '@/data/careers'
@@ -47,7 +48,16 @@ interface PlayerSetup {
   careerId: string
   colorId: PlayerColorId | 'random'
   dreamId: string
+  isAI: boolean
+  aiDifficulty: 'easy' | 'medium' | 'hard'
 }
+
+const playerTypeOptions = [
+  { id: 'human', name: '人类玩家' },
+  { id: 'easy', name: 'AI（简单）' },
+  { id: 'medium', name: 'AI（中等）' },
+  { id: 'hard', name: 'AI（困难）' },
+] as const
 
 const playerSetups = reactive<PlayerSetup[]>(
   Array.from({ length: 6 }, (_, i) => ({
@@ -55,6 +65,8 @@ const playerSetups = reactive<PlayerSetup[]>(
     careerId: 'random',
     colorId: 'random',
     dreamId: '',
+    isAI: false,
+    aiDifficulty: 'medium' as const,
   })),
 )
 
@@ -77,7 +89,7 @@ watch(
     for (let i = 0; i < count; i++) {
       if (!playerSetups[i]?.name) {
         playerSetups[i] = {
-          ...(playerSetups[i] ?? { careerId: 'random', colorId: 'random', dreamId: '' }),
+          ...(playerSetups[i] ?? { careerId: 'random', colorId: 'random', dreamId: '', isAI: false, aiDifficulty: 'medium' as const }),
           name: `玩家 ${i + 1}`,
         }
       }
@@ -140,6 +152,8 @@ function beginGame() {
     careerId: p.careerId,
     colorId: p.colorId === 'random' ? getRandomColorId() : p.colorId,
     dreamId: p.dreamId || undefined,
+    isAI: p.isAI,
+    aiDifficulty: p.isAI ? p.aiDifficulty : undefined,
   }))
 
   const usedColors = new Set<string>()
@@ -225,7 +239,7 @@ function getDreamName(dreamId: string): string {
             :key="index"
             class="grid grid-cols-1 sm:grid-cols-12 gap-3 p-3 rounded-[var(--radius-md)] border border-border bg-background"
           >
-            <div class="sm:col-span-4">
+            <div class="sm:col-span-3">
               <label
                 :for="`player-name-${index}`"
                 class="block text-xs font-medium text-muted-foreground mb-1.5"
@@ -284,7 +298,7 @@ function getDreamName(dreamId: string): string {
                 </button>
               </div>
             </div>
-            <div class="sm:col-span-3">
+            <div class="sm:col-span-2">
               <label
                 :for="`player-color-${index}`"
                 class="block text-xs font-medium text-muted-foreground mb-1.5"
@@ -298,6 +312,42 @@ function getDreamName(dreamId: string): string {
                 >
                   <option v-for="color in colorOptions" :key="color.id" :value="color.id">
                     {{ color.name }}
+                  </option>
+                </select>
+                <span
+                  class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                >
+                  <ChevronDown class="w-4 h-4" />
+                </span>
+              </div>
+            </div>
+            <div class="sm:col-span-2">
+              <label
+                :for="`player-type-${index}`"
+                class="block text-xs font-medium text-muted-foreground mb-1.5"
+                >玩家类型</label
+              >
+              <div class="relative">
+                <select
+                  :id="`player-type-${index}`"
+                  v-model="setup.isAI ? setup.aiDifficulty : 'human'"
+                  class="w-full h-10 px-3 pr-8 appearance-none bg-background border border-input rounded-[var(--radius-md)] text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
+                  @change="(e: Event) => {
+                    const val = (e.target as HTMLSelectElement).value
+                    if (val === 'human') {
+                      setup.isAI = false
+                    } else {
+                      setup.isAI = true
+                      setup.aiDifficulty = val as 'easy' | 'medium' | 'hard'
+                    }
+                  }"
+                >
+                  <option
+                    v-for="pt in playerTypeOptions"
+                    :key="pt.id"
+                    :value="pt.id"
+                  >
+                    {{ pt.name }}
                   </option>
                 </select>
                 <span
@@ -375,6 +425,7 @@ function getDreamName(dreamId: string): string {
                     : PLAYER_COLORS.find((c) => c.id === setup.colorId)?.value ?? '#9ca3af',
               }"
             ></span>
+            <Bot v-if="setup.isAI" class="w-3 h-3 opacity-70" />
             {{ setup.name }}
           </button>
         </div>

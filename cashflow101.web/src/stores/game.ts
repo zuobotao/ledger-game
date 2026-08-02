@@ -43,6 +43,8 @@ import {
 } from '@/data/cards'
 import { getDreamById, getRandomDream } from '@/data/dreams'
 import type { CardDeck } from '@/types/game'
+import { AIDecision } from '@/utils/aiDecision'
+import type { AIDifficulty } from '@/utils/aiDecision'
 
 const STORAGE_KEY = 'cashflow101-game-state'
 
@@ -172,6 +174,8 @@ function createPlayer(
   careerId: string,
   config: GameConfig,
   dreamId?: string,
+  isAI = false,
+  aiDifficulty?: AIDifficulty,
 ): Player {
   const career = careerId === 'random' ? getRandomCareer() : getCareerById(careerId) ?? getRandomCareer()
   const color = PLAYER_COLORS.find((c) => c.id === colorId)?.value ?? PLAYER_COLORS[0].value
@@ -206,7 +210,8 @@ function createPlayer(
     childrenCount: 0,
     doubleDiceNextTurn: false,
     dream,
-    isAI: false,
+    isAI,
+    aiDifficulty,
     financialStatement: createFinancialStatement(),
     financialSnapshots: [],
   }
@@ -245,6 +250,7 @@ export const useGameStore = defineStore('game', () => {
   const decks = ref<CardDeck>(createDecks())
   const transactions = ref<TransactionRecord[]>([])
   const cardHistory = ref<CardHistoryRecord[]>([])
+  const isAIThinking = ref(false)
 
   const currentPlayer = computed<Player | null>(() => players.value[currentPlayerIndex.value] ?? null)
   const isGameStarted = computed(() => phase.value === 'rat_race' || phase.value === 'fast_track')
@@ -454,14 +460,29 @@ export const useGameStore = defineStore('game', () => {
 
   function startGame(
     setupConfig: GameConfig,
-    playerSetups: { name: string; colorId: PlayerColorId; careerId: string; dreamId?: string }[],
+    playerSetups: {
+      name: string
+      colorId: PlayerColorId
+      careerId: string
+      dreamId?: string
+      isAI?: boolean
+      aiDifficulty?: AIDifficulty
+    }[],
   ) {
     const validSetups = playerSetups.slice(0, setupConfig.playerCount)
     if (validSetups.length === 0) return false
 
     config.value = { ...setupConfig }
     players.value = validSetups.map((setup) =>
-      createPlayer(setup.name, setup.colorId, setup.careerId, config.value, setup.dreamId),
+      createPlayer(
+        setup.name,
+        setup.colorId,
+        setup.careerId,
+        config.value,
+        setup.dreamId,
+        setup.isAI ?? false,
+        setup.aiDifficulty,
+      ),
     )
     currentPlayerIndex.value = 0
     phase.value = 'rat_race'
@@ -480,6 +501,15 @@ export const useGameStore = defineStore('game', () => {
       p.financialSnapshots.push(createFinancialSnapshot(p, 0))
     })
     saveState()
+
+    // 如果第一个玩家是 AI，自动开始 AI 回合
+    const firstPlayer = players.value[0]
+    if (firstPlayer?.isAI && phase.value === 'rat_race') {
+      setTimeout(() => {
+        runAITurn()
+      }, 500)
+    }
+
     return true
   }
 
@@ -546,6 +576,15 @@ export const useGameStore = defineStore('game', () => {
     lastRoll.value = 0
     clearPending()
     saveState()
+
+    // 如果下一个玩家是 AI，自动执行 AI 回合
+    const nextPlayer = currentPlayer.value
+    if (nextPlayer?.isAI && phase.value === 'rat_race') {
+      // 用 setTimeout 避免在 moveToNextPlayer 中嵌套调用
+      setTimeout(() => {
+        runAITurn()
+      }, 100)
+    }
   }
 
   function handlePayday(player: Player): string {
@@ -817,6 +856,13 @@ export const useGameStore = defineStore('game', () => {
       const nextPlayer = players.value[state.responderIndex]
       setPending('market', `${state.card.title} — 轮到 ${nextPlayer?.name ?? '?'} 操作。`, state.card)
       turnStatus.value = 'resolving'
+
+      // 如果下一个回应玩家是 AI，自动处理
+      if (nextPlayer?.isAI) {
+        setTimeout(() => {
+          aiHandleMarketEvent()
+        }, 300)
+      }
     }
     saveState()
   }
@@ -1409,6 +1455,246 @@ export const useGameStore = defineStore('game', () => {
     return true
   }
 
+  // ==================== AI 回合逻辑 ====================
+
+  function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
+  async function runAITurn(): Promise<void> {
+    const player = currentPlayer.value
+    if (!player || !player.isAI || phase.value !== 'rat_race') return
+
+    isAIThinking.value = true
+
+    try {
+      // 1. 等待 500ms（让玩家看清）
+      await sleep(500)
+
+      // 2. 掷骰子
+      ratRaceRollDice()
+
+      // 3. 等待骰子动画完成（约 800ms）
+      await sleep(800)
+
+      // 4-5. 处理 pending action（AI 自动决策）
+      await aiHandlePendingAction()
+
+      // 6. AI 买保险（如果可买且决策为买）
+      if (!player.hasInsurance && turnStatus.value === 'resolving') {
+        const difficulty: AIDifficulty = (player.aiDifficulty as AIDifficulty) ?? 'medium'
+        if (AIDecision.decideBuyInsurance(player, difficulty)) {
+          await sleep(300)
+          buyInsurance()
+        }
+      }
+
+      // 7. AI 考虑还款（如果有闲置现金）
+      if (turnStatus.value === 'resolving') {
+        const difficulty: AIDifficulty = (player.aiDifficulty as AIDifficulty) ?? 'medium'
+        const repayAmount = AIDecision.decideRepayLoan(player, difficulty)
+        if (repayAmount > 0) {
+          await sleep(300)
+          repayAllBankLoans(repayAmount)
+        }
+      }
+
+      // 8. 等待 300ms
+      await sleep(300)
+
+      // 9. 结束回合
+      moveToNextPlayer()
+    } finally {
+      isAIThinking.value = false
+    }
+  }
+
+  async function aiHandlePendingAction(): Promise<void> {
+    const player = currentPlayer.value
+    if (!player || !player.isAI) return
+
+    const difficulty: AIDifficulty = (player.aiDifficulty as AIDifficulty) ?? 'medium'
+    const action = pendingAction.value
+
+    switch (action.type) {
+      case 'opportunity': {
+        const card = action.card as OpportunityCard
+        if (!card) return
+        await sleep(400)
+
+        // 股票拆分/合股卡：自动确认
+        if (card.splitRatio !== undefined) {
+          buyOpportunity(1)
+          return
+        }
+
+        // 卖出股票的机会卡
+        if (card.type === 'stock' && card.action === 'sell') {
+          const holding = getStockHolding(card.symbol!)
+          if (holding && holding.quantity > 0) {
+            // AI 决定卖多少
+            const sellQty = AIDecision.decideSellMarket(player, holding, card.cost, difficulty)
+            if (sellQty > 0) {
+              buyOpportunity(sellQty)
+            } else {
+              declineOpportunity()
+            }
+          } else {
+            declineOpportunity()
+          }
+          return
+        }
+
+        // 买入决策
+        const decision = AIDecision.decideBuyOpportunity(player, card, difficulty)
+        if (decision.buy && decision.quantity > 0) {
+          // 如果现金不够，考虑贷款
+          const totalCost = card.cost * decision.quantity
+          if (player.cash < totalCost) {
+            const needed = totalCost - player.cash
+            const loanAmount = AIDecision.decideBankLoan(player, difficulty)
+            if (loanAmount >= needed) {
+              takeBankLoan(Math.ceil(needed / BANK_CONFIG.loanStep) * BANK_CONFIG.loanStep)
+              await sleep(200)
+            } else {
+              // 能买多少买多少
+              const affordableQty = Math.floor(player.cash / card.cost)
+              if (affordableQty > 0) {
+                buyOpportunity(affordableQty)
+              } else {
+                declineOpportunity()
+              }
+              return
+            }
+          }
+          buyOpportunity(decision.quantity)
+        } else {
+          declineOpportunity()
+        }
+        break
+      }
+
+      case 'market': {
+        await aiHandleMarketEvent()
+        break
+      }
+
+      case 'doodad': {
+        await sleep(300)
+        // 如果需要贷款，AI 自动确认贷款
+        if (pendingAction.value.type === 'need_loan') {
+          confirmLoanForPending()
+        } else {
+          dismissDoodad()
+        }
+        break
+      }
+
+      case 'charity': {
+        await sleep(400)
+        const donation = Math.round(player.totalIncome * 0.1)
+        if (AIDecision.decideCharity(player, donation, difficulty)) {
+          acceptCharity()
+          // 如果接受后触发了贷款需求
+          if (pendingAction.value.type === 'need_loan') {
+            await sleep(200)
+            confirmLoanForPending()
+          }
+        } else {
+          declineCharity()
+        }
+        break
+      }
+
+      case 'layoff': {
+        await sleep(300)
+        acknowledgeMessage()
+        break
+      }
+
+      case 'story': {
+        await sleep(300)
+        if (pendingAction.value.type === 'need_loan') {
+          confirmLoanForPending()
+        } else {
+          dismissStoryCard()
+        }
+        break
+      }
+
+      case 'need_loan': {
+        await sleep(300)
+        confirmLoanForPending()
+        break
+      }
+
+      default: {
+        // 没有待处理的 action（如 payday 等），不需要额外操作
+        break
+      }
+    }
+  }
+
+  async function aiHandleMarketEvent(): Promise<void> {
+    const state = marketEventState.value
+    const card = marketEvent.value
+    if (!state || !card) return
+
+    // 处理所有 AI 玩家的市场事件回应
+    while (state.phase !== 'done') {
+      const responder = players.value[state.responderIndex]
+      if (!responder) break
+
+      // 如果当前回应玩家是 AI，自动处理
+      if (responder.isAI) {
+        const difficulty: AIDifficulty = (responder.aiDifficulty as AIDifficulty) ?? 'medium'
+        await sleep(400)
+
+        // 找出可卖资产并决定是否卖出
+        const sellable = responder.assets.filter((a) => {
+          if (card.targetType === 'all') return true
+          if (card.targetType === 'stock' && card.targetSymbol) {
+            return a.type === 'stock' && a.symbol === card.targetSymbol
+          }
+          return a.type === card.targetType
+        })
+
+        for (const asset of sellable) {
+          let sellPrice = 0
+          if (card.targetType === 'stock' && card.targetSymbol && asset.symbol === card.targetSymbol) {
+            sellPrice = card.fixedPrice ?? asset.cost
+          } else {
+            sellPrice = asset.cost * card.multiplier
+          }
+          const sellQty = AIDecision.decideSellMarket(responder, asset, sellPrice, difficulty)
+          if (sellQty > 0) {
+            // 切换到该玩家的上下文中卖出
+            const originalIndex = currentPlayerIndex.value
+            currentPlayerIndex.value = state.responderIndex
+            sellAssetToMarket(asset.id, sellQty)
+            currentPlayerIndex.value = originalIndex
+            await sleep(200)
+          }
+        }
+
+        // AI 玩家处理完毕，推进到下一个
+        advanceMarketResponder()
+      } else {
+        // 遇到人类玩家，暂停让人类操作
+        break
+      }
+    }
+
+    // 如果全部处理完了，设置状态
+    if (state.phase === 'done') {
+      marketEvent.value = null
+      marketEventState.value = null
+      setPending(null, '市场风云结束，所有玩家已操作。')
+      turnStatus.value = 'resolving'
+      saveState()
+    }
+  }
+
   loadState()
 
   return {
@@ -1429,6 +1715,7 @@ export const useGameStore = defineStore('game', () => {
     decks,
     transactions,
     cardHistory,
+    isAIThinking,
     currentPlayer,
     isGameStarted,
     canCurrentPlayerEnterFastTrack,
@@ -1473,5 +1760,8 @@ export const useGameStore = defineStore('game', () => {
     acknowledgeMessage,
     maxBankLoanAmount,
     totalBankLoanAmount,
+    runAITurn,
+    aiHandlePendingAction,
+    aiHandleMarketEvent,
   }
 })

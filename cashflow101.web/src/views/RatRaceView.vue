@@ -11,6 +11,7 @@ import {
   PieChart,
   Shield,
   BriefcaseBusiness,
+  Bot,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import type { Asset, Liability, MarketEventCard, OpportunityCard, StoryCard } from '@/types/game'
@@ -154,7 +155,22 @@ const canBuyInsurance = computed(() => {
   const p = gameStore.currentPlayer
   if (!p || gameStore.phase !== 'rat_race' || p.hasInsurance) return false
   const cost = p.totalExpenses * 6
-  return p.cash >= cost && gameStore.turnStatus === 'idle'
+  return p.cash >= cost && gameStore.turnStatus === 'idle' && !p.isAI
+})
+
+// 当前玩家是否是 AI
+const isCurrentPlayerAI = computed(() => {
+  return gameStore.currentPlayer?.isAI ?? false
+})
+
+// 是否禁用人类操作（AI 回合或 AI 正在处理市场事件）
+const disableHumanActions = computed(() => {
+  if (gameStore.isAIThinking) return true
+  if (gameStore.pendingAction.type === 'market' && gameStore.marketEventState) {
+    const responder = gameStore.marketResponder
+    return responder?.isAI ?? false
+  }
+  return isCurrentPlayerAI.value
 })
 
 function onEndTurn() {
@@ -263,8 +279,17 @@ const showPendingPanel = computed(() => {
           class="h-3 w-3 rounded-full"
           :style="{ backgroundColor: gameStore.currentPlayer.color }"
         />
+        <Bot v-if="isCurrentPlayerAI" class="h-4 w-4 text-primary" />
         <span class="text-sm font-medium">
           {{ gameStore.currentPlayer?.name ?? '—' }}
+        </span>
+        <!-- AI 思考中提示 -->
+        <span
+          v-if="gameStore.isAIThinking"
+          class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary animate-pulse"
+        >
+          <Bot class="h-3 w-3" />
+          AI 思考中...
         </span>
         <!-- 状态徽章（紧凑版） -->
         <span
@@ -288,7 +313,8 @@ const showPendingPanel = computed(() => {
         <!-- 银行 -->
         <button
           type="button"
-          class="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-muted"
+          :disabled="isCurrentPlayerAI"
+          class="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
           title="银行"
           @click="showBankModal = true"
         >
@@ -331,6 +357,7 @@ const showPendingPanel = computed(() => {
             key="roll"
             type="button"
             class="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm shadow-primary/20 transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:px-5"
+            :disabled="isCurrentPlayerAI"
             @click="onRollDice"
           >
             <Dices v-if="gameStore.currentPlayer?.doubleDiceNextTurn" class="h-4 w-4" />
@@ -345,7 +372,7 @@ const showPendingPanel = computed(() => {
             key="end"
             type="button"
             class="inline-flex h-9 items-center gap-1.5 rounded-full bg-secondary px-4 text-sm font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:px-5"
-            :disabled="gameStore.turnStatus === 'rolling'"
+            :disabled="gameStore.turnStatus === 'rolling' || isCurrentPlayerAI"
             @click="onEndTurn"
           >
             <span class="hidden sm:inline">结束回合</span>
@@ -669,7 +696,8 @@ const showPendingPanel = computed(() => {
                   </div>
                   <button
                     type="button"
-                    class="w-full rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90"
+                    :disabled="disableHumanActions"
+                    class="w-full rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
                     @click="onBuyOpportunity"
                   >
                     确认
@@ -740,7 +768,7 @@ const showPendingPanel = computed(() => {
                   <button
                     v-if="!isOpportunitySell"
                     type="button"
-                    :disabled="gameStore.currentPlayer ? gameStore.currentPlayer.cash < opportunityCard.cost * opportunityQuantity : true"
+                    :disabled="(gameStore.currentPlayer ? gameStore.currentPlayer.cash < opportunityCard.cost * opportunityQuantity : true) || disableHumanActions"
                     class="flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
                     @click="onBuyOpportunity"
                   >
@@ -749,7 +777,7 @@ const showPendingPanel = computed(() => {
                   <button
                     v-else
                     type="button"
-                    :disabled="maxOpportunityQuantity === 0 || opportunityQuantity <= 0"
+                    :disabled="maxOpportunityQuantity === 0 || opportunityQuantity <= 0 || disableHumanActions"
                     class="flex-1 rounded-full bg-success px-4 py-2.5 text-sm font-semibold text-success-foreground hover:opacity-90 disabled:opacity-40"
                     @click="onBuyOpportunity"
                   >
@@ -757,7 +785,8 @@ const showPendingPanel = computed(() => {
                   </button>
                   <button
                     type="button"
-                    class="flex-1 rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted"
+                    :disabled="disableHumanActions"
+                    class="flex-1 rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-40"
                     @click="onDeclineOpportunity"
                   >
                     放弃
@@ -820,7 +849,8 @@ const showPendingPanel = computed(() => {
                     <!-- 卖出按钮 -->
                     <button
                       type="button"
-                      class="w-full rounded-full bg-primary py-2 text-xs font-semibold text-primary-foreground hover:opacity-90"
+                      :disabled="disableHumanActions"
+                      class="w-full rounded-full bg-primary py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
                       @click="onSellAsset(asset)"
                     >
                       卖出 {{ getSellQuantity(asset.id, asset.quantity) }} {{ getUnitLabel(asset.type) }} · 可得 {{ formatMoney(getMarketPrice(asset) * getSellQuantity(asset.id, asset.quantity)) }}
@@ -832,7 +862,8 @@ const showPendingPanel = computed(() => {
                 </div>
                 <button
                   type="button"
-                  class="mt-3 w-full rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted"
+                  :disabled="disableHumanActions"
+                  class="mt-3 w-full rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-40"
                   @click="gameStore.dismissMarketEvent()"
                 >
                   {{ gameStore.marketEventState && gameStore.marketEventState.respondedIds.length < gameStore.players.length - 1 ? '下一位玩家' : '结束' }}
@@ -843,14 +874,16 @@ const showPendingPanel = computed(() => {
               <div v-if="gameStore.pendingAction.type === 'charity'" class="mt-3 flex gap-2">
                 <button
                   type="button"
-                  class="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
+                  :disabled="disableHumanActions"
+                  class="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
                   @click="gameStore.acceptCharity()"
                 >
                   捐赠
                 </button>
                 <button
                   type="button"
-                  class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted"
+                  :disabled="disableHumanActions"
+                  class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-40"
                   @click="gameStore.declineCharity()"
                 >
                   放弃
@@ -861,14 +894,16 @@ const showPendingPanel = computed(() => {
               <div v-if="gameStore.pendingAction.type === 'need_loan'" class="mt-3 flex gap-2">
                 <button
                   type="button"
-                  class="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
+                  :disabled="disableHumanActions"
+                  class="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
                   @click="gameStore.confirmLoanForPending()"
                 >
                   申请贷款
                 </button>
                 <button
                   type="button"
-                  class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted"
+                  :disabled="disableHumanActions"
+                  class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-40"
                   @click="gameStore.declineLoanForPending()"
                 >
                   取消
@@ -892,7 +927,8 @@ const showPendingPanel = computed(() => {
               >
                 <button
                   type="button"
-                  class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted"
+                  :disabled="disableHumanActions"
+                  class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-40"
                   @click="
                     gameStore.pendingAction.type === 'doodad'
                       ? gameStore.dismissDoodad()
@@ -936,7 +972,7 @@ const showPendingPanel = computed(() => {
         </div>
         <div class="flex items-center gap-1.5">
           <span class="text-muted-foreground">
-            {{ gameStore.turnStatus === 'idle' ? '等待掷骰子' : gameStore.turnStatus === 'rolling' ? '掷骰中...' : '操作中' }}
+            {{ gameStore.isAIThinking ? 'AI 思考中...' : gameStore.turnStatus === 'idle' ? '等待掷骰子' : gameStore.turnStatus === 'rolling' ? '掷骰中...' : '操作中' }}
           </span>
         </div>
       </div>
