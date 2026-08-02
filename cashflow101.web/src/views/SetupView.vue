@@ -21,6 +21,7 @@ import { PLAYER_COLORS, type PlayerColorId } from '@/types/game'
 import type { GameConfig, Career } from '@/types/game'
 import CareerDetailCard from '@/components/CareerDetailCard.vue'
 import DreamSelector from '@/components/DreamSelector.vue'
+import CareerSelectorModal from '@/components/CareerSelectorModal.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -110,6 +111,21 @@ const errorMessage = ref('')
 const careerDetailModalOpen = ref(false)
 const careerDetailCareer = ref<Career | null>(null)
 
+// 职业选择器 modal
+const careerSelectorOpen = ref(false)
+const careerSelectorPlayerIndex = ref(0)
+
+function openCareerSelector(index: number) {
+  careerSelectorPlayerIndex.value = index
+  careerSelectorOpen.value = true
+}
+
+function onCareerSelected(careerId: string) {
+  if (playerSetups[careerSelectorPlayerIndex.value]) {
+    playerSetups[careerSelectorPlayerIndex.value]!.careerId = careerId
+  }
+}
+
 function openCareerDetail(careerId: string) {
   const career = careerId === 'random' ? getRandomCareer() : getCareerById(careerId)
   if (career) {
@@ -186,6 +202,12 @@ function getDreamName(dreamId: string): string {
   if (!dreamId) return '未选择'
   return DREAMS.find((d) => d.id === dreamId)?.name ?? '未知'
 }
+
+function getCareerDisplayName(careerId: string): string {
+  if (careerId === 'random') return '随机职业'
+  const career = getCareerById(careerId)
+  return career?.name ?? '未知职业'
+}
 </script>
 
 <template>
@@ -255,31 +277,20 @@ function getDreamName(dreamId: string): string {
             </div>
             <div class="sm:col-span-5">
               <label
-                :for="`player-career-${index}`"
                 class="block text-xs font-medium text-muted-foreground mb-1.5"
                 >职业</label
               >
               <div class="flex gap-2">
-                <div class="relative flex-1">
-                  <select
-                    :id="`player-career-${index}`"
-                    v-model="setup.careerId"
-                    class="w-full h-10 px-3 pr-8 appearance-none bg-background border border-input rounded-[var(--radius-md)] text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
-                  >
-                    <option
-                      v-for="career in careerOptions"
-                      :key="career.id"
-                      :value="career.id"
-                    >
-                      {{ career.name }}
-                    </option>
-                  </select>
-                  <span
-                    class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  >
-                    <ChevronDown class="w-4 h-4" />
+                <button
+                  type="button"
+                  class="flex-1 h-10 px-3 bg-background border border-input rounded-[var(--radius-md)] text-foreground text-left text-sm hover:border-ring hover:ring-2 hover:ring-ring/20 transition-colors flex items-center justify-between"
+                  @click="openCareerSelector(index)"
+                >
+                  <span class="truncate">
+                    {{ getCareerDisplayName(setup.careerId) }}
                   </span>
-                </div>
+                  <ChevronDown class="w-4 h-4 text-muted-foreground shrink-0" />
+                </button>
                 <button
                   type="button"
                   title="查看职业详情"
@@ -552,5 +563,13 @@ function getDreamName(dreamId: string): string {
         </div>
       </div>
     </Teleport>
+
+    <!-- 职业选择器 Modal -->
+    <CareerSelectorModal
+      v-model="careerSelectorOpen"
+      :selected-career-id="playerSetups[careerSelectorPlayerIndex]?.careerId ?? ''"
+      :player-name="playerSetups[careerSelectorPlayerIndex]?.name ?? ''"
+      @confirm="onCareerSelected"
+    />
   </main>
 </template>
