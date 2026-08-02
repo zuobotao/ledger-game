@@ -95,6 +95,8 @@ export type GamePhase = 'setup' | 'rat_race' | 'fast_track' | 'finished'
 
 export type RatRaceCellType =
   | 'opportunity'
+  | 'small_opportunity'
+  | 'big_opportunity'
   | 'doodad'
   | 'payday'
   | 'market'
@@ -183,6 +185,8 @@ export interface PendingAction {
 
 export interface CardDeck {
   opportunity: OpportunityCard[]
+  smallOpportunity: OpportunityCard[]
+  bigOpportunity: OpportunityCard[]
   market: MarketEventCard[]
   doodad: DoodadCard[]
   fastTrackOpportunity: OpportunityCard[]

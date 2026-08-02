@@ -11,8 +11,12 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export function createDecks(): CardDeck {
+  const smallCards = OPPORTUNITY_CARDS.filter((c) => c.size === 'small')
+  const bigCards = OPPORTUNITY_CARDS.filter((c) => c.size === 'big')
   return {
     opportunity: shuffle(OPPORTUNITY_CARDS),
+    smallOpportunity: shuffle(smallCards),
+    bigOpportunity: shuffle(bigCards),
     market: shuffle(MARKET_CARDS),
     doodad: shuffle(DOODAD_CARDS),
     fastTrackOpportunity: shuffle(FAST_TRACK_OPPORTUNITY_CARDS),
@@ -26,6 +30,28 @@ export function drawOpportunityCard(deck: OpportunityCard[]): {
 } {
   if (deck.length === 0) {
     const fresh = shuffle(OPPORTUNITY_CARDS)
+    return { card: fresh[0]!, remaining: fresh.slice(1) }
+  }
+  return { card: deck[0]!, remaining: deck.slice(1) }
+}
+
+export function drawSmallOpportunityCard(deck: OpportunityCard[]): {
+  card: OpportunityCard
+  remaining: OpportunityCard[]
+} {
+  if (deck.length === 0) {
+    const fresh = shuffle(OPPORTUNITY_CARDS.filter((c) => c.size === 'small'))
+    return { card: fresh[0]!, remaining: fresh.slice(1) }
+  }
+  return { card: deck[0]!, remaining: deck.slice(1) }
+}
+
+export function drawBigOpportunityCard(deck: OpportunityCard[]): {
+  card: OpportunityCard
+  remaining: OpportunityCard[]
+} {
+  if (deck.length === 0) {
+    const fresh = shuffle(OPPORTUNITY_CARDS.filter((c) => c.size === 'big'))
     return { card: fresh[0]!, remaining: fresh.slice(1) }
   }
   return { card: deck[0]!, remaining: deck.slice(1) }

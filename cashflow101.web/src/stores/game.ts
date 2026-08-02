@@ -39,6 +39,8 @@ import {
   drawFastTrackOpportunity,
   drawMarketCard,
   drawOpportunityCard,
+  drawSmallOpportunityCard,
+  drawBigOpportunityCard,
   drawStoryCard,
 } from '@/data/cards'
 import { getDreamById, getRandomDream } from '@/data/dreams'
@@ -901,11 +903,16 @@ export const useGameStore = defineStore('game', () => {
 
     const landedCell = getRatRaceCell(newPosition)
     switch (landedCell.type) {
-      case 'opportunity': {
-        const { card, remaining } = drawOpportunityCard(decks.value.opportunity)
-        decks.value.opportunity = remaining
+      case 'opportunity':
+      case 'small_opportunity':
+      case 'big_opportunity': {
+        const isBig = landedCell.type === 'big_opportunity'
+        const deckKey = isBig ? 'bigOpportunity' : 'smallOpportunity'
+        const drawFn = isBig ? drawBigOpportunityCard : drawSmallOpportunityCard
+        const { card, remaining } = drawFn(decks.value[deckKey])
+        decks.value[deckKey] = remaining
         recordCardDrawn('opportunity', card)
-        setPending('opportunity', `你遇到了一个${card.size === 'big' ? '大' : '小'}机会。`, card)
+        setPending('opportunity', `你遇到了一个${isBig ? '大' : '小'}机会。`, card)
         break
       }
       case 'doodad': {

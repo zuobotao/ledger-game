@@ -45,6 +45,8 @@ const cellColorClass: Record<string, string> = {
 // 格子名称缩写映射（移动端使用）
 const cellShortName: Record<string, string> = {
   机会: '机',
+  小机会: '小机',
+  大机会: '大机',
   生活意外: '意',
   慈善: '慈',
   发工资: '工资',
@@ -173,9 +175,12 @@ const cardTypeAccentClass = computed(() => {
         v-for="cell in RAT_RACE_CELLS"
         :key="cell.index"
         class="board-cell flex flex-col items-center justify-center rounded-xl border border-border bg-secondary/80 backdrop-blur-sm shadow-sm transition-all"
-        :class="{
-          'ring-2 ring-primary ring-offset-2 ring-offset-background z-10': currentPosition === cell.index,
-        }"
+        :class="[
+          {
+            'ring-2 ring-primary ring-offset-2 ring-offset-background z-10': currentPosition === cell.index,
+          },
+          cell.type === 'big_opportunity' ? 'big-opportunity-cell' : '',
+        ]"
         :style="getCellStyle(cell.index)"
       >
         <div class="cell-color-bar rounded-full" :class="cellColorClass[cell.color]" />
@@ -370,6 +375,17 @@ const cardTypeAccentClass = computed(() => {
   min-width: 0;
   min-height: 0;
   padding: 2px;
+}
+
+.big-opportunity-cell {
+  border-color: rgba(251, 191, 36, 0.5) !important;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.1)) !important;
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.2), inset 0 1px 0 rgba(251, 191, 36, 0.2) !important;
+}
+
+.big-opportunity-cell .cell-name {
+  color: #fbbf24;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.4);
 }
 
 @media (min-width: 640px) {
