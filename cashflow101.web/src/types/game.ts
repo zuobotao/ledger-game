@@ -22,8 +22,9 @@ export interface Asset {
   type: 'stock' | 'real_estate' | 'business' | 'other'
   cost: number
   cashFlow: number
-  quantity?: number
+  quantity: number
   symbol?: string
+  marketPrice?: number
 }
 
 export interface Liability {
@@ -31,6 +32,7 @@ export interface Liability {
   name: string
   amount: number
   monthlyPayment: number
+  category?: 'mortgage' | 'school_loan' | 'car_loan' | 'credit_card' | 'bank_loan'
 }
 
 export interface Player {
@@ -50,8 +52,11 @@ export interface Player {
   ratRacePosition: number
   fastTrackPosition: number
   isUnemployed: boolean
+  unemploymentTurns: number
   hasInsurance: boolean
   childrenCount: number
+  doubleDiceNextTurn: boolean
+  dream?: Dream
 }
 
 export interface GameConfig {
@@ -64,13 +69,109 @@ export interface GameConfig {
 
 export type GamePhase = 'setup' | 'rat_race' | 'fast_track' | 'finished'
 
+export type RatRaceCellType =
+  | 'opportunity'
+  | 'doodad'
+  | 'payday'
+  | 'market'
+  | 'child'
+  | 'charity'
+  | 'layoff'
+
+export interface RatRaceCell {
+  index: number
+  type: RatRaceCellType
+  name: string
+  color: string
+}
+
+export type FastTrackCellType = 'cashflow' | 'opportunity' | 'investment' | 'doodad' | 'dream'
+
+export interface FastTrackCell {
+  index: number
+  type: FastTrackCellType
+  name: string
+}
+
+export type OpportunityCardType = 'stock' | 'real_estate' | 'business' | 'other'
+export type OpportunityCardSize = 'small' | 'big'
+
+export interface OpportunityCard {
+  id: string
+  size: OpportunityCardSize
+  type: OpportunityCardType
+  title: string
+  description: string
+  cost: number
+  cashFlow: number
+  symbol?: string
+  maxQuantity?: number
+}
+
+export interface MarketEventCard {
+  id: string
+  title: string
+  description: string
+  targetType: 'stock' | 'real_estate' | 'business' | 'all'
+  targetSymbol?: string
+  multiplier: number
+  fixedPrice?: number
+}
+
+export interface DoodadCard {
+  id: string
+  title: string
+  description: string
+  cost: number
+}
+
+export interface Dream {
+  id: string
+  name: string
+  description: string
+  price: number
+  icon: string
+}
+
+export type PendingActionType =
+  | 'opportunity'
+  | 'market'
+  | 'doodad'
+  | 'charity'
+  | 'layoff'
+  | 'need_loan'
+  | 'fast_track_opportunity'
+  | 'fast_track_dream'
+  | null
+
+export interface PendingAction {
+  type: PendingActionType
+  card: OpportunityCard | MarketEventCard | DoodadCard | null
+  message: string
+  meta?: Record<string, unknown>
+}
+
+export interface CardDeck {
+  opportunity: OpportunityCard[]
+  market: MarketEventCard[]
+  doodad: DoodadCard[]
+  fastTrackOpportunity: OpportunityCard[]
+}
+
 export interface GameState {
   players: Player[]
   currentPlayerIndex: number
   phase: GamePhase
   config: GameConfig
   winnerId: string | null
+  turnStatus: TurnStatus
+  lastRoll: number
+  pendingAction: PendingAction
+  marketEvent?: MarketEventCard | null
+  decks?: CardDeck
 }
+
+export type TurnStatus = 'idle' | 'rolling' | 'resolving' | 'finished'
 
 export const PLAYER_COLORS = [
   { id: 'blue', name: '蓝色', value: '#007aff' },
@@ -83,3 +184,19 @@ export const PLAYER_COLORS = [
 ] as const
 
 export type PlayerColorId = (typeof PLAYER_COLORS)[number]['id']
+
+export const BANK_CONFIG = {
+  interestRate: 0.1,
+  maxLoanMultiple: 10,
+  minLoanAmount: 1000,
+  loanStep: 1000,
+} as const
+
+export const RAT_RACE_BOARD_SIZE = 24
+
+export const FAST_TRACK_BOARD_SIZE = 12
+
+export const MAX_CHILDREN = {
+  normal: 3,
+  bigFamily: 6,
+} as const
