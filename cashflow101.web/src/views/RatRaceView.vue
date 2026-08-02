@@ -5,6 +5,7 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
+  Bot,
   Dice5,
   Dices,
   Landmark,
@@ -390,7 +391,8 @@ const showPendingPanel = computed(() => {
         <!-- Panel tabs -->
         <div class="flex border-b border-border px-4 pt-3 lg:px-5">
           <button
-            class="relative flex-1 pb-3 text-sm font-medium transition-colors"
+            type="button"
+            class="relative flex-1 cursor-pointer pb-3 text-sm font-medium transition-colors"
             :class="sidePanelTab === 'balance' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
             @click="sidePanelTab = 'balance'"
           >
@@ -404,7 +406,8 @@ const showPendingPanel = computed(() => {
             />
           </button>
           <button
-            class="relative flex-1 pb-3 text-sm font-medium transition-colors"
+            type="button"
+            class="relative flex-1 cursor-pointer pb-3 text-sm font-medium transition-colors"
             :class="sidePanelTab === 'history' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
             @click="sidePanelTab = 'history'"
           >
@@ -418,7 +421,8 @@ const showPendingPanel = computed(() => {
             />
           </button>
           <button
-            class="relative flex-1 pb-3 text-sm font-medium transition-colors"
+            type="button"
+            class="relative flex-1 cursor-pointer pb-3 text-sm font-medium transition-colors"
             :class="sidePanelTab === 'stats' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
             @click="sidePanelTab = 'stats'"
           >
@@ -590,7 +594,8 @@ const showPendingPanel = computed(() => {
             <!-- History sub-tabs -->
             <div class="flex border-b border-border">
               <button
-                class="relative flex-1 pb-2 text-xs font-medium transition-colors"
+                type="button"
+                class="relative flex-1 cursor-pointer pb-2 text-xs font-medium transition-colors"
                 :class="historyTab === 'transactions' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
                 @click="historyTab = 'transactions'"
               >
@@ -604,7 +609,8 @@ const showPendingPanel = computed(() => {
                 />
               </button>
               <button
-                class="relative flex-1 pb-2 text-xs font-medium transition-colors"
+                type="button"
+                class="relative flex-1 cursor-pointer pb-2 text-xs font-medium transition-colors"
                 :class="historyTab === 'cards' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
                 @click="historyTab = 'cards'"
               >

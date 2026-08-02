@@ -32,6 +32,7 @@ const ftOpportunityCard = computed<OpportunityCard | null>(() => {
 const ftDreamPending = computed(() => gameStore.pendingAction.type === 'fast_track_dream')
 
 const ftQuantity = ref(1)
+const ftBuyError = ref('')
 
 function cellIcon(type: string) {
   switch (type) {
@@ -78,13 +79,27 @@ function onDiceAnimationDone() {
 const showDiceAnimation = ref(false)
 
 function onBuyFtOpportunity() {
-  gameStore.buyOpportunity(ftQuantity.value)
+  const card = ftOpportunityCard.value
+  const player = gameStore.currentPlayer
+  if (!card || !player) return
+  const cost = card.cost * ftQuantity.value
+  if (player.cash < cost) {
+    ftBuyError.value = `现金不足，还差 ${formatMoney(cost - player.cash)}`
+    return
+  }
+  ftBuyError.value = ''
+  const ok = gameStore.buyOpportunity(ftQuantity.value)
+  if (!ok) {
+    ftBuyError.value = '购买失败，请稍后再试'
+    return
+  }
   ftQuantity.value = 1
 }
 
 function onDeclineFtOpportunity() {
   gameStore.declineOpportunity()
   ftQuantity.value = 1
+  ftBuyError.value = ''
 }
 
 function onBuyDream() {
@@ -224,8 +239,8 @@ watch(
           <div class="mt-3 flex gap-2">
             <button
               type="button"
-              :disabled="gameStore.currentPlayer ? gameStore.currentPlayer.cash < ftOpportunityCard.cost * ftQuantity : true"
               class="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
+              :class="{ 'opacity-70': ftBuyError }"
               @click="onBuyFtOpportunity"
             >
               买入
@@ -238,6 +253,9 @@ watch(
               放弃
             </button>
           </div>
+          <p v-if="ftBuyError" class="mt-2 text-xs font-medium text-destructive">
+            {{ ftBuyError }}
+          </p>
         </div>
 
         <div v-if="ftDreamPending" class="mt-3 flex gap-2">

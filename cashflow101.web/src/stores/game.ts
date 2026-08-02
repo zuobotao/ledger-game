@@ -1035,7 +1035,10 @@ export const useGameStore = defineStore('game', () => {
   function buyOpportunity(quantity = 1) {
     const player = currentPlayer.value
     const card = pendingAction.value.card as OpportunityCard | null
-    if (!player || pendingAction.value.type !== 'opportunity' || !card) return false
+    const isOpportunity = pendingAction.value.type === 'opportunity'
+    const isFtOpportunity = pendingAction.value.type === 'fast_track_opportunity'
+    const cardTypeForRecord = isFtOpportunity ? 'fast_track_opportunity' : 'opportunity'
+    if (!player || (!isOpportunity && !isFtOpportunity) || !card) return false
 
     // 股票拆分/合股卡（自动生效）
     if (card.splitRatio !== undefined) {
@@ -1068,7 +1071,7 @@ export const useGameStore = defineStore('game', () => {
         )
       }
 
-      recordCardDrawn('opportunity', card, player.id, 'accepted')
+      recordCardDrawn(cardTypeForRecord, card, player.id, 'accepted')
       const action = ratio > 1 ? '拆分' : '合股'
       setPending(
         null,
@@ -1087,7 +1090,7 @@ export const useGameStore = defineStore('game', () => {
       const price = card.cost
       const ok = sellOpportunityStock(symbol, price, quantity)
       if (ok) {
-        recordCardDrawn('opportunity', card, player.id, 'sold', price * quantity)
+        recordCardDrawn(cardTypeForRecord, card, player.id, 'sold', price * quantity)
       }
       return ok
     }
@@ -1120,7 +1123,7 @@ export const useGameStore = defineStore('game', () => {
       assetQuantity: quantity,
       unitPrice: card.cost,
     })
-    recordCardDrawn('opportunity', card, player.id, 'accepted', cost)
+    recordCardDrawn(cardTypeForRecord, card, player.id, 'accepted', cost)
     setPending(null, `买入 ${card.title} ×${quantity}，支出 ${formatMoney(cost)}。`)
     turnStatus.value = 'resolving'
     saveState()
@@ -1129,8 +1132,14 @@ export const useGameStore = defineStore('game', () => {
 
   function declineOpportunity() {
     const card = pendingAction.value.card as OpportunityCard | null
+    const isFtOpportunity = pendingAction.value.type === 'fast_track_opportunity'
     if (card) {
-      recordCardDrawn('opportunity', card, undefined, 'declined')
+      recordCardDrawn(
+        isFtOpportunity ? 'fast_track_opportunity' : 'opportunity',
+        card,
+        undefined,
+        'declined',
+      )
     }
     setPending(null, '你放弃了这个机会。')
     turnStatus.value = 'resolving'
