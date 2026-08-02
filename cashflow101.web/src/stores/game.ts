@@ -19,6 +19,7 @@ import type {
   PendingAction,
   Player,
   PlayerColorId,
+  StoryCard,
   TransactionRecord,
   TransactionType,
   TurnStatus,
@@ -38,6 +39,7 @@ import {
   drawFastTrackOpportunity,
   drawMarketCard,
   drawOpportunityCard,
+  drawStoryCard,
 } from '@/data/cards'
 import { getRandomDream } from '@/data/dreams'
 import type { CardDeck } from '@/types/game'
@@ -582,6 +584,71 @@ export const useGameStore = defineStore('game', () => {
     return `Doodad：${card.title}，支出 ${formatMoney(card.cost)}。`
   }
 
+  function applyStoryCard(card: StoryCard, player: Player): string {
+    const effect = card.effect
+    let message = ''
+
+    switch (effect.type) {
+      case 'cash': {
+        const amount = effect.amount ?? 0
+        if (amount >= 0) {
+          player.cash += amount
+          recordTransaction('story_gain', amount, `${card.title} - ${effect.description}`, player.id)
+          message = `${card.title}：${effect.description}`
+        } else {
+          // 负数：现金减少
+          const absAmount = Math.abs(amount)
+          const paid = requireLoanForPayment(absAmount, `故事卡：${card.title}`, () => {
+            player.cash += amount // amount is negative
+            recordTransaction('story_loss', amount, `${card.title} - ${effect.description}`, player.id)
+            setPending('story', `${card.title}：${effect.description}`, card)
+            turnStatus.value = 'resolving'
+            saveState()
+          })
+          if (!paid) {
+            pendingAction.value.card = card
+            return pendingAction.value.message
+          }
+          message = `${card.title}：${effect.description}`
+        }
+        break
+      }
+      case 'passive_income': {
+        const amount = effect.amount ?? 0
+        // 被动收入增加/减少：通过创建一个特殊的"故事收入"资产来实现
+        const existingStoryAsset = player.assets.find(
+          (a) => a.type === 'other' && a.name === '历史故事收入',
+        )
+        if (existingStoryAsset) {
+          existingStoryAsset.cashFlow += amount
+          existingStoryAsset.quantity += 1
+        } else {
+          player.assets.push({
+            id: createId(),
+            name: '历史故事收入',
+            type: 'other',
+            cost: 0,
+            cashFlow: amount,
+            quantity: 1,
+          })
+        }
+        recalcPlayerFinancials(player)
+        recordTransaction(
+          amount >= 0 ? 'story_gain' : 'story_loss',
+          amount,
+          `${card.title} - ${effect.description}`,
+          player.id,
+        )
+        message = `${card.title}：${effect.description}`
+        break
+      }
+      default:
+        message = `${card.title}：故事结束。`
+    }
+
+    return message
+  }
+
   function applyMarketEvent(card: MarketEventCard, _player: Player): string {
     // 先对所有玩家应用价格变动（贬值/升值都更新市价）
     for (const p of players.value) {
@@ -833,6 +900,19 @@ export const useGameStore = defineStore('game', () => {
         }
         break
       }
+      case 'story': {
+        const { card, remaining } = drawStoryCard(decks.value.story)
+        decks.value.story = remaining
+        recordCardDrawn('story', { id: card.id, title: card.title, description: card.story })
+        const msg = applyStoryCard(card, player)
+        if (pendingAction.value.type === 'need_loan') {
+          turnStatus.value = 'resolving'
+          saveState()
+          return
+        }
+        setPending('story', msg, card)
+        break
+      }
       case 'payday':
         // Already handled while passing
         setPending(null, messages[messages.length - 1] ?? '发工资')
@@ -1007,6 +1087,21 @@ export const useGameStore = defineStore('game', () => {
     const card = pendingAction.value.card as DoodadCard | null
     if (card) {
       recordCardDrawn('doodad', card, undefined, 'ignored', card.cost)
+    }
+    turnStatus.value = 'resolving'
+    saveState()
+  }
+
+  function dismissStoryCard() {
+    const card = pendingAction.value.card as StoryCard | null
+    if (card) {
+      recordCardDrawn(
+        'story',
+        { id: card.id, title: card.title, description: card.story },
+        undefined,
+        'ignored',
+        card.effect.amount,
+      )
     }
     turnStatus.value = 'resolving'
     saveState()
@@ -1353,6 +1448,7 @@ export const useGameStore = defineStore('game', () => {
     acceptCharity,
     declineCharity,
     dismissDoodad,
+    dismissStoryCard,
     takeBankLoan,
     repayBankLoan,
     repayAllBankLoans,

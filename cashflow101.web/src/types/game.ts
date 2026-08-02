@@ -100,6 +100,7 @@ export type RatRaceCellType =
   | 'child'
   | 'charity'
   | 'layoff'
+  | 'story'
 
 export interface RatRaceCell {
   index: number
@@ -184,6 +185,7 @@ export interface CardDeck {
   market: MarketEventCard[]
   doodad: DoodadCard[]
   fastTrackOpportunity: OpportunityCard[]
+  story: StoryCard[]
 }
 
 export type TransactionType =

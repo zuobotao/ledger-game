@@ -2,7 +2,7 @@ import type { FastTrackCell, RatRaceCell } from '@/types/game'
 
 export const RAT_RACE_CELLS: RatRaceCell[] = [
   { index: 0, type: 'opportunity', name: '机会', color: 'green' },
-  { index: 1, type: 'doodad', name: '负债', color: 'red' },
+  { index: 1, type: 'story', name: '历史故事', color: 'amber' },
   { index: 2, type: 'opportunity', name: '机会', color: 'green' },
   { index: 3, type: 'charity', name: '慈善', color: 'gold' },
   { index: 4, type: 'opportunity', name: '机会', color: 'green' },
@@ -18,7 +18,7 @@ export const RAT_RACE_CELLS: RatRaceCell[] = [
   { index: 14, type: 'opportunity', name: '机会', color: 'green' },
   { index: 15, type: 'market', name: '市场风云', color: 'blue' },
   { index: 16, type: 'opportunity', name: '机会', color: 'green' },
-  { index: 17, type: 'doodad', name: '负债', color: 'red' },
+  { index: 17, type: 'story', name: '历史故事', color: 'amber' },
   { index: 18, type: 'opportunity', name: '机会', color: 'green' },
   { index: 19, type: 'layoff', name: '裁员', color: 'purple' },
   { index: 20, type: 'opportunity', name: '机会', color: 'green' },

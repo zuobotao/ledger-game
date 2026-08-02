@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RAT_RACE_CELLS } from '@/data/board'
+import { STORY_CATEGORY_COLORS } from '@/data/storyCards'
 import type { Player } from '@/types/game'
-import type { MarketEventCard, OpportunityCard } from '@/types/game'
+import type { MarketEventCard, OpportunityCard, StoryCard } from '@/types/game'
 import DiceRoller from './DiceRoller.vue'
 
 interface Props {
@@ -14,8 +15,8 @@ interface Props {
   isRolling?: boolean
   diceValues?: number[]
   showCard?: boolean
-  cardType?: 'opportunity' | 'market' | null
-  cardData?: OpportunityCard | MarketEventCard | null
+  cardType?: 'opportunity' | 'market' | 'story' | null
+  cardData?: OpportunityCard | MarketEventCard | StoryCard | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -34,6 +35,7 @@ const cellColorClass: Record<string, string> = {
   blue: 'bg-primary',
   purple: 'bg-purple-500',
   teal: 'bg-teal-500',
+  amber: 'bg-amber-500',
 }
 
 // 格子名称缩写映射（移动端使用）
@@ -45,6 +47,7 @@ const cellShortName: Record<string, string> = {
   市场风云: '市场',
   孩子: '孩',
   裁员: '裁',
+  历史故事: '史',
 }
 
 /**
@@ -121,12 +124,23 @@ const marketCardData = computed<MarketEventCard | null>(() => {
   return null
 })
 
+const storyCardData = computed<StoryCard | null>(() => {
+  if (props.cardType === 'story' && props.cardData) {
+    return props.cardData as StoryCard
+  }
+  return null
+})
+
 const cardTypeLabel = computed(() => {
   if (props.cardType === 'opportunity' && opportunityCardData.value) {
     return opportunityCardData.value.size === 'big' ? '大机会' : '小机会'
   }
   if (props.cardType === 'market') {
     return '市场风云'
+  }
+  if (props.cardType === 'story' && storyCardData.value) {
+    const cat = STORY_CATEGORY_COLORS[storyCardData.value.category]
+    return cat?.label ?? '历史故事'
   }
   return ''
 })
@@ -137,6 +151,10 @@ const cardTypeAccentClass = computed(() => {
   }
   if (props.cardType === 'market') {
     return 'from-blue-500 to-indigo-500'
+  }
+  if (props.cardType === 'story' && storyCardData.value) {
+    const cat = STORY_CATEGORY_COLORS[storyCardData.value.category]
+    return cat?.gradient ?? 'from-amber-600 to-yellow-500'
   }
   return ''
 })
@@ -246,6 +264,31 @@ const cardTypeAccentClass = computed(() => {
                       ×{{ marketCardData.multiplier }}
                     </div>
                   </div>
+                </div>
+              </template>
+
+              <!-- 故事卡内容 -->
+              <template v-else-if="cardType === 'story' && storyCardData">
+                <div class="card-subtitle">
+                  历史故事 · {{ storyCardData.effect.type === 'cash' ? (storyCardData.effect.amount ?? 0 >= 0 ? '收益' : '损失') : '被动收入' }}
+                </div>
+                <h3 class="card-title">{{ storyCardData.title }}</h3>
+                <p class="card-desc">{{ storyCardData.story }}</p>
+                <div class="card-stats">
+                  <div class="stat-item">
+                    <div class="stat-label">效果</div>
+                    <div
+                      class="stat-value"
+                      :class="(storyCardData.effect.amount ?? 0) >= 0 ? 'text-success' : 'text-destructive'"
+                    >
+                      {{ storyCardData.effect.description }}
+                    </div>
+                  </div>
+                </div>
+                <!-- 历史小知识 -->
+                <div class="card-historical-note">
+                  <span class="note-label">历史小知识</span>
+                  <p class="note-text">{{ storyCardData.historicalNote }}</p>
                 </div>
               </template>
 
@@ -637,5 +680,58 @@ const cardTypeAccentClass = computed(() => {
     transparent 100%
   );
   border-radius: 2px;
+}
+
+/* 历史小知识区域 */
+.card-historical-note {
+  margin-top: 6px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: hsl(var(--secondary) / 0.4);
+  border: 1px dashed hsl(var(--border));
+  text-align: left;
+}
+
+@media (min-width: 640px) {
+  .card-historical-note {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 10px;
+  }
+}
+
+.note-label {
+  display: inline-block;
+  font-size: 7px;
+  font-weight: 700;
+  color: hsl(var(--primary));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+@media (min-width: 640px) {
+  .note-label {
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+}
+
+.note-text {
+  font-size: 7px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.4;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .note-text {
+    font-size: 11px;
+    -webkit-line-clamp: 4;
+  }
 }
 </style>

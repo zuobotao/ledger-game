@@ -1,4 +1,5 @@
-import type { CardDeck, DoodadCard, MarketEventCard, OpportunityCard } from '@/types/game'
+import type { CardDeck, DoodadCard, MarketEventCard, OpportunityCard, StoryCard } from '@/types/game'
+import { STORY_CARDS } from './storyCards'
 
 function shuffle<T>(arr: T[]): T[] {
   const copy = [...arr]
@@ -15,6 +16,7 @@ export function createDecks(): CardDeck {
     market: shuffle(MARKET_CARDS),
     doodad: shuffle(DOODAD_CARDS),
     fastTrackOpportunity: shuffle(FAST_TRACK_OPPORTUNITY_CARDS),
+    story: shuffle(STORY_CARDS),
   }
 }
 
@@ -43,6 +45,14 @@ export function drawMarketCard(deck: MarketEventCard[]): {
 export function drawDoodadCard(deck: DoodadCard[]): { card: DoodadCard; remaining: DoodadCard[] } {
   if (deck.length === 0) {
     const fresh = shuffle(DOODAD_CARDS)
+    return { card: fresh[0]!, remaining: fresh.slice(1) }
+  }
+  return { card: deck[0]!, remaining: deck.slice(1) }
+}
+
+export function drawStoryCard(deck: StoryCard[]): { card: StoryCard; remaining: StoryCard[] } {
+  if (deck.length === 0) {
+    const fresh = shuffle(STORY_CARDS)
     return { card: fresh[0]!, remaining: fresh.slice(1) }
   }
   return { card: deck[0]!, remaining: deck.slice(1) }

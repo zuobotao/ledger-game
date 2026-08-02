@@ -13,7 +13,7 @@ import {
   BriefcaseBusiness,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
-import type { Asset, Liability, MarketEventCard, OpportunityCard } from '@/types/game'
+import type { Asset, Liability, MarketEventCard, OpportunityCard, StoryCard } from '@/types/game'
 import BankModal from '@/components/BankModal.vue'
 import DiceRoller from '@/components/DiceRoller.vue'
 import RatRaceBoard from '@/components/RatRaceBoard.vue'
@@ -56,21 +56,29 @@ function onDiceAnimationDone() {
 
 // ========== 棋盘中心卡片显示相关 ==========
 const showBoardCard = computed(() => {
-  return gameStore.pendingAction.type === 'opportunity' || gameStore.pendingAction.type === 'market'
+  return (
+    gameStore.pendingAction.type === 'opportunity' ||
+    gameStore.pendingAction.type === 'market' ||
+    gameStore.pendingAction.type === 'story'
+  )
 })
 
-const boardCardType = computed<'opportunity' | 'market' | null>(() => {
+const boardCardType = computed<'opportunity' | 'market' | 'story' | null>(() => {
   if (gameStore.pendingAction.type === 'opportunity') return 'opportunity'
   if (gameStore.pendingAction.type === 'market') return 'market'
+  if (gameStore.pendingAction.type === 'story') return 'story'
   return null
 })
 
-const boardCardData = computed<OpportunityCard | MarketEventCard | null>(() => {
+const boardCardData = computed<OpportunityCard | MarketEventCard | StoryCard | null>(() => {
   if (gameStore.pendingAction.type === 'opportunity' && gameStore.pendingAction.card) {
     return gameStore.pendingAction.card as OpportunityCard
   }
   if (gameStore.pendingAction.type === 'market') {
     return gameStore.marketEvent ?? (gameStore.pendingAction.card as MarketEventCard) ?? null
+  }
+  if (gameStore.pendingAction.type === 'story' && gameStore.pendingAction.card) {
+    return gameStore.pendingAction.card as StoryCard
   }
   return null
 })
@@ -805,11 +813,12 @@ const showPendingPanel = computed(() => {
                 </button>
               </div>
 
-              <!-- Doodad / Layoff / Generic -->
+              <!-- Doodad / Layoff / Story / Generic -->
               <div
                 v-if="
                   gameStore.pendingAction.type === 'doodad' ||
                   gameStore.pendingAction.type === 'layoff' ||
+                  gameStore.pendingAction.type === 'story' ||
                   (![
                     'opportunity',
                     'market',
@@ -822,7 +831,13 @@ const showPendingPanel = computed(() => {
                 <button
                   type="button"
                   class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted"
-                  @click="gameStore.pendingAction.type === 'doodad' ? gameStore.dismissDoodad() : onAcknowledge()"
+                  @click="
+                    gameStore.pendingAction.type === 'doodad'
+                      ? gameStore.dismissDoodad()
+                      : gameStore.pendingAction.type === 'story'
+                        ? gameStore.dismissStoryCard()
+                        : onAcknowledge()
+                  "
                 >
                   知道了
                 </button>
