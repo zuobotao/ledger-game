@@ -60,7 +60,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 5,
     cashFlow: 0,
     symbol: 'ON2U',
-    maxQuantity: 1000,
+    maxQuantity: 5000,
     action: 'buy',
   },
   {
@@ -72,7 +72,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 10,
     cashFlow: 0,
     symbol: 'ON2U',
-    maxQuantity: 1000,
+    maxQuantity: 5000,
     action: 'buy',
   },
   {
@@ -84,7 +84,6 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 20,
     cashFlow: 0,
     symbol: 'ON2U',
-    maxQuantity: 1000,
     action: 'sell',
   },
   {
@@ -96,7 +95,6 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 30,
     cashFlow: 0,
     symbol: 'ON2U',
-    maxQuantity: 1000,
     action: 'sell',
   },
   // MYT4U
@@ -109,7 +107,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 10,
     cashFlow: 0,
     symbol: 'MYT4U',
-    maxQuantity: 1000,
+    maxQuantity: 5000,
     action: 'buy',
   },
   {
@@ -121,7 +119,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 20,
     cashFlow: 0,
     symbol: 'MYT4U',
-    maxQuantity: 1000,
+    maxQuantity: 2000,
     action: 'buy',
   },
   {
@@ -133,7 +131,6 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 30,
     cashFlow: 0,
     symbol: 'MYT4U',
-    maxQuantity: 1000,
     action: 'sell',
   },
   {
@@ -145,7 +142,6 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 40,
     cashFlow: 0,
     symbol: 'MYT4U',
-    maxQuantity: 1000,
     action: 'sell',
   },
   // GRO4US
@@ -158,7 +154,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 5,
     cashFlow: 0,
     symbol: 'GRO4US',
-    maxQuantity: 1000,
+    maxQuantity: 5000,
     action: 'buy',
   },
   {
@@ -170,7 +166,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 12,
     cashFlow: 0,
     symbol: 'GRO4US',
-    maxQuantity: 1000,
+    maxQuantity: 2000,
     action: 'buy',
   },
   {
@@ -182,7 +178,6 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 25,
     cashFlow: 0,
     symbol: 'GRO4US',
-    maxQuantity: 1000,
     action: 'sell',
   },
   {
@@ -194,7 +189,6 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 40,
     cashFlow: 0,
     symbol: 'GRO4US',
-    maxQuantity: 1000,
     action: 'sell',
   },
   // OK4U
@@ -207,7 +201,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 15,
     cashFlow: 0,
     symbol: 'OK4U',
-    maxQuantity: 1000,
+    maxQuantity: 2000,
     action: 'buy',
   },
   {
@@ -219,7 +213,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 20,
     cashFlow: 0,
     symbol: 'OK4U',
-    maxQuantity: 1000,
+    maxQuantity: 2000,
     action: 'buy',
   },
   {
@@ -231,7 +225,6 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 30,
     cashFlow: 0,
     symbol: 'OK4U',
-    maxQuantity: 1000,
     action: 'sell',
   },
   {
@@ -243,7 +236,6 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 50,
     cashFlow: 0,
     symbol: 'OK4U',
-    maxQuantity: 1000,
     action: 'sell',
   },
   // 2BIG
@@ -256,7 +248,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 20,
     cashFlow: 0,
     symbol: '2BIG',
-    maxQuantity: 1000,
+    maxQuantity: 2000,
     action: 'buy',
   },
   {
@@ -280,7 +272,6 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 50,
     cashFlow: 0,
     symbol: '2BIG',
-    maxQuantity: 1000,
     action: 'sell',
   },
   {
@@ -292,7 +283,6 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 80,
     cashFlow: 0,
     symbol: '2BIG',
-    maxQuantity: 1000,
     action: 'sell',
   },
   // 小机会 - 股票拆分/合股（每只股票各一张拆分、一张合股）
@@ -634,7 +624,7 @@ export const FAST_TRACK_OPPORTUNITY_CARDS: OpportunityCard[] = [
     cost: 100,
     cashFlow: 0,
     symbol: 'TECH',
-    maxQuantity: 5000,
+    maxQuantity: 1000,
   },
   {
     id: 'ft-hotel',

@@ -19,7 +19,7 @@ import DiceRoller from '@/components/DiceRoller.vue'
 import RatRaceBoard from '@/components/RatRaceBoard.vue'
 import TransactionHistory from '@/components/TransactionHistory.vue'
 import CardHistory from '@/components/CardHistory.vue'
-import StockQuantitySelector from '@/components/StockQuantitySelector.vue'
+import QuantitySelector from '@/components/QuantitySelector.vue'
 import { History, Receipt, CreditCard, BarChart2 } from 'lucide-vue-next'
 import FinancialCharts from '@/components/FinancialCharts.vue'
 import StockPortfolioChart from '@/components/StockPortfolioChart.vue'
@@ -165,12 +165,21 @@ function onDeclineOpportunity() {
 
 const sellQuantities = ref<Record<string, number>>({})
 
-function getSellQuantity(assetId: string): number {
-  return sellQuantities.value[assetId] ?? 1
+function getSellQuantity(assetId: string, defaultQty: number = 1): number {
+  return sellQuantities.value[assetId] ?? defaultQty
 }
 
 function setSellQuantity(assetId: string, val: number) {
   sellQuantities.value[assetId] = val
+}
+
+function getUnitLabel(assetType: string): string {
+  switch (assetType) {
+    case 'stock': return '股'
+    case 'real_estate': return '套'
+    case 'business': return '家'
+    default: return '份'
+  }
 }
 
 function changeSellQty(assetId: string, delta: number) {
@@ -191,7 +200,7 @@ function getMarketPrice(asset: Asset): number {
 }
 
 function onSellAsset(asset: Asset) {
-  const qty = asset.type === 'stock' ? getSellQuantity(asset.id) : asset.quantity
+  const qty = getSellQuantity(asset.id)
   gameStore.sellAssetToMarket(asset.id, qty)
   // 重置数量
   delete sellQuantities.value[asset.id]
@@ -603,13 +612,15 @@ const showPendingPanel = computed(() => {
                 </div>
 
                 <!-- 数量选择器（股票类且有有效最大数量时显示，拆分/合股卡除外） -->
-                <StockQuantitySelector
+                <QuantitySelector
                   v-if="opportunityCard.type === 'stock' && maxOpportunityQuantity > 0 && opportunityCard.splitRatio === undefined"
                   v-model="opportunityQuantity"
                   :max-quantity="maxOpportunityQuantity"
                   :unit-price="opportunityCard.cost"
                   :mode="isOpportunitySell ? 'sell' : 'buy'"
                   :available-cash="gameStore.currentPlayer?.cash"
+                  asset-type="stock"
+                  unit-label="股"
                   class="mb-3"
                 />
 
@@ -718,37 +729,31 @@ const showPendingPanel = computed(() => {
                         单价 {{ formatMoney(getMarketPrice(asset)) }}
                       </span>
                     </div>
-                    <!-- 数量选择器（股票类） -->
-                    <StockQuantitySelector
-                      v-if="asset.type === 'stock' && asset.quantity > 1"
-                      :model-value="getSellQuantity(asset.id)"
+                    <!-- 数量选择器（所有资产类型，数量>1时显示） -->
+                    <QuantitySelector
+                      v-if="asset.quantity > 1"
+                      :model-value="getSellQuantity(asset.id, asset.quantity)"
                       @update:model-value="(v: number) => setSellQuantity(asset.id, v)"
                       :max-quantity="asset.quantity"
                       :unit-price="getMarketPrice(asset)"
                       mode="sell"
+                      :asset-type="asset.type as 'stock' | 'real_estate' | 'business' | 'other'"
+                      :unit-label="getUnitLabel(asset.type)"
                       :show-quick-buttons="asset.quantity > 10"
                     />
-                    <!-- 非股票类：直接显示可得金额 -->
+                    <!-- 数量=1时：简单显示 -->
                     <div v-else class="flex items-center justify-between">
                       <span class="text-xs text-muted-foreground">
-                        可得：<span class="font-semibold text-success">{{ formatMoney(getMarketPrice(asset) * (asset.type === 'stock' ? getSellQuantity(asset.id) : asset.quantity)) }}</span>
+                        可得：<span class="font-semibold text-success">{{ formatMoney(getMarketPrice(asset)) }}</span>
                       </span>
-                      <button
-                        type="button"
-                        class="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90"
-                        @click="onSellAsset(asset)"
-                      >
-                        卖出
-                      </button>
                     </div>
-                    <!-- 股票类：单独的卖出按钮行 -->
+                    <!-- 卖出按钮 -->
                     <button
-                      v-if="asset.type === 'stock'"
                       type="button"
                       class="w-full rounded-full bg-primary py-2 text-xs font-semibold text-primary-foreground hover:opacity-90"
                       @click="onSellAsset(asset)"
                     >
-                      卖出 {{ getSellQuantity(asset.id) }} 股 · 可得 {{ formatMoney(getMarketPrice(asset) * getSellQuantity(asset.id)) }}
+                      卖出 {{ getSellQuantity(asset.id, asset.quantity) }} {{ getUnitLabel(asset.type) }} · 可得 {{ formatMoney(getMarketPrice(asset) * getSellQuantity(asset.id, asset.quantity)) }}
                     </button>
                   </div>
                 </div>
