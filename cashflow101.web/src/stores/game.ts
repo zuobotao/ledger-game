@@ -260,6 +260,7 @@ export const useGameStore = defineStore('game', () => {
   const isAIThinking = ref(false)
   const viewingPlayerId = ref<string | null>(null)
   const viewingPhase = ref<'rat_race' | 'fast_track' | null>(null)
+  const learningMode = ref(false)
 
   const currentPlayer = computed<Player | null>(() => players.value[currentPlayerIndex.value] ?? null)
   const isGameStarted = computed(() => phase.value === 'rat_race' || phase.value === 'fast_track')
@@ -572,6 +573,11 @@ export const useGameStore = defineStore('game', () => {
 
   function setViewingPhase(phase: 'rat_race' | 'fast_track' | null) {
     viewingPhase.value = phase
+    saveState()
+  }
+
+  function toggleLearningMode() {
+    learningMode.value = !learningMode.value
     saveState()
   }
 
@@ -2262,6 +2268,8 @@ export const useGameStore = defineStore('game', () => {
     viewingPhase,
     displayPhase,
     isSpectatingOtherPhase,
+    learningMode,
+    toggleLearningMode,
     currentPlayer,
     isGameStarted,
     canCurrentPlayerEnterFastTrack,

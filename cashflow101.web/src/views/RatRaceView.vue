@@ -10,6 +10,7 @@ import {
   Dices,
   Eye,
   Landmark,
+  Lightbulb,
   Shield,
   TrendingUp,
   BriefcaseBusiness,
@@ -30,6 +31,7 @@ import GameSummary from '@/components/GameSummary.vue'
 import PlayerSwitcher from '@/components/PlayerSwitcher.vue'
 import GoalProgress from '@/components/GoalProgress.vue'
 import PhaseSwitcher from '@/components/PhaseSwitcher.vue'
+import AITutorAdvice from '@/components/AITutorAdvice.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -522,6 +524,35 @@ const showPendingPanel = computed(() => {
           <PhaseSwitcher />
         </div>
 
+        <!-- 学习模式开关 -->
+        <div class="px-4 pt-3 lg:px-5">
+          <button
+            type="button"
+            class="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-secondary/30 px-3 py-2.5 text-xs transition hover:bg-muted/50"
+            :class="{ 'border-primary/40 bg-primary/10': gameStore.learningMode }"
+            @click="gameStore.toggleLearningMode()"
+          >
+            <span class="flex items-center gap-2">
+              <Lightbulb
+                class="h-4 w-4"
+                :class="gameStore.learningMode ? 'text-primary' : 'text-muted-foreground'"
+              />
+              <span class="font-medium" :class="gameStore.learningMode ? 'text-primary' : 'text-foreground'">
+                学习模式
+              </span>
+            </span>
+            <span
+              class="relative h-5 w-9 rounded-full transition-colors"
+              :class="gameStore.learningMode ? 'bg-primary' : 'bg-muted'"
+            >
+              <span
+                class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform"
+                :class="gameStore.learningMode ? 'translate-x-4' : 'translate-x-0.5'"
+              />
+            </span>
+          </button>
+        </div>
+
         <div class="flex border-b border-border px-4 pt-3 lg:px-5">
           <button
             type="button"
@@ -839,6 +870,11 @@ const showPendingPanel = computed(() => {
               @dice-done="onDiceAnimationDone"
             />
           </div>
+        </div>
+
+        <!-- AI 导师建议 -->
+        <div v-if="gameStore.learningMode" class="shrink-0 px-4 pb-2 sm:px-8">
+          <AITutorAdvice />
         </div>
 
         <!-- 主操作按钮（棋盘下方） -->
