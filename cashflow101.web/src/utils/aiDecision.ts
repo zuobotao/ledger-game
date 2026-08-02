@@ -1,4 +1,4 @@
-import type { Player, OpportunityCard, Asset } from '@/types/game'
+import type { Player, OpportunityCard, Asset, Dream } from '@/types/game'
 import { BANK_CONFIG } from '@/types/game'
 
 // AI 难度
@@ -404,6 +404,100 @@ export function decideCharity(
   }
 }
 
+// ==================== 7. 快车道机会卡买入决策 ====================
+
+/**
+ * 决策：是否买入快车道机会卡（大金额投资）
+ *
+ * 快车道投资金额大，决策更保守，更看重现金流回报
+ */
+export function decideBuyFastTrackOpportunity(
+  player: Player,
+  card: OpportunityCard,
+  difficulty: AIDifficulty,
+): { buy: boolean; quantity: number } {
+  const roi = estimateROI(card)
+  const availableCash = player.cash
+
+  // 快车道配置：更保守的 ROI 要求，更谨慎的资金使用
+  const config = {
+    easy: {
+      minROI: 0.12, // ROI > 12% 才买
+      maxCashRatio: 0.4, // 最多用 40% 现金
+      maxLoanRatio: 0, // 不贷款
+      willLoan: false,
+    },
+    medium: {
+      minROI: 0.10, // ROI > 10%
+      maxCashRatio: 0.6, // 用 60% 现金
+      maxLoanRatio: 3, // 贷款不超过月收入 × 3
+      willLoan: roi > 0.15, // ROI > 15% 才考虑贷款
+    },
+    hard: {
+      minROI: 0.08, // ROI > 8%
+      maxCashRatio: 0.8, // 用 80% 现金
+      maxLoanRatio: 8, // 积极使用杠杆
+      willLoan: true,
+    },
+  }[difficulty]
+
+  // ROI 不达门槛，不买
+  if (roi < config.minROI) {
+    return { buy: false, quantity: 0 }
+  }
+
+  // 计算可投入资金
+  let investableFunds = availableCash * randomFactor(config.maxCashRatio, 0.1)
+
+  // 如果考虑贷款，加上可贷额度
+  if (config.willLoan && config.maxLoanRatio > 0) {
+    const maxLoan = player.totalIncome * config.maxLoanRatio
+    const currentLoan = getBankLoanAmount(player)
+    const additionalLoan = Math.max(0, maxLoan - currentLoan)
+    investableFunds += additionalLoan * randomFactor(0.7, 0.2)
+  }
+
+  // 买不起一份
+  if (investableFunds < card.cost) {
+    return { buy: false, quantity: 0 }
+  }
+
+  // 快车道机会通常只能买 1 份（大额投资）
+  const quantity = 1
+
+  return { buy: true, quantity }
+}
+
+// ==================== 8. 梦想购买决策 ====================
+
+/**
+ * 决策：是否购买梦想（胜利条件）
+ *
+ * @returns true = 买，false = 不买
+ */
+export function decideBuyDream(
+  player: Player,
+  dream: Dream,
+  difficulty: AIDifficulty,
+): boolean {
+  const cash = player.cash
+  const dreamPrice = dream.price
+
+  switch (difficulty) {
+    case 'easy':
+      // 保守：现金远超梦想价格才买（1.5 倍缓冲）
+      return cash >= dreamPrice * 1.5
+    case 'medium':
+      // 中等：有一定缓冲就买（1.2 倍）
+      return cash >= dreamPrice * 1.2
+    case 'hard':
+      // 激进：够买就买，追求最快胜利
+      return cash >= dreamPrice * 1.05
+    default:
+      return false
+  }
+}
+
 // ==================== 汇总导出 ====================
 
 export const AIDecision = {
@@ -413,6 +507,8 @@ export const AIDecision = {
   decideRepayLoan,
   decideBuyInsurance,
   decideCharity,
+  decideBuyFastTrackOpportunity,
+  decideBuyDream,
 }
 
 export default AIDecision

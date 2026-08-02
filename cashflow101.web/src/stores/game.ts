@@ -581,7 +581,7 @@ export const useGameStore = defineStore('game', () => {
 
     // 如果下一个玩家是 AI，自动执行 AI 回合
     const nextPlayer = currentPlayer.value
-    if (nextPlayer?.isAI && phase.value === 'rat_race') {
+    if (nextPlayer?.isAI && (phase.value === 'rat_race' || phase.value === 'fast_track')) {
       // 用 setTimeout 避免在 moveToNextPlayer 中嵌套调用
       setTimeout(() => {
         runAITurn()
@@ -1584,7 +1584,8 @@ export const useGameStore = defineStore('game', () => {
 
   async function runAITurn(): Promise<void> {
     const player = currentPlayer.value
-    if (!player || !player.isAI || phase.value !== 'rat_race') return
+    if (!player || !player.isAI) return
+    if (phase.value !== 'rat_race' && phase.value !== 'fast_track') return
 
     isAIThinking.value = true
 
@@ -1593,7 +1594,11 @@ export const useGameStore = defineStore('game', () => {
       await sleep(500)
 
       // 2. 掷骰子
-      ratRaceRollDice()
+      if (phase.value === 'rat_race') {
+        ratRaceRollDice()
+      } else {
+        fastTrackRollDice()
+      }
 
       // 3. 等待骰子动画完成（约 800ms）
       await sleep(800)
@@ -1601,8 +1606,8 @@ export const useGameStore = defineStore('game', () => {
       // 4-5. 处理 pending action（AI 自动决策）
       await aiHandlePendingAction()
 
-      // 6. AI 买保险（如果可买且决策为买）
-      if (!player.hasInsurance && turnStatus.value === 'resolving') {
+      // 6. AI 买保险（仅老鼠圈）
+      if (phase.value === 'rat_race' && !player.hasInsurance && turnStatus.value === 'resolving') {
         const difficulty: AIDifficulty = (player.aiDifficulty as AIDifficulty) ?? 'medium'
         if (AIDecision.decideBuyInsurance(player, difficulty)) {
           await sleep(300)
@@ -1610,7 +1615,7 @@ export const useGameStore = defineStore('game', () => {
         }
       }
 
-      // 7. AI 考虑还款（如果有闲置现金）
+      // 7. AI 考虑还款（两个阶段都有）
       if (turnStatus.value === 'resolving') {
         const difficulty: AIDifficulty = (player.aiDifficulty as AIDifficulty) ?? 'medium'
         const repayAmount = AIDecision.decideRepayLoan(player, difficulty)
@@ -1746,6 +1751,45 @@ export const useGameStore = defineStore('game', () => {
       case 'need_loan': {
         await sleep(300)
         confirmLoanForPending()
+        break
+      }
+
+      case 'fast_track_opportunity': {
+        const card = action.card as OpportunityCard
+        if (!card) return
+        await sleep(400)
+
+        const decision = AIDecision.decideBuyFastTrackOpportunity(player, card, difficulty)
+        if (decision.buy && decision.quantity > 0) {
+          const totalCost = card.cost * decision.quantity
+          if (player.cash < totalCost) {
+            const needed = totalCost - player.cash
+            const loanAmount = AIDecision.decideBankLoan(player, difficulty)
+            if (loanAmount >= needed) {
+              takeBankLoan(Math.ceil(needed / BANK_CONFIG.loanStep) * BANK_CONFIG.loanStep)
+              await sleep(200)
+            } else {
+              // 现金不够也贷不到，放弃
+              declineOpportunity()
+              return
+            }
+          }
+          buyOpportunity(decision.quantity)
+        } else {
+          declineOpportunity()
+        }
+        break
+      }
+
+      case 'fast_track_dream': {
+        await sleep(500)
+        const dream = player.dream
+        if (dream && AIDecision.decideBuyDream(player, dream, difficulty)) {
+          buyDream()
+        } else {
+          // 放弃梦想格（继续游戏）
+          acknowledgeMessage()
+        }
         break
       }
 
