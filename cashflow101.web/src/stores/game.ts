@@ -538,9 +538,11 @@ export const useGameStore = defineStore('game', () => {
     currentPlayerIndex.value = 0
     phase.value = 'rat_race'
     winnerId.value = null
+    gameEndReason.value = null
     turnStatus.value = 'idle'
     lastRoll.value = 0
     turnNumber.value = 1
+    gameMonth.value = 0
     pendingAction.value = { type: null, card: null, message: '' }
     marketEvent.value = null
     marketEventState.value = null
@@ -636,10 +638,9 @@ export const useGameStore = defineStore('game', () => {
 
     // 寻找下一个未破产的玩家
     let nextIndex = currentPlayerIndex.value
-    let wasLastPlayer = false
+    const wasLastPlayer = nextIndex === count - 1
     let skippedCount = 0
     do {
-      wasLastPlayer = nextIndex === count - 1
       nextIndex = (nextIndex + 1) % count
       skippedCount++
       // 防止死循环（所有玩家都破产的极端情况）
@@ -2455,5 +2456,16 @@ export const useGameStore = defineStore('game', () => {
     resolveBankruptcy,
     activePlayers,
     canPlayerAfford,
+    // 测试用导出
+    handlePayday,
+    recalcPlayerFinancials,
+    getFastTrackCell,
+    setPending,
+    checkBankruptcyVictory,
+    declineOpportunity,
+    endTurn: moveToNextPlayer,
+    applyMarketEventFastTrack,
+    calcPlayerNetWorth,
+    drawFastTrackOpportunityCard: drawFastTrackOpportunity,
   }
 })
