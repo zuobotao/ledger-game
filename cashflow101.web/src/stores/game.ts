@@ -1032,6 +1032,91 @@ export const useGameStore = defineStore('game', () => {
     return true
   }
 
+  // 股票交易卡：买入（不关闭卡片，可继续操作）
+  function tradeBuyStock(quantity: number): boolean {
+    const player = currentPlayer.value
+    const card = pendingAction.value.card as OpportunityCard | null
+    if (!player || pendingAction.value.type !== 'opportunity' || !card) return false
+    if (card.type !== 'stock' || !card.symbol) return false
+
+    const cost = card.cost * quantity
+    if (player.cash < cost) return false
+
+    player.cash -= cost
+    const existing = player.assets.find((a) => a.type === 'stock' && a.symbol === card.symbol)
+    if (existing) {
+      existing.quantity += quantity
+    } else {
+      const asset: Asset = {
+        id: createId(),
+        name: card.title,
+        type: 'stock',
+        cost: card.cost,
+        cashFlow: 0,
+        quantity,
+        symbol: card.symbol,
+        marketPrice: card.cost,
+      }
+      player.assets.push(asset)
+    }
+    recalcPlayerFinancials(player)
+    recordTransaction('stock_buy', -cost, `买入 ${card.symbol} 股票`, player.id, {
+      assetSymbol: card.symbol,
+      assetQuantity: quantity,
+      unitPrice: card.cost,
+    })
+    recordCardDrawn('opportunity', card, player.id, 'accepted', cost)
+
+    // 不关闭卡片，保持 opportunity 状态，让玩家可以继续操作
+    // 更新消息以提示买入成功
+    pendingAction.value = {
+      ...pendingAction.value,
+      message: `已买入 ${card.symbol} ×${quantity}，支出 ${formatMoney(cost)}。可继续交易或放弃。`,
+    }
+    saveState()
+    return true
+  }
+
+  // 股票交易卡：卖出（不关闭卡片，可继续操作）
+  function tradeSellStock(quantity: number): boolean {
+    const player = currentPlayer.value
+    const card = pendingAction.value.card as OpportunityCard | null
+    if (!player || pendingAction.value.type !== 'opportunity' || !card) return false
+    if (card.type !== 'stock' || !card.symbol) return false
+
+    const symbol = card.symbol
+    const price = card.cost
+
+    const assetIndex = player.assets.findIndex((a) => a.type === 'stock' && a.symbol === symbol)
+    if (assetIndex === -1) return false
+    const asset = player.assets[assetIndex]!
+
+    if (asset.quantity < quantity) return false
+
+    const total = price * quantity
+    asset.quantity -= quantity
+    if (asset.quantity <= 0) {
+      player.assets.splice(assetIndex, 1)
+    }
+    player.cash += total
+    recalcPlayerFinancials(player)
+
+    recordTransaction('stock_sell', total, `卖出 ${symbol} 股票`, player.id, {
+      assetSymbol: symbol,
+      assetQuantity: quantity,
+      unitPrice: price,
+    })
+    recordCardDrawn('opportunity', card, player.id, 'sold', total)
+
+    // 不关闭卡片，保持 opportunity 状态，让玩家可以继续操作
+    pendingAction.value = {
+      ...pendingAction.value,
+      message: `已卖出 ${symbol} ×${quantity}，获得 ${formatMoney(total)}。可继续交易或放弃。`,
+    }
+    saveState()
+    return true
+  }
+
   function buyOpportunity(quantity = 1) {
     const player = currentPlayer.value
     const card = pendingAction.value.card as OpportunityCard | null
@@ -1746,6 +1831,8 @@ export const useGameStore = defineStore('game', () => {
     fastTrackRollDice,
     buyOpportunity,
     sellOpportunityStock,
+    tradeBuyStock,
+    tradeSellStock,
     declineOpportunity,
     sellAssetToMarket,
     dismissMarketEvent,

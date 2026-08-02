@@ -124,6 +124,35 @@ const currentStockHolding = computed(() => {
   return gameStore.getStockHolding(card.symbol)
 })
 
+// 股票交易卡：是否为可交易的小机会股票卡（同时显示买卖）
+const isStockTradeCard = computed(() => {
+  const card = opportunityCard.value
+  // 小机会 + 股票类型 + 非拆分/合股卡 = 交易卡
+  return card?.size === 'small' && card.type === 'stock' && card.splitRatio === undefined
+})
+
+// 股票交易卡：最大可买数量
+const maxBuyQuantity = computed(() => {
+  const card = opportunityCard.value
+  const player = gameStore.currentPlayer
+  if (!card || !player || card.cost <= 0) return 0
+  const maxByCash = Math.floor(player.cash / card.cost)
+  if (card.maxQuantity) {
+    return Math.max(0, Math.min(card.maxQuantity, maxByCash))
+  }
+  return Math.max(0, maxByCash)
+})
+
+// 股票交易卡：最大可卖数量
+const maxSellQuantity = computed(() => {
+  return currentStockHolding.value?.quantity ?? 0
+})
+
+// 股票交易卡：是否持有该股票
+const hasStockHolding = computed(() => {
+  return maxSellQuantity.value > 0
+})
+
 // ========== 市场卡相关 ==========
 const marketCard = computed<MarketEventCard | null>(() => {
   if (gameStore.pendingAction.type === 'market') {
@@ -146,6 +175,8 @@ const sellableAssets = computed(() => {
 })
 
 const opportunityQuantity = ref(1)
+const buyQuantity = ref(1)
+const sellQuantity = ref(1)
 const showBankModal = ref(false)
 const repayInputs = ref<Record<string, number>>({})
 const sidePanelTab = ref<'balance' | 'history' | 'stats'>('balance')
@@ -185,6 +216,26 @@ function onBuyOpportunity() {
 function onDeclineOpportunity() {
   gameStore.declineOpportunity()
   opportunityQuantity.value = 1
+  buyQuantity.value = 1
+  sellQuantity.value = 1
+}
+
+function onTradeBuy() {
+  if (!opportunityCard.value) return
+  gameStore.tradeBuyStock(buyQuantity.value)
+  // 重置买入数量为 1
+  buyQuantity.value = 1
+  // 卖出数量也重置（因为持仓可能变化）
+  sellQuantity.value = 1
+}
+
+function onTradeSell() {
+  if (!opportunityCard.value) return
+  gameStore.tradeSellStock(sellQuantity.value)
+  // 重置卖出数量为 1
+  sellQuantity.value = 1
+  // 买入数量也重置（因为现金可能变化）
+  buyQuantity.value = 1
 }
 
 const sellQuantities = ref<Record<string, number>>({})
@@ -349,36 +400,6 @@ const showPendingPanel = computed(() => {
           进入资本游戏
           <ArrowRight class="h-3.5 w-3.5" />
         </button>
-        <!-- 主操作按钮 -->
-        <Transition name="main-btn" mode="out-in">
-          <!-- 掷骰子（idle 状态） -->
-          <button
-            v-if="gameStore.turnStatus === 'idle'"
-            key="roll"
-            type="button"
-            class="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm shadow-primary/20 transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:px-5"
-            :disabled="isCurrentPlayerAI"
-            @click="onRollDice"
-          >
-            <Dices v-if="gameStore.currentPlayer?.doubleDiceNextTurn" class="h-4 w-4" />
-            <Dice5 v-else class="h-4 w-4" />
-            <span class="hidden sm:inline">
-              {{ gameStore.currentPlayer?.doubleDiceNextTurn ? '掷双骰' : '掷骰子' }}
-            </span>
-          </button>
-          <!-- 结束回合（resolving 状态） -->
-          <button
-            v-else
-            key="end"
-            type="button"
-            class="inline-flex h-9 items-center gap-1.5 rounded-full bg-secondary px-4 text-sm font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:px-5"
-            :disabled="gameStore.turnStatus === 'rolling' || isCurrentPlayerAI"
-            @click="onEndTurn"
-          >
-            <span class="hidden sm:inline">结束回合</span>
-            <ArrowRight class="h-4 w-4" />
-          </button>
-        </Transition>
       </div>
     </header>
 
@@ -662,6 +683,39 @@ const showPendingPanel = computed(() => {
           </div>
         </div>
 
+        <!-- 主操作按钮（棋盘下方） -->
+        <div class="shrink-0 flex justify-center px-3 pb-3 sm:px-6 sm:pb-4">
+          <Transition name="main-btn" mode="out-in">
+            <!-- 掷骰子（idle 状态） -->
+            <button
+              v-if="gameStore.turnStatus === 'idle'"
+              key="roll"
+              type="button"
+              class="inline-flex h-12 items-center gap-2 rounded-full bg-primary px-8 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 sm:h-14 sm:px-10 sm:text-lg"
+              :disabled="isCurrentPlayerAI"
+              @click="onRollDice"
+            >
+              <Dices v-if="gameStore.currentPlayer?.doubleDiceNextTurn" class="h-5 w-5 sm:h-6 sm:w-6" />
+              <Dice5 v-else class="h-5 w-5 sm:h-6 sm:w-6" />
+              <span>
+                {{ gameStore.currentPlayer?.doubleDiceNextTurn ? '掷双骰' : '掷骰子' }}
+              </span>
+            </button>
+            <!-- 结束回合（resolving 状态） -->
+            <button
+              v-else
+              key="end"
+              type="button"
+              class="inline-flex h-12 items-center gap-2 rounded-full bg-secondary px-8 text-base font-semibold text-foreground shadow-md transition hover:bg-muted active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 sm:h-14 sm:px-10 sm:text-lg"
+              :disabled="gameStore.turnStatus === 'rolling' || isCurrentPlayerAI"
+              @click="onEndTurn"
+            >
+              <span>结束回合</span>
+              <ArrowRight class="h-5 w-5 sm:h-6 sm:w-6" />
+            </button>
+          </Transition>
+        </div>
+
         <!-- Pending action floating panel -->
         <Transition name="slide-up">
           <div
@@ -710,14 +764,127 @@ const showPendingPanel = computed(() => {
                   </button>
                 </div>
 
+                <!-- 股票交易卡：同时显示买入和卖出（小机会股票卡，非拆分/合股） -->
+                <div v-else-if="isStockTradeCard" class="stock-trade-panel">
+                  <!-- 当前持仓信息 -->
+                  <div class="mb-3 rounded-xl border border-border bg-secondary/30 p-3">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        {{ opportunityCard.symbol }}
+                      </span>
+                      <span class="text-sm font-semibold text-foreground">
+                        市价 {{ formatMoney(opportunityCard.cost) }}
+                      </span>
+                    </div>
+                    <div class="mt-1 flex items-center justify-between text-xs">
+                      <span class="text-muted-foreground">当前持仓：</span>
+                      <span class="font-medium text-foreground">
+                        {{ hasStockHolding ? `${currentStockHolding?.quantity} 股` : '未持有' }}
+                      </span>
+                    </div>
+                    <div v-if="hasStockHolding" class="flex items-center justify-between text-xs">
+                      <span class="text-muted-foreground">成本价：</span>
+                      <span class="font-medium text-foreground">
+                        {{ formatMoney(currentStockHolding?.cost ?? 0) }}
+                      </span>
+                    </div>
+                    <div v-if="hasStockHolding" class="flex items-center justify-between text-xs">
+                      <span class="text-muted-foreground">浮动盈亏：</span>
+                      <span
+                        class="font-semibold"
+                        :class="(opportunityCard.cost - (currentStockHolding?.cost ?? 0)) * (currentStockHolding?.quantity ?? 0) >= 0 ? 'text-success' : 'text-destructive'"
+                      >
+                        {{ (opportunityCard.cost - (currentStockHolding?.cost ?? 0)) * (currentStockHolding?.quantity ?? 0) >= 0 ? '+' : '' }}
+                        {{ formatMoney((opportunityCard.cost - (currentStockHolding?.cost ?? 0)) * (currentStockHolding?.quantity ?? 0) }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- 买入区域 -->
+                  <div class="mb-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                    <div class="mb-2 flex items-center justify-between">
+                      <span class="text-sm font-semibold text-primary">买入</span>
+                      <span class="text-xs text-muted-foreground">
+                        买入价 {{ formatMoney(opportunityCard.cost) }}/股
+                      </span>
+                    </div>
+                    <QuantitySelector
+                      v-if="maxBuyQuantity > 0"
+                      v-model="buyQuantity"
+                      :max-quantity="maxBuyQuantity"
+                      :unit-price="opportunityCard.cost"
+                      mode="buy"
+                      :available-cash="gameStore.currentPlayer?.cash"
+                      asset-type="stock"
+                      unit-label="股"
+                      class="mb-2"
+                    />
+                    <div v-else class="mb-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                      现金不足，无法买入
+                    </div>
+                    <button
+                      type="button"
+                      :disabled="maxBuyQuantity === 0 || buyQuantity <= 0 || disableHumanActions"
+                      class="w-full rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                      @click="onTradeBuy"
+                    >
+                      买入 {{ buyQuantity }} 股 · {{ formatMoney(opportunityCard.cost * buyQuantity) }}
+                    </button>
+                  </div>
+
+                  <!-- 卖出区域 -->
+                  <div class="mb-3 rounded-xl border border-success/30 bg-success/5 p-3">
+                    <div class="mb-2 flex items-center justify-between">
+                      <span class="text-sm font-semibold text-success">卖出</span>
+                      <span class="text-xs text-muted-foreground">
+                        卖出价 {{ formatMoney(opportunityCard.cost) }}/股
+                      </span>
+                    </div>
+                    <template v-if="hasStockHolding">
+                      <QuantitySelector
+                        v-model="sellQuantity"
+                        :max-quantity="maxSellQuantity"
+                        :unit-price="opportunityCard.cost"
+                        mode="sell"
+                        asset-type="stock"
+                        unit-label="股"
+                        class="mb-2"
+                      />
+                      <button
+                        type="button"
+                        :disabled="maxSellQuantity === 0 || sellQuantity <= 0 || disableHumanActions"
+                        class="w-full rounded-full bg-success px-4 py-2 text-sm font-semibold text-success-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                        @click="onTradeSell"
+                      >
+                        卖出 {{ sellQuantity }} 股 · {{ formatMoney(opportunityCard.cost * sellQuantity) }}
+                      </button>
+                    </template>
+                    <div v-else class="rounded-lg border border-muted/30 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                      未持有该股票，无法卖出
+                    </div>
+                  </div>
+
+                  <!-- 放弃按钮 -->
+                  <button
+                    type="button"
+                    :disabled="disableHumanActions"
+                    class="w-full rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                    @click="onDeclineOpportunity"
+                  >
+                    放弃 / 完成
+                  </button>
+                </div>
+
+                <!-- 非交易卡的原有逻辑（非股票类、非拆分/合股的股票卡） -->
+
                 <!-- 股票卖出卡：无持仓提示 -->
                 <div v-else-if="isOpportunitySell && maxOpportunityQuantity === 0" class="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   你当前没有 {{ opportunityCard.symbol }} 股票，无法卖出。
                 </div>
 
-                <!-- 数量选择器（股票类且有有效最大数量时显示，拆分/合股卡除外） -->
+                <!-- 数量选择器（股票类且有有效最大数量时显示，拆分/合股卡和交易卡除外） -->
                 <QuantitySelector
-                  v-if="opportunityCard.type === 'stock' && maxOpportunityQuantity > 0 && opportunityCard.splitRatio === undefined"
+                  v-if="opportunityCard.type === 'stock' && maxOpportunityQuantity > 0 && opportunityCard.splitRatio === undefined && !isStockTradeCard"
                   v-model="opportunityQuantity"
                   :max-quantity="maxOpportunityQuantity"
                   :unit-price="opportunityCard.cost"
@@ -769,8 +936,8 @@ const showPendingPanel = computed(() => {
                   </span>
                 </div>
 
-                <!-- 操作按钮（拆分/合股卡除外） -->
-                <div v-if="opportunityCard.splitRatio === undefined" class="flex gap-2">
+                <!-- 操作按钮（拆分/合股卡和交易卡除外） -->
+                <div v-if="opportunityCard.splitRatio === undefined && !isStockTradeCard" class="flex gap-2">
                   <button
                     v-if="!isOpportunitySell"
                     type="button"
@@ -975,36 +1142,6 @@ const showPendingPanel = computed(() => {
         </Transition>
       </section>
     </div>
-
-    <!-- Bottom info bar -->
-    <footer
-      class="shrink-0 border-t border-border bg-secondary/50 px-4 py-2 text-xs backdrop-blur-sm sm:px-6 sm:py-2.5"
-    >
-      <div class="flex items-center justify-between gap-4" v-if="gameStore.currentPlayer">
-        <div class="flex items-center gap-4">
-          <div class="flex items-center gap-1.5">
-            <span class="text-muted-foreground">现金</span>
-            <span class="font-semibold text-foreground">
-              {{ formatMoney(gameStore.currentPlayer.cash) }}
-            </span>
-          </div>
-          <div class="hidden sm:flex items-center gap-1.5">
-            <span class="text-muted-foreground">月现金流</span>
-            <span
-              class="font-semibold"
-              :class="gameStore.currentPlayer.cashFlow >= 0 ? 'text-success' : 'text-destructive'"
-            >
-              {{ gameStore.currentPlayer.cashFlow >= 0 ? '+' : '' }}{{ formatMoney(gameStore.currentPlayer.cashFlow) }}
-            </span>
-          </div>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <span class="text-muted-foreground">
-            {{ gameStore.isAIThinking ? 'AI 思考中...' : gameStore.turnStatus === 'idle' ? '等待掷骰子' : gameStore.turnStatus === 'rolling' ? '掷骰中...' : '操作中' }}
-          </span>
-        </div>
-      </div>
-    </footer>
 
     <!-- Bank modal -->
     <BankModal :show="showBankModal" @close="showBankModal = false" />
