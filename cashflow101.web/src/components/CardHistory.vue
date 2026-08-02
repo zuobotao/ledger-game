@@ -75,7 +75,7 @@ function getCardTypeInfo(record: CardHistoryRecord): CardTypeInfo {
   if (record.type === 'doodad') {
     return {
       icon: ShoppingBag,
-      label: 'Doodad',
+      label: '生活意外',
       colorClass: 'text-destructive',
       bgClass: 'bg-destructive/15',
     }
@@ -139,7 +139,7 @@ const tabs: { key: FilterTab; label: string }[] = [
   { key: 'all', label: '全部' },
   { key: 'opportunity', label: '机会' },
   { key: 'market', label: '市场风云' },
-  { key: 'doodad', label: 'Doodad' },
+  { key: 'doodad', label: '生活意外' },
 ]
 </script>
 

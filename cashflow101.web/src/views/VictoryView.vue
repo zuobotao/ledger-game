@@ -45,7 +45,7 @@ const displayData = computed(() => {
 
 // 成就徽章
 const achievements = [
-  { icon: '🏆', label: '快车道达成者', description: '成功走出老鼠赛跑' },
+  { icon: '🏆', label: '资本游戏达成者', description: '成功完成原始资本积累' },
   { icon: '💰', label: '投资达人', description: '积累了丰厚的资产' },
   { icon: '🎯', label: '梦想实现家', description: '购买了人生梦想' },
 ]
@@ -137,7 +137,7 @@ function goHome() {
       <!-- 副标题 -->
       <p class="mb-10 text-lg font-medium text-foreground sm:text-xl">
         <span class="text-primary">{{ displayData.playerName }}</span>
-        成功走出老鼠赛跑
+        成功完成原始资本积累
       </p>
 
       <!-- 数据概览 2x2 网格 -->

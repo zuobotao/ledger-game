@@ -570,10 +570,10 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function applyDoodad(card: DoodadCard, player: Player): string {
-    const paid = requireLoanForPayment(card.cost, `Doodad：${card.title}`, () => {
+    const paid = requireLoanForPayment(card.cost, `生活意外：${card.title}`, () => {
       player.cash -= card.cost
       recordTransaction('doodad', -card.cost, card.title, player.id)
-      setPending(null, `Doodad：${card.title}，支出 ${formatMoney(card.cost)}。`)
+      setPending(null, `生活意外：${card.title}，支出 ${formatMoney(card.cost)}。`)
       turnStatus.value = 'resolving'
       saveState()
     })
@@ -581,7 +581,7 @@ export const useGameStore = defineStore('game', () => {
       pendingAction.value.card = card
       return pendingAction.value.message
     }
-    return `Doodad：${card.title}，支出 ${formatMoney(card.cost)}。`
+    return `生活意外：${card.title}，支出 ${formatMoney(card.cost)}。`
   }
 
   function applyStoryCard(card: StoryCard, player: Player): string {
@@ -1352,7 +1352,7 @@ export const useGameStore = defineStore('game', () => {
       case 'opportunity': {
         const { card, remaining } = drawFastTrackOpportunity(decks.value)
         decks.value.fastTrackOpportunity = remaining
-        setPending('fast_track_opportunity', `快车道机会：${card.title}`, card)
+        setPending('fast_track_opportunity', `资本游戏机会：${card.title}`, card)
         break
       }
       case 'investment': {
@@ -1363,9 +1363,9 @@ export const useGameStore = defineStore('game', () => {
       }
       case 'doodad': {
         const cost = Math.max(5000, player.cashFlow * 10)
-        const paid = requireLoanForPayment(cost, '快车道 doodad', () => {
+        const paid = requireLoanForPayment(cost, '资本游戏 生活意外', () => {
           player.cash -= cost
-          setPending(null, `快车道 doodad：支出 ${formatMoney(cost)}。`)
+          setPending(null, `资本游戏 生活意外：支出 ${formatMoney(cost)}。`)
           turnStatus.value = 'resolving'
           saveState()
         })

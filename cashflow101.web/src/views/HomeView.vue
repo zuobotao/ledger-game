@@ -32,7 +32,7 @@ function goToRules() {
         <p
           class="mx-auto mb-10 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg"
         >
-          走出老鼠赛跑，进入财富快车道。练习投资、管理资产负债、实现财务自由。
+          完成原始资本积累，进入资本游戏。练习投资、管理资产负债、实现财务自由。
         </p>
 
         <div class="flex flex-col items-center justify-center gap-4 sm:flex-row">

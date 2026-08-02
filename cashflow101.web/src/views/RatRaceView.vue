@@ -244,7 +244,7 @@ const showPendingPanel = computed(() => {
         <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <TrendingUp class="h-5 w-5" />
         </div>
-        <h1 class="text-lg font-semibold tracking-tight sm:text-xl">老鼠赛跑</h1>
+        <h1 class="text-lg font-semibold tracking-tight sm:text-xl">原始资本积累</h1>
       </div>
       <div class="flex items-center gap-2 sm:gap-4">
         <span
@@ -279,7 +279,7 @@ const showPendingPanel = computed(() => {
           class="inline-flex h-9 items-center justify-center gap-1 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:px-5 sm:text-sm"
           @click="enterFastTrack"
         >
-          进入快车道
+          进入资本游戏
           <ArrowRight class="h-4 w-4" />
         </button>
         <button

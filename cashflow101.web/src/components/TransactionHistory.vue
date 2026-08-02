@@ -41,7 +41,7 @@ const typeLabels: Record<TransactionType, string> = {
   salary: '工资',
   passive_income: '被动收入',
   expense: '支出',
-  doodad: 'Doodad',
+  doodad: '生活意外',
   charity: '慈善',
   child: '子女',
   layoff: '失业',

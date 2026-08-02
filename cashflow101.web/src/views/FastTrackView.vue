@@ -125,7 +125,7 @@ watch(
     <header
       class="flex items-center justify-between border-b border-border px-4 py-4 sm:px-6"
     >
-      <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">快车道</h1>
+      <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">资本游戏</h1>
       <div class="flex items-center gap-3 sm:gap-4">
         <span
           v-if="gameStore.currentPlayer"

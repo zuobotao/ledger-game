@@ -41,7 +41,7 @@ const cellColorClass: Record<string, string> = {
 // 格子名称缩写映射（移动端使用）
 const cellShortName: Record<string, string> = {
   机会: '机',
-  负债: '债',
+  生活意外: '意',
   慈善: '慈',
   发工资: '工资',
   市场风云: '市场',
@@ -300,7 +300,7 @@ const cardTypeAccentClass = computed(() => {
           <!-- 回合信息 -->
           <div v-else key="info" class="flex w-full flex-col items-center justify-center p-2 text-center sm:p-5">
             <div class="text-[10px] uppercase tracking-widest text-muted-foreground sm:text-xs">
-              老鼠赛跑 · 第 {{ turnNumber }} 回合
+              原始资本积累 · 第 {{ turnNumber }} 回合
             </div>
             <div class="mt-1 text-sm font-bold sm:mt-3 sm:text-2xl">
               {{ currentPlayerName }}

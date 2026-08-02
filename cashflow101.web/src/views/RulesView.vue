@@ -34,8 +34,8 @@ const activeTab = ref<TabId>('intro')
 
 const tabs = [
   { id: 'intro' as const, label: '游戏简介', icon: BookOpen },
-  { id: 'ratrace' as const, label: '老鼠赛跑', icon: Rat },
-  { id: 'fasttrack' as const, label: '快车道', icon: Rocket },
+  { id: 'ratrace' as const, label: '原始资本积累', icon: Rat },
+  { id: 'fasttrack' as const, label: '资本游戏', icon: Rocket },
   { id: 'cards' as const, label: '卡牌类型', icon: Layers },
 ]
 
@@ -98,7 +98,7 @@ function goHome() {
               <p class="text-sm leading-relaxed text-muted-foreground">
                 Cashflow 101 是一款财商教育桌游，由罗伯特·清崎设计。游戏的核心目标是让玩家通过模拟真实的财务决策，
                 学习如何管理个人财务、进行投资、积累资产，最终实现<strong class="text-foreground">财务自由</strong>——
-                即被动收入超过总支出，从而走出「老鼠赛跑」，进入财富的「快车道」。
+                即被动收入超过总支出，从而完成「原始资本积累」，进入财富的「资本游戏」。
               </p>
             </div>
 
@@ -126,19 +126,19 @@ function goHome() {
                 <p>游戏分为两个阶段，胜利需要完成以下目标：</p>
                 <ol class="list-decimal space-y-2 pl-5">
                   <li>
-                    <strong class="text-foreground">第一阶段（老鼠赛跑）：</strong>
-                    通过投资和资产配置，使你的被动收入大于等于总支出，即可进入快车道。
+                    <strong class="text-foreground">第一阶段（原始资本积累）：</strong>
+                    通过投资和资产配置，使你的被动收入大于等于总支出，即可进入资本游戏。
                   </li>
                   <li>
-                    <strong class="text-foreground">第二阶段（快车道）：</strong>
-                    在快车道中，你需要购买自己的「梦想」来赢得游戏。同时也可以通过投资进一步扩大财富。
+                    <strong class="text-foreground">第二阶段（资本游戏）：</strong>
+                    在资本游戏中，你需要购买自己的「梦想」来赢得游戏。同时也可以通过投资进一步扩大财富。
                   </li>
                 </ol>
               </div>
             </div>
           </div>
 
-          <!-- 老鼠赛跑 -->
+          <!-- 原始资本积累 -->
           <div v-else-if="activeTab === 'ratrace'" class="space-y-6">
             <div class="rounded-lg border border-border bg-card p-6">
               <div class="mb-4 flex items-center gap-3">
@@ -186,7 +186,7 @@ function goHome() {
                 <div class="rounded-md bg-muted/50 p-4">
                   <div class="mb-2 flex items-center gap-2">
                     <ShoppingBag class="h-4 w-4 text-destructive" />
-                    <h3 class="text-sm font-semibold">负债 / Doodad</h3>
+                    <h3 class="text-sm font-semibold">生活意外</h3>
                   </div>
                   <p class="text-xs text-muted-foreground">意外支出，需要支付相应金额，增加你的负债或减少现金。</p>
                 </div>
@@ -233,17 +233,17 @@ function goHome() {
                 <div class="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
                   <Rocket class="h-5 w-5" />
                 </div>
-                <h2 class="text-lg font-semibold">进入快车道条件</h2>
+                <h2 class="text-lg font-semibold">进入资本游戏条件</h2>
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
                 当你的<strong class="text-foreground">被动收入 ≥ 总支出</strong>时，恭喜你！你已经实现了财务自由，
-                可以离开老鼠赛跑，进入快车道。进入快车道后，你将获得 100 倍月现金流的起始现金，
+                可以完成原始资本积累，进入资本游戏。进入资本游戏后，你将获得 100 倍月现金流的起始现金，
                 并获得一个随机的梦想目标。
               </p>
             </div>
           </div>
 
-          <!-- 快车道 -->
+          <!-- 资本游戏 -->
           <div v-else-if="activeTab === 'fasttrack'" class="space-y-6">
             <div class="rounded-lg border border-border bg-card p-6">
               <div class="mb-4 flex items-center gap-3">
@@ -254,7 +254,7 @@ function goHome() {
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
                 落在现金流日格子时，你将获得<strong class="text-foreground">月现金流 × 100</strong>的巨额现金收入。
-                这是快车道中最有价值的格子之一，代表着财务自由带来的被动财富增长。
+                这是资本游戏中最有价值的格子之一，代表着财务自由带来的被动财富增长。
               </p>
             </div>
 
@@ -266,7 +266,7 @@ function goHome() {
                 <h2 class="text-lg font-semibold">机会</h2>
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
-                快车道的机会卡规模更大、收益更高。你将遇到大型投资项目和商业机会，
+                资本游戏的机会卡规模更大、收益更高。你将遇到大型投资项目和商业机会，
                 需要更多的初始资金，但同时也带来更丰厚的现金流回报。
               </p>
             </div>
@@ -289,10 +289,10 @@ function goHome() {
                 <div class="flex h-10 w-10 items-center justify-center rounded-md bg-destructive/20 text-destructive">
                   <ShoppingBag class="h-5 w-5" />
                 </div>
-                <h2 class="text-lg font-semibold">Doodad</h2>
+                <h2 class="text-lg font-semibold">生活意外</h2>
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
-                快车道的 doodad 金额远高于老鼠赛跑，通常为月现金流的 10 倍（最低 $5,000）。
+                资本游戏的生活意外金额远高于原始资本积累，通常为月现金流的 10 倍（最低 $5,000）。
                 即使实现了财务自由，过度消费仍可能让你陷入财务困境。
               </p>
             </div>
@@ -305,8 +305,8 @@ function goHome() {
                 <h2 class="text-lg font-semibold">梦想格</h2>
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
-                每位玩家在进入快车道时会获得一个梦想。落在梦想格时，你可以用现金购买梦想。
-                成功购买梦想后，你就赢得了游戏！梦想价格不菲，需要你在快车道中积累足够的财富。
+                每位玩家在进入资本游戏时会获得一个梦想。落在梦想格时，你可以用现金购买梦想。
+                成功购买梦想后，你就赢得了游戏！梦想价格不菲，需要你在资本游戏中积累足够的财富。
               </p>
             </div>
           </div>
@@ -321,7 +321,7 @@ function goHome() {
                 <h2 class="text-lg font-semibold">小生意卡</h2>
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
-                小生意卡是老鼠赛跑中的入门级投资机会。投资金额通常在数千美元以内，
+                小生意卡是原始资本积累中的入门级投资机会。投资金额通常在数千美元以内，
                 适合资金有限的初期阶段。虽然单笔现金流不高，但风险较低，
                 是积累初始资本和投资经验的好方式。
               </p>
