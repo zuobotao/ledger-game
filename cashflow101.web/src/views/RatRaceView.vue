@@ -26,6 +26,7 @@ import { History, Receipt, CreditCard, BarChart2 } from 'lucide-vue-next'
 import FinancialCharts from '@/components/FinancialCharts.vue'
 import StockPortfolioChart from '@/components/StockPortfolioChart.vue'
 import GameSummary from '@/components/GameSummary.vue'
+import PlayerSwitcher from '@/components/PlayerSwitcher.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -206,7 +207,11 @@ const sellQuantity = ref(1)
 const showBankModal = ref(false)
 const repayInputs = ref<Record<string, number>>({})
 const sidePanelTab = ref<'balance' | 'history' | 'stats'>('balance')
+const showPlayerSwitcher = ref(false)
 const historyTab = ref<'transactions' | 'cards'>('transactions')
+
+// 侧边栏显示的玩家（可以切换查看其他玩家）
+const displayPlayer = computed(() => gameStore.viewingPlayer)
 
 const canBuyInsurance = computed(() => {
   const p = gameStore.currentPlayer
@@ -459,6 +464,9 @@ const showPendingPanel = computed(() => {
         class="order-2 flex shrink-0 flex-col overflow-hidden border-t border-border bg-secondary/30 lg:order-1 lg:w-80 lg:border-t-0 lg:border-r xl:w-96"
       >
         <!-- Panel tabs -->
+        <div v-if="gameStore.players.length > 1" class="px-4 pt-3 lg:px-5">
+          <PlayerSwitcher v-model:show="showPlayerSwitcher" />
+        </div>
         <div class="flex border-b border-border px-4 pt-3 lg:px-5">
           <button
             type="button"
@@ -510,11 +518,11 @@ const showPendingPanel = computed(() => {
         <!-- Panel content -->
         <div class="flex-1 overflow-y-auto px-4 py-4 lg:px-5">
           <!-- Balance sheet tab -->
-          <div v-if="sidePanelTab === 'balance' && gameStore.currentPlayer" class="space-y-4">
+          <div v-if="sidePanelTab === 'balance' && displayPlayer" class="space-y-4">
           <div class="flex items-center justify-between">
             <h2 class="text-base font-semibold">财务报表</h2>
             <span class="text-xs uppercase tracking-wider text-muted-foreground font-mono">
-              {{ gameStore.currentPlayer.career.name }}
+              {{ displayPlayer.career.name }}
             </span>
           </div>
 
@@ -523,16 +531,16 @@ const showPendingPanel = computed(() => {
             <ul class="space-y-2 text-sm">
               <li class="flex justify-between">
                 <span class="text-muted-foreground">工资</span>
-                <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.salary) }}</span>
+                <span class="font-medium">{{ formatMoney(displayPlayer.salary) }}</span>
               </li>
               <li class="flex justify-between">
                 <span class="text-muted-foreground">被动收入</span>
-                <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.passiveIncome) }}</span>
+                <span class="font-medium">{{ formatMoney(displayPlayer.passiveIncome) }}</span>
               </li>
             </ul>
             <div class="mt-3 flex justify-between border-t border-border pt-3 text-sm font-semibold">
               <span>总收入</span>
-              <span>{{ formatMoney(gameStore.currentPlayer.totalIncome) }}</span>
+              <span>{{ formatMoney(displayPlayer.totalIncome) }}</span>
             </div>
           </section>
 
@@ -541,55 +549,55 @@ const showPendingPanel = computed(() => {
             <ul class="space-y-2 text-sm">
               <li class="flex justify-between">
                 <span class="text-muted-foreground">税金</span>
-                <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.expenses.taxes) }}</span>
+                <span class="font-medium">{{ formatMoney(displayPlayer.expenses.taxes) }}</span>
               </li>
               <li class="flex justify-between">
                 <span class="text-muted-foreground">房贷</span>
-                <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.expenses.mortgage) }}</span>
+                <span class="font-medium">{{ formatMoney(displayPlayer.expenses.mortgage) }}</span>
               </li>
               <li class="flex justify-between">
                 <span class="text-muted-foreground">学生贷款</span>
-                <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.expenses.schoolLoan) }}</span>
+                <span class="font-medium">{{ formatMoney(displayPlayer.expenses.schoolLoan) }}</span>
               </li>
               <li class="flex justify-between">
                 <span class="text-muted-foreground">车贷</span>
-                <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.expenses.carLoan) }}</span>
+                <span class="font-medium">{{ formatMoney(displayPlayer.expenses.carLoan) }}</span>
               </li>
               <li class="flex justify-between">
                 <span class="text-muted-foreground">信用卡</span>
-                <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.expenses.creditCard) }}</span>
+                <span class="font-medium">{{ formatMoney(displayPlayer.expenses.creditCard) }}</span>
               </li>
               <li class="flex justify-between">
                 <span class="text-muted-foreground">其他支出</span>
-                <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.expenses.other) }}</span>
+                <span class="font-medium">{{ formatMoney(displayPlayer.expenses.other) }}</span>
               </li>
               <li class="flex justify-between">
                 <span class="text-muted-foreground">子女支出</span>
-                <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.expenses.child) }}</span>
+                <span class="font-medium">{{ formatMoney(displayPlayer.expenses.child) }}</span>
               </li>
             </ul>
             <div class="mt-3 flex justify-between border-t border-border pt-3 text-sm font-semibold">
               <span>总支出</span>
-              <span>{{ formatMoney(gameStore.currentPlayer.totalExpenses) }}</span>
+              <span>{{ formatMoney(displayPlayer.totalExpenses) }}</span>
             </div>
           </section>
 
           <section class="grid grid-cols-2 gap-3">
             <div class="rounded-2xl border border-border bg-background p-4 shadow-sm">
               <div class="mb-1 text-xs uppercase tracking-wider text-muted-foreground">现金流</div>
-              <div class="text-lg font-semibold text-success">{{ formatMoney(gameStore.currentPlayer.cashFlow) }}</div>
+              <div class="text-lg font-semibold text-success">{{ formatMoney(displayPlayer.cashFlow) }}</div>
             </div>
             <div class="rounded-2xl border border-border bg-background p-4 shadow-sm">
               <div class="mb-1 text-xs uppercase tracking-wider text-muted-foreground">储蓄</div>
-              <div class="text-lg font-semibold">{{ formatMoney(gameStore.currentPlayer.cash) }}</div>
+              <div class="text-lg font-semibold">{{ formatMoney(displayPlayer.cash) }}</div>
             </div>
           </section>
 
           <section class="rounded-2xl border border-border bg-background p-4 shadow-sm">
             <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">资产</h3>
-            <ul v-if="gameStore.currentPlayer.assets.length" class="space-y-3">
+            <ul v-if="displayPlayer.assets.length" class="space-y-3">
               <li
-                v-for="asset in gameStore.currentPlayer.assets"
+                v-for="asset in displayPlayer.assets"
                 :key="asset.id"
                 class="rounded-xl border border-border/60 bg-secondary/20 p-3"
               >
@@ -648,18 +656,18 @@ const showPendingPanel = computed(() => {
 
           <!-- 股票投资组合 -->
           <section
-            v-if="gameStore.currentPlayer?.assets.some(a => a.type === 'stock')"
+            v-if="displayPlayer?.assets.some(a => a.type === 'stock')"
             class="rounded-2xl border border-border bg-background p-4 shadow-sm"
           >
             <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">股票组合</h3>
-            <StockPortfolioChart v-if="gameStore.currentPlayer" :player-id="gameStore.currentPlayer.id" />
+            <StockPortfolioChart v-if="displayPlayer" :player-id="displayPlayer.id" />
           </section>
 
           <section class="rounded-2xl border border-border bg-background p-4 shadow-sm">
             <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">负债</h3>
-            <ul v-if="gameStore.currentPlayer.liabilities.length" class="space-y-2 text-sm">
+            <ul v-if="displayPlayer.liabilities.length" class="space-y-2 text-sm">
               <li
-                v-for="loan in gameStore.currentPlayer.liabilities"
+                v-for="loan in displayPlayer.liabilities"
                 :key="loan.id"
                 class="flex flex-col gap-1"
               >
@@ -667,7 +675,7 @@ const showPendingPanel = computed(() => {
                   <span class="text-muted-foreground">{{ loan.name }}</span>
                   <span class="font-medium">{{ formatMoney(loan.amount) }}</span>
                 </div>
-                <div class="flex items-center gap-2">
+                <div v-if="gameStore.currentPlayer?.id === displayPlayer.id" class="flex items-center gap-2">
                   <template v-if="loan.category === 'bank_loan'">
                     <input
                       v-model.number="repayInputs[loan.id]"
@@ -750,10 +758,10 @@ const showPendingPanel = computed(() => {
             <div class="flex items-center justify-between">
               <h2 class="text-base font-semibold">财务统计</h2>
               <span class="text-xs text-muted-foreground">
-                {{ gameStore.currentPlayer?.financialSnapshots.length ?? 0 }} 个快照
+                {{ displayPlayer?.financialSnapshots.length ?? 0 }} 个快照
               </span>
             </div>
-            <FinancialCharts v-if="gameStore.currentPlayer" :player-id="gameStore.currentPlayer.id" />
+            <FinancialCharts v-if="displayPlayer" :player-id="displayPlayer.id" />
           </div>
         </div>
       </aside>

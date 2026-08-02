@@ -254,9 +254,18 @@ export const useGameStore = defineStore('game', () => {
   const transactions = ref<TransactionRecord[]>([])
   const cardHistory = ref<CardHistoryRecord[]>([])
   const isAIThinking = ref(false)
+  const viewingPlayerId = ref<string | null>(null)
 
   const currentPlayer = computed<Player | null>(() => players.value[currentPlayerIndex.value] ?? null)
   const isGameStarted = computed(() => phase.value === 'rat_race' || phase.value === 'fast_track')
+
+  // 当前查看的玩家（用于多人模式下切换查看其他玩家面板）
+  const viewingPlayer = computed<Player | null>(() => {
+    if (viewingPlayerId.value) {
+      return players.value.find((p) => p.id === viewingPlayerId.value) ?? null
+    }
+    return currentPlayer.value
+  })
 
   const canCurrentPlayerEnterFastTrack = computed(() => {
     const p = currentPlayer.value
@@ -547,6 +556,11 @@ export const useGameStore = defineStore('game', () => {
     pendingAction.value = { type: null, card: null, message: '' }
     marketEvent.value = null
     marketEventState.value = null
+  }
+
+  function setViewingPlayer(playerId: string | null) {
+    viewingPlayerId.value = playerId
+    saveState()
   }
 
   function moveToNextPlayer() {
@@ -1930,6 +1944,8 @@ export const useGameStore = defineStore('game', () => {
     transactions,
     cardHistory,
     isAIThinking,
+    viewingPlayerId,
+    viewingPlayer,
     currentPlayer,
     isGameStarted,
     canCurrentPlayerEnterFastTrack,
@@ -1969,6 +1985,7 @@ export const useGameStore = defineStore('game', () => {
     confirmLoanForPending,
     declineLoanForPending,
     moveToNextPlayer,
+    setViewingPlayer,
     checkFinancialFreedom,
     enterFastTrack,
     buyDream,
