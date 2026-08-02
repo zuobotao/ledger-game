@@ -41,7 +41,7 @@ import {
   drawOpportunityCard,
   drawStoryCard,
 } from '@/data/cards'
-import { getRandomDream } from '@/data/dreams'
+import { getDreamById, getRandomDream } from '@/data/dreams'
 import type { CardDeck } from '@/types/game'
 
 const STORAGE_KEY = 'cashflow101-game-state'
@@ -171,6 +171,7 @@ function createPlayer(
   colorId: PlayerColorId,
   careerId: string,
   config: GameConfig,
+  dreamId?: string,
 ): Player {
   const career = careerId === 'random' ? getRandomCareer() : getCareerById(careerId) ?? getRandomCareer()
   const color = PLAYER_COLORS.find((c) => c.id === colorId)?.value ?? PLAYER_COLORS[0].value
@@ -180,6 +181,7 @@ function createPlayer(
   }
   const startingCash = config.fastStart ? career.salary : career.startingCash
   const liabilities = createCareerLiabilities({ ...career, expenses })
+  const dream = dreamId ? getDreamById(dreamId) : undefined
 
   const player: Player = {
     id: createId(),
@@ -203,6 +205,7 @@ function createPlayer(
     hasInsurance: config.insurance,
     childrenCount: 0,
     doubleDiceNextTurn: false,
+    dream,
     isAI: false,
     financialStatement: createFinancialStatement(),
     financialSnapshots: [],
@@ -449,12 +452,17 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
-  function startGame(setupConfig: GameConfig, playerSetups: { name: string; colorId: PlayerColorId; careerId: string }[]) {
+  function startGame(
+    setupConfig: GameConfig,
+    playerSetups: { name: string; colorId: PlayerColorId; careerId: string; dreamId?: string }[],
+  ) {
     const validSetups = playerSetups.slice(0, setupConfig.playerCount)
     if (validSetups.length === 0) return false
 
     config.value = { ...setupConfig }
-    players.value = validSetups.map((setup) => createPlayer(setup.name, setup.colorId, setup.careerId, config.value))
+    players.value = validSetups.map((setup) =>
+      createPlayer(setup.name, setup.colorId, setup.careerId, config.value, setup.dreamId),
+    )
     currentPlayerIndex.value = 0
     phase.value = 'rat_race'
     winnerId.value = null
