@@ -746,9 +746,13 @@ watch(
                       type="button"
                       :disabled="disableHumanActions"
                       class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-40"
-                      @click="onAcknowledge"
+                      @click="
+                        gameStore.pendingAction.type === 'bankrupt'
+                          ? gameStore.resolveBankruptcy()
+                          : onAcknowledge()
+                      "
                     >
-                      知道了
+                      {{ gameStore.pendingAction.type === 'bankrupt' ? '继续游戏' : '知道了' }}
                     </button>
                   </div>
                 </div>

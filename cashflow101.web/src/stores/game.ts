@@ -216,6 +216,7 @@ function createPlayer(
     dream,
     isAI,
     aiDifficulty,
+    isBankrupt: false,
     financialStatement: createFinancialStatement(),
     financialSnapshots: [],
   }
@@ -580,8 +581,22 @@ export const useGameStore = defineStore('game', () => {
         currentP.financialSnapshots.shift()
       }
     }
-    const wasLastPlayer = currentPlayerIndex.value === count - 1
-    currentPlayerIndex.value = (currentPlayerIndex.value + 1) % count
+
+    // 寻找下一个未破产的玩家
+    let nextIndex = currentPlayerIndex.value
+    let wasLastPlayer = false
+    let skippedCount = 0
+    do {
+      wasLastPlayer = nextIndex === count - 1
+      nextIndex = (nextIndex + 1) % count
+      skippedCount++
+      // 防止死循环（所有玩家都破产的极端情况）
+      if (skippedCount > count) {
+        break
+      }
+    } while (players.value[nextIndex]?.isBankrupt)
+
+    currentPlayerIndex.value = nextIndex
     if (wasLastPlayer) {
       turnNumber.value += 1
     }
@@ -598,11 +613,19 @@ export const useGameStore = defineStore('game', () => {
     turnStatus.value = 'idle'
     lastRoll.value = 0
     clearPending()
+
+    // 检查是否因破产只剩一名玩家（多人模式胜利条件）
+    checkBankruptcyVictory()
+
     saveState()
 
     // 如果下一个玩家是 AI，自动执行 AI 回合
     const nextPlayer = currentPlayer.value
-    if (nextPlayer?.isAI && (phase.value === 'rat_race' || phase.value === 'fast_track')) {
+    if (
+      nextPlayer?.isAI &&
+      !nextPlayer.isBankrupt &&
+      (phase.value === 'rat_race' || phase.value === 'fast_track')
+    ) {
       // 用 setTimeout 避免在 moveToNextPlayer 中嵌套调用
       setTimeout(() => {
         runAITurn()
@@ -1487,6 +1510,17 @@ export const useGameStore = defineStore('game', () => {
 
   function declineLoanForPending() {
     if (pendingAction.value.type !== 'need_loan') return
+    const player = currentPlayer.value
+    const amount = (pendingAction.value.meta?.amount as number) ?? 0
+
+    // 检查玩家是否完全无力支付（即使最大化贷款也不行）
+    if (player && !canPlayerAfford(player, amount)) {
+      // 无力支付 → 宣告破产
+      declareBankruptcy()
+      return
+    }
+
+    // 有能力支付但选择不贷款 → 交易取消
     setPending(null, '你拒绝了贷款，交易取消。')
     turnStatus.value = 'resolving'
     saveState()
@@ -1553,6 +1587,68 @@ export const useGameStore = defineStore('game', () => {
     recordTransaction('loan_repay', -repayAmount, `还款 ${loan.name}`)
     saveState()
     return true
+  }
+
+  // 检查玩家是否可以支付（现金 + 可售资产价值 + 剩余贷款额度）
+  function canPlayerAfford(player: Player, amount: number): boolean {
+    // 现金足够
+    if (player.cash >= amount) return true
+    // 加上剩余贷款额度
+    const remainingLoan = maxBankLoanAmount(player)
+    if (player.cash + remainingLoan >= amount) return true
+    // 加上可变现资产价值（按市价的70%估算）
+    const assetValue = player.assets.reduce(
+      (sum, a) => sum + (a.marketPrice ?? a.cost) * a.quantity * 0.7,
+      0,
+    )
+    return player.cash + remainingLoan + assetValue >= amount
+  }
+
+  // 宣告破产
+  function declareBankruptcy(): void {
+    const player = currentPlayer.value
+    if (!player) return
+
+    player.isBankrupt = true
+    // 清空所有资产和负债
+    player.assets = []
+    player.liabilities = player.liabilities.filter(
+      (l) => l.category !== 'bank_loan' && l.category !== 'other',
+    )
+    player.cash = 0
+    player.savings = 0
+    player.passiveIncome = 0
+    recalcPlayerFinancials(player)
+
+    recordTransaction('bankruptcy', 0, '宣告破产', player.id)
+
+    setPending(
+      'bankrupt',
+      `${player.name} 已宣告破产，退出游戏。`,
+      null,
+    )
+    turnStatus.value = 'resolving'
+    saveState()
+  }
+
+  // 确认破产并进入下一位玩家回合
+  function resolveBankruptcy(): void {
+    if (pendingAction.value.type !== 'bankrupt') return
+    moveToNextPlayer()
+  }
+
+  // 获取活跃玩家（未破产）
+  const activePlayers = computed(() => players.value.filter((p) => !p.isBankrupt))
+
+  // 检查游戏是否只剩一个玩家（多人模式下决定胜负）
+  function checkBankruptcyVictory(): void {
+    const active = activePlayers.value
+    if (active.length === 1 && players.value.length > 1) {
+      winnerId.value = active[0]!.id
+      phase.value = 'finished'
+      turnStatus.value = 'finished'
+      saveState()
+    }
   }
 
   // 存款：从现金转入储蓄
@@ -1961,7 +2057,11 @@ export const useGameStore = defineStore('game', () => {
 
       case 'need_loan': {
         await sleep(300)
-        confirmLoanForPending()
+        const ok = confirmLoanForPending()
+        if (!ok) {
+          // 贷不到款 → 宣告破产
+          declareBankruptcy()
+        }
         break
       }
 
@@ -2001,6 +2101,13 @@ export const useGameStore = defineStore('game', () => {
           // 放弃梦想格（继续游戏）
           acknowledgeMessage()
         }
+        break
+      }
+
+      case 'bankrupt': {
+        // AI 破产，自动确认并进入下一位玩家
+        await sleep(800)
+        resolveBankruptcy()
         break
       }
 
@@ -2193,5 +2300,9 @@ export const useGameStore = defineStore('game', () => {
     aiHandlePendingAction,
     aiHandleMarketEvent,
     aiHandleStockSellOpportunity,
+    declareBankruptcy,
+    resolveBankruptcy,
+    activePlayers,
+    canPlayerAfford,
   }
 })

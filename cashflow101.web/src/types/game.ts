@@ -65,6 +65,7 @@ export interface Player {
   dream?: Dream
   isAI: boolean
   aiDifficulty?: 'easy' | 'medium' | 'hard'
+  isBankrupt: boolean
   financialStatement: FinancialStatementState
   financialSnapshots: FinancialSnapshot[]
 }
@@ -185,6 +186,7 @@ export type PendingActionType =
   | 'fast_track_dream'
   | 'story'
   | 'stock_sell_opportunity'
+  | 'bankrupt'
   | null
 
 export interface PendingAction {

@@ -1350,10 +1350,12 @@ const showPendingPanel = computed(() => {
                       ? gameStore.dismissDoodad()
                       : gameStore.pendingAction.type === 'story'
                         ? gameStore.dismissStoryCard()
-                        : onAcknowledge()
+                        : gameStore.pendingAction.type === 'bankrupt'
+                          ? gameStore.resolveBankruptcy()
+                          : onAcknowledge()
                   "
                 >
-                  知道了
+                  {{ gameStore.pendingAction.type === 'bankrupt' ? '继续游戏' : '知道了' }}
                 </button>
               </div>
             </div>

@@ -39,7 +39,10 @@ function isCurrentTurn(player: Player): boolean {
         />
         <span class="truncate">
           {{ gameStore.viewingPlayer?.name ?? '未选择' }}
-          <span v-if="isCurrentTurn(gameStore.viewingPlayer!)" class="text-xs text-primary">
+          <span v-if="gameStore.viewingPlayer?.isBankrupt" class="text-xs text-destructive">
+            · 已破产
+          </span>
+          <span v-else-if="isCurrentTurn(gameStore.viewingPlayer!)" class="text-xs text-primary">
             · 当前回合
           </span>
           <span v-else class="text-xs text-muted-foreground">
@@ -64,7 +67,10 @@ function isCurrentTurn(player: Player): boolean {
             :key="player.id"
             type="button"
             class="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition hover:bg-muted"
-            :class="{ 'bg-primary/10': isViewing(player) }"
+            :class="{
+              'bg-primary/10': isViewing(player),
+              'opacity-50': player.isBankrupt,
+            }"
             @click="selectPlayer(player)"
           >
             <span
@@ -74,6 +80,7 @@ function isCurrentTurn(player: Player): boolean {
             <span class="flex-1 truncate font-medium">
               {{ player.name }}
               <span v-if="player.isAI" class="text-xs text-muted-foreground"> (AI)</span>
+              <span v-if="player.isBankrupt" class="text-xs text-destructive"> · 破产</span>
             </span>
             <span v-if="isCurrentTurn(player)" class="text-xs text-primary font-medium">
               回合中
