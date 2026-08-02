@@ -672,7 +672,7 @@ const cashFlowSparkline = computed(() => {
               </div>
               <div class="pie-legend">
                 <div
-                  v-for="item in pieData"
+                  v-for="item in pieSlices"
                   :key="item.key"
                   class="legend-item"
                 >

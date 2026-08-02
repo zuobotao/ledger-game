@@ -330,7 +330,7 @@ function getDreamName(dreamId: string): string {
               <div class="relative">
                 <select
                   :id="`player-type-${index}`"
-                  v-model="setup.isAI ? setup.aiDifficulty : 'human'"
+                  :value="setup.isAI ? setup.aiDifficulty : 'human'"
                   class="w-full h-10 px-3 pr-8 appearance-none bg-background border border-input rounded-[var(--radius-md)] text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
                   @change="(e: Event) => {
                     const val = (e.target as HTMLSelectElement).value

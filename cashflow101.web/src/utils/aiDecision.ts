@@ -168,6 +168,7 @@ export function decideSellMarket(
       takeProfit: 0.3, // 盈利 30% 全卖
       stopLoss: -0.2, // 亏损 20% 止损
       partialSellRatio: 0, // 不部分卖出
+      partialSellThreshold: 999, // 不触发部分卖出
     },
     medium: {
       takeProfit: 1.0, // 翻倍全卖

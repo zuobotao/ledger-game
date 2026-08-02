@@ -91,7 +91,7 @@ const boardCardData = computed<OpportunityCard | MarketEventCard | StoryCard | n
     return gameStore.marketEvent ?? (gameStore.pendingAction.card as MarketEventCard) ?? null
   }
   if (gameStore.pendingAction.type === 'story' && gameStore.pendingAction.card) {
-    return gameStore.pendingAction.card as StoryCard
+    return gameStore.pendingAction.card as unknown as StoryCard
   }
   return null
 })
@@ -868,7 +868,7 @@ const showPendingPanel = computed(() => {
                         :class="(opportunityCard.cost - (currentStockHolding?.cost ?? 0)) * (currentStockHolding?.quantity ?? 0) >= 0 ? 'text-success' : 'text-destructive'"
                       >
                         {{ (opportunityCard.cost - (currentStockHolding?.cost ?? 0)) * (currentStockHolding?.quantity ?? 0) >= 0 ? '+' : '' }}
-                        {{ formatMoney((opportunityCard.cost - (currentStockHolding?.cost ?? 0)) * (currentStockHolding?.quantity ?? 0) }}
+                        {{ formatMoney((opportunityCard.cost - (currentStockHolding?.cost ?? 0)) * (currentStockHolding?.quantity ?? 0)) }}
                       </span>
                     </div>
                   </div>

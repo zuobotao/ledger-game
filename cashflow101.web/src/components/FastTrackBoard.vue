@@ -22,10 +22,10 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   isRolling: false,
   diceValues: () => [],
-  dream: null,
   showOpportunity: false,
-  opportunityCard: null,
 })
+
+const currentDream = computed(() => props.dream as Dream | null)
 
 const emit = defineEmits<{
   (e: 'diceDone'): void
@@ -236,7 +236,7 @@ const opportunityAccentClass = computed(() => {
           </div>
 
           <!-- 梦想卡片 -->
-          <div v-else-if="dream" key="dream" class="dream-display">
+          <div v-else-if="currentDream" key="dream" class="dream-display">
             <div class="dream-inner">
               <div class="dream-top-bar bg-gradient-to-r from-amber-500 to-yellow-500" />
               <div class="dream-type-tag">
@@ -247,12 +247,12 @@ const opportunityAccentClass = computed(() => {
               <div class="dream-icon-wrap">
                 <Target class="dream-icon" />
               </div>
-              <h3 class="dream-title">{{ dream.name }}</h3>
-              <p class="dream-desc">{{ dream.description }}</p>
+              <h3 class="dream-title">{{ currentDream?.name }}</h3>
+              <p class="dream-desc">{{ currentDream?.description }}</p>
               <div class="dream-price">
                 <div class="stat-label">目标价格</div>
                 <div class="stat-value text-amber-400 font-bold">
-                  {{ formatMoney(dream.price) }}
+                  {{ formatMoney(currentDream?.price ?? 0) }}
                 </div>
               </div>
               <div class="dream-bottom-bar" />
@@ -290,15 +290,15 @@ const opportunityAccentClass = computed(() => {
 
             <!-- 当前梦想 -->
             <div
-              v-if="dream"
+              v-if="props.dream"
               class="mt-2 w-full rounded-xl border border-amber-500/30 bg-amber-500/10 p-1.5 text-[9px] sm:mt-3 sm:p-2 sm:text-xs"
             >
               <div class="flex items-center justify-center gap-1 text-amber-400">
                 <Target class="h-3 w-3 sm:h-4 sm:w-4" />
-                <span class="font-semibold">{{ dream.name }}</span>
+                <span class="font-semibold">{{ props.dream?.name }}</span>
               </div>
               <div class="mt-0.5 text-amber-300/80">
-                目标：{{ formatMoney(dream.price) }}
+                目标：{{ formatMoney(props.dream?.price ?? 0) }}
               </div>
             </div>
           </div>

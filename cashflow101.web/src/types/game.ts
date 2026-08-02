@@ -175,7 +175,7 @@ export type PendingActionType =
 
 export interface PendingAction {
   type: PendingActionType
-  card: OpportunityCard | MarketEventCard | DoodadCard | null
+  card: OpportunityCard | MarketEventCard | DoodadCard | StoryCard | null
   message: string
   meta?: Record<string, unknown>
 }

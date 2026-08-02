@@ -82,13 +82,13 @@ function getIcon(dream: Dream) {
 }
 
 function getCategoryGradient(category?: string): string {
-  if (!category) return categoryGradients.lifestyle
-  return categoryGradients[category] ?? categoryGradients.lifestyle
+  const key = category ?? 'lifestyle'
+  return categoryGradients[key] ?? 'linear-gradient(90deg, #06b6d4, #3b82f6)'
 }
 
 function getCategoryColor(category?: string): string {
-  if (!category) return categoryColors.lifestyle
-  return categoryColors[category] ?? categoryColors.lifestyle
+  const key = category ?? 'lifestyle'
+  return categoryColors[key] ?? '#06b6d4'
 }
 
 function getCategoryLabel(category?: string): string {

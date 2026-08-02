@@ -1172,10 +1172,11 @@ export const useGameStore = defineStore('game', () => {
 
       recordCardDrawn(cardTypeForRecord, card, player.id, 'accepted')
       const action = ratio > 1 ? '拆分' : '合股'
+      const newPrice = holding?.marketPrice ?? 0
       setPending(
         null,
         holding
-          ? `${symbol}${action}！你持有 ${oldQuantity} 股 → ${holding.quantity} 股，价格 ${formatMoney(oldMarketPrice)} → ${formatMoney(holding.marketPrice)}`
+          ? `${symbol}${action}！你持有 ${oldQuantity} 股 → ${holding.quantity} 股，价格 ${formatMoney(oldMarketPrice)} → ${formatMoney(newPrice)}`
           : `${symbol}${action}！你当前不持有该股票。`,
       )
       turnStatus.value = 'resolving'
