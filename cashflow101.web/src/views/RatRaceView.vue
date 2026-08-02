@@ -565,14 +565,46 @@ const showPendingPanel = computed(() => {
 
               <!-- ========== 机会卡操作区（卡片内容显示在棋盘中心，这里只放操作控件） ========== -->
               <div v-if="opportunityCard" class="card-action-panel">
+                <!-- 股票拆分/合股卡：自动生效，仅显示确认按钮 -->
+                <div v-if="opportunityCard.splitRatio !== undefined">
+                  <div class="mb-3 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary">
+                    <template v-if="opportunityCard.splitRatio > 1">
+                      拆分比例：1 拆 {{ opportunityCard.splitRatio }}
+                    </template>
+                    <template v-else>
+                      合股比例：{{ Math.round(1 / opportunityCard.splitRatio) }} 合 1
+                    </template>
+                  </div>
+                  <div v-if="currentStockHolding" class="mb-3 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm">
+                    <div class="flex justify-between">
+                      <span class="text-muted-foreground">当前持仓：</span>
+                      <span class="font-medium">{{ currentStockHolding.quantity }} 股</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-muted-foreground">当前市价：</span>
+                      <span class="font-medium">{{ formatMoney(currentStockHolding.marketPrice ?? currentStockHolding.cost) }}</span>
+                    </div>
+                  </div>
+                  <div v-else class="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    你当前不持有 {{ opportunityCard.symbol }} 股票。
+                  </div>
+                  <button
+                    type="button"
+                    class="w-full rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90"
+                    @click="onBuyOpportunity"
+                  >
+                    确认
+                  </button>
+                </div>
+
                 <!-- 股票卖出卡：无持仓提示 -->
-                <div v-if="isOpportunitySell && maxOpportunityQuantity === 0" class="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <div v-else-if="isOpportunitySell && maxOpportunityQuantity === 0" class="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   你当前没有 {{ opportunityCard.symbol }} 股票，无法卖出。
                 </div>
 
-                <!-- 数量选择器（股票类且有有效最大数量时显示） -->
+                <!-- 数量选择器（股票类且有有效最大数量时显示，拆分/合股卡除外） -->
                 <StockQuantitySelector
-                  v-if="opportunityCard.type === 'stock' && maxOpportunityQuantity > 0"
+                  v-if="opportunityCard.type === 'stock' && maxOpportunityQuantity > 0 && opportunityCard.splitRatio === undefined"
                   v-model="opportunityQuantity"
                   :max-quantity="maxOpportunityQuantity"
                   :unit-price="opportunityCard.cost"
@@ -622,8 +654,8 @@ const showPendingPanel = computed(() => {
                   </span>
                 </div>
 
-                <!-- 操作按钮 -->
-                <div class="flex gap-2">
+                <!-- 操作按钮（拆分/合股卡除外） -->
+                <div v-if="opportunityCard.splitRatio === undefined" class="flex gap-2">
                   <button
                     v-if="!isOpportunitySell"
                     type="button"

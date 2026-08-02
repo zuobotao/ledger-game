@@ -903,6 +903,50 @@ export const useGameStore = defineStore('game', () => {
     const card = pendingAction.value.card as OpportunityCard | null
     if (!player || pendingAction.value.type !== 'opportunity' || !card) return false
 
+    // 股票拆分/合股卡（自动生效）
+    if (card.splitRatio !== undefined) {
+      const symbol = card.symbol!
+      const ratio = card.splitRatio
+      const holding = player.assets.find((a) => a.type === 'stock' && a.symbol === symbol)
+
+      let oldQuantity = 0
+      let oldMarketPrice = 0
+
+      if (holding) {
+        oldQuantity = holding.quantity
+        oldMarketPrice = holding.marketPrice ?? holding.cost
+
+        holding.quantity = Math.floor(holding.quantity * ratio)
+        holding.cost = Math.round(holding.cost / ratio)
+        holding.marketPrice = Math.round(oldMarketPrice * ratio)
+
+        // 记录交易
+        recordTransaction(
+          'stock_split',
+          0,
+          ratio > 1 ? `${symbol} ${ratio}:1 拆分` : `${symbol} ${Math.round(1 / ratio)}合1`,
+          player.id,
+          {
+            assetSymbol: symbol,
+            assetQuantity: holding.quantity,
+            unitPrice: holding.marketPrice,
+          },
+        )
+      }
+
+      recordCardDrawn('opportunity', card, player.id, 'accepted')
+      const action = ratio > 1 ? '拆分' : '合股'
+      setPending(
+        null,
+        holding
+          ? `${symbol}${action}！你持有 ${oldQuantity} 股 → ${holding.quantity} 股，价格 ${formatMoney(oldMarketPrice)} → ${formatMoney(holding.marketPrice)}`
+          : `${symbol}${action}！你当前不持有该股票。`,
+      )
+      turnStatus.value = 'resolving'
+      saveState()
+      return true
+    }
+
     // 卖出股票的机会卡
     if (card.type === 'stock' && card.action === 'sell') {
       const symbol = card.symbol!
