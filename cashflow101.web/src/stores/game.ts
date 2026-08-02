@@ -826,8 +826,8 @@ export const useGameStore = defineStore('game', () => {
       unitPrice: price / sellQty,
     })
 
-    const msg = `${player.name} 卖出 ${asset.name} ×${sellQty}，获得 ${formatMoney(price)}。`
-    setPending(null, msg)
+    const msg = `${player.name} 卖出 ${asset.name} ×${sellQty}，获得 ${formatMoney(price)}。可继续卖出其他资产，或点击结束。`
+    setPending('market', msg, card)
     turnStatus.value = 'resolving'
     saveState()
     return true
