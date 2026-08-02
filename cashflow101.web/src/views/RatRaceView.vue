@@ -24,6 +24,7 @@ import QuantitySelector from '@/components/QuantitySelector.vue'
 import { History, Receipt, CreditCard, BarChart2 } from 'lucide-vue-next'
 import FinancialCharts from '@/components/FinancialCharts.vue'
 import StockPortfolioChart from '@/components/StockPortfolioChart.vue'
+import GameSummary from '@/components/GameSummary.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -37,9 +38,20 @@ function goHome() {
   router.push({ name: 'home' })
 }
 
+const showRatRaceSummary = ref(false)
+
 function enterFastTrack() {
+  // 先显示总结，用户确认后再进入快车道
+  showRatRaceSummary.value = true
+}
+
+function confirmEnterFastTrack() {
   gameStore.enterFastTrack()
   router.push({ name: 'fast-track' })
+}
+
+function closeRatRaceSummary() {
+  showRatRaceSummary.value = false
 }
 
 // 骰子动画
@@ -1206,6 +1218,20 @@ const showPendingPanel = computed(() => {
 
     <!-- Bank modal -->
     <BankModal :show="showBankModal" @close="showBankModal = false" />
+
+    <!-- 老鼠圈结束总结 -->
+    <Teleport to="body">
+      <GameSummary
+        v-if="showRatRaceSummary && gameStore.currentPlayer"
+        :player="gameStore.currentPlayer"
+        phase="rat_race_end"
+        :total-turns="gameStore.turnNumber"
+        :rat-race-turns="gameStore.turnNumber"
+        @close="closeRatRaceSummary"
+        @restart="confirmEnterFastTrack"
+        @home="goHome"
+      />
+    </Teleport>
   </main>
 </template>
 

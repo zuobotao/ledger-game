@@ -35,6 +35,11 @@ const router = createRouter({
       name: 'victory',
       component: () => import('../views/VictoryView.vue'),
     },
+    {
+      path: '/game-over',
+      name: 'game-over',
+      component: () => import('../views/GameOverView.vue'),
+    },
   ],
 })
 

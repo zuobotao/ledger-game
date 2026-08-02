@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Trophy, RotateCcw, Home, Sparkles } from 'lucide-vue-next'
+import { TrendingDown, RotateCcw, Home, AlertTriangle } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import type { Player } from '@/types/game'
 import GameSummary from '@/components/GameSummary.vue'
@@ -9,17 +9,13 @@ import GameSummary from '@/components/GameSummary.vue'
 const router = useRouter()
 const gameStore = useGameStore()
 
-// 从 store 获取获胜玩家
-const winner = computed<Player | null>(() => {
-  if (!gameStore.winnerId) return null
-  return gameStore.players.find((p) => p.id === gameStore.winnerId) ?? null
+// 从 store 获取破产玩家（如果没有，使用当前玩家）
+const bankruptPlayer = computed<Player | null>(() => {
+  // 优先使用当前玩家
+  return gameStore.currentPlayer ?? null
 })
 
 const showSummary = ref(true)
-
-function formatMoney(n: number): string {
-  return `$${Math.round(n).toLocaleString()}`
-}
 
 function goToSetup() {
   gameStore.resetGame()
@@ -40,15 +36,15 @@ function closeSummary() {
   <div
     class="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-6 py-16 text-center"
   >
-    <!-- 金色径向渐变光晕背景 -->
+    <!-- 红色径向渐变光晕背景 -->
     <div
       class="pointer-events-none absolute inset-0 -z-0"
       aria-hidden="true"
       style="
         background: radial-gradient(
           ellipse at center top,
-          rgba(251, 191, 36, 0.15) 0%,
-          rgba(251, 191, 36, 0.05) 35%,
+          rgba(239, 68, 68, 0.15) 0%,
+          rgba(239, 68, 68, 0.05) 35%,
           transparent 70%
         );
       "
@@ -59,7 +55,7 @@ function closeSummary() {
       style="
         background: radial-gradient(
           circle,
-          rgba(251, 191, 36, 0.2) 0%,
+          rgba(239, 68, 68, 0.2) 0%,
           transparent 70%
         );
         filter: blur(60px);
@@ -67,19 +63,18 @@ function closeSummary() {
     />
 
     <div v-if="!showSummary" class="relative z-10 mx-auto w-full max-w-2xl">
-      <!-- 奖杯图标 -->
+      <!-- 图标 -->
       <div class="mb-6 flex justify-center">
         <div
           class="relative flex h-24 w-24 items-center justify-center rounded-full"
           style="
-            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%);
             box-shadow:
-              0 0 40px rgba(251, 191, 36, 0.4),
+              0 0 40px rgba(239, 68, 68, 0.4),
               0 10px 40px rgba(0, 0, 0, 0.3);
           "
         >
-          <Trophy class="h-12 w-12 text-white" />
-          <!-- 光晕效果 -->
+          <AlertTriangle class="h-12 w-12 text-white" />
           <div
             class="absolute inset-0 rounded-full"
             style="
@@ -94,23 +89,14 @@ function closeSummary() {
       </div>
 
       <!-- 主标题 -->
-      <h1
-        class="mb-3 text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl"
-        style="
-          background: linear-gradient(135deg, #fbbf24 0%, #fde68a 50%, #f59e0b 100%);
-          -webkit-background-clip: text;
-          background-clip: text;
-          -webkit-text-fill-color: transparent;
-          color: transparent;
-        "
-      >
-        恭喜！财务自由
+      <h1 class="mb-3 text-4xl font-bold tracking-tight text-destructive sm:text-5xl md:text-6xl">
+        破产
       </h1>
 
       <!-- 副标题 -->
       <p class="mb-10 text-lg font-medium text-foreground sm:text-xl">
-        <span class="text-primary">{{ winner?.name ?? '玩家' }}</span>
-        成功完成原始资本积累
+        <span class="text-destructive">{{ bankruptPlayer?.name ?? '玩家' }}</span>
+        资金耗尽，游戏结束
       </p>
 
       <!-- 底部按钮组 -->
@@ -137,9 +123,9 @@ function closeSummary() {
     <!-- 游戏结束明细总结 -->
     <Teleport to="body">
       <GameSummary
-        v-if="showSummary && winner"
-        :player="winner"
-        phase="victory"
+        v-if="showSummary && bankruptPlayer"
+        :player="bankruptPlayer"
+        phase="game_over"
         :total-turns="gameStore.turnNumber ?? 0"
         @close="closeSummary"
         @restart="goToSetup"

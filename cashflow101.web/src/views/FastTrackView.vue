@@ -12,12 +12,18 @@ import {
   PieChart,
   Rocket,
   Target,
+  History,
+  Receipt,
+  CreditCard,
+  BarChart2,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
-import type { OpportunityCard } from '@/types/game'
+import type { Asset, OpportunityCard } from '@/types/game'
 import FastTrackBoard from '@/components/FastTrackBoard.vue'
 import BankModal from '@/components/BankModal.vue'
-import FinancialStatement from '@/components/FinancialStatement.vue'
+import TransactionHistory from '@/components/TransactionHistory.vue'
+import CardHistory from '@/components/CardHistory.vue'
+import FinancialCharts from '@/components/FinancialCharts.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -75,6 +81,31 @@ const ftQuantity = ref(1)
 const ftBuyError = ref('')
 const showBankModal = ref(false)
 const showFinancialPanel = ref(false)
+const sidePanelTab = ref<'finance' | 'history' | 'stats'>('finance')
+const historyTab = ref<'transactions' | 'cards'>('transactions')
+
+// 快车道财务面板工具函数
+function getFtUnitLabel(assetType: string): string {
+  switch (assetType) {
+    case 'stock': return '股'
+    case 'real_estate': return '套'
+    case 'business': return '家'
+    default: return '份'
+  }
+}
+
+function getFtAssetPnL(asset: Asset): number {
+  const marketValue = (asset.marketPrice ?? asset.cost) * asset.quantity
+  const costValue = asset.cost * asset.quantity
+  return marketValue - costValue
+}
+
+function getFtAssetPnLPercent(asset: Asset): number {
+  const costValue = asset.cost * asset.quantity
+  if (costValue === 0) return 0
+  const pnl = getFtAssetPnL(asset)
+  return (pnl / costValue) * 100
+}
 
 // 当前玩家是否是 AI
 const isCurrentPlayerAI = computed(() => {
@@ -230,9 +261,270 @@ watch(
       <Transition name="side-panel">
         <aside
           v-if="showFinancialPanel"
-          class="shrink-0 w-72 overflow-y-auto border-r border-border bg-secondary/30 px-4 py-4 sm:w-80"
+          class="flex shrink-0 flex-col overflow-hidden border-r border-border bg-secondary/30 w-72 sm:w-80 lg:w-96"
         >
-          <FinancialStatement v-if="gameStore.currentPlayer" />
+          <!-- Panel tabs -->
+          <div class="flex border-b border-border px-4 pt-3 lg:px-5">
+            <button
+              type="button"
+              class="relative flex-1 cursor-pointer pb-3 text-sm font-medium transition-colors"
+              :class="sidePanelTab === 'finance' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+              @click="sidePanelTab = 'finance'"
+            >
+              <span class="flex items-center justify-center gap-1.5">
+                <Receipt class="h-4 w-4" />
+                财务
+              </span>
+              <span
+                v-if="sidePanelTab === 'finance'"
+                class="absolute bottom-0 left-1/2 h-0.5 w-10 -translate-x-1/2 rounded-full bg-primary"
+              />
+            </button>
+            <button
+              type="button"
+              class="relative flex-1 cursor-pointer pb-3 text-sm font-medium transition-colors"
+              :class="sidePanelTab === 'history' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+              @click="sidePanelTab = 'history'"
+            >
+              <span class="flex items-center justify-center gap-1.5">
+                <History class="h-4 w-4" />
+                历史
+              </span>
+              <span
+                v-if="sidePanelTab === 'history'"
+                class="absolute bottom-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-primary"
+              />
+            </button>
+            <button
+              type="button"
+              class="relative flex-1 cursor-pointer pb-3 text-sm font-medium transition-colors"
+              :class="sidePanelTab === 'stats' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+              @click="sidePanelTab = 'stats'"
+            >
+              <span class="flex items-center justify-center gap-1.5">
+                <BarChart2 class="h-4 w-4" />
+                统计
+              </span>
+              <span
+                v-if="sidePanelTab === 'stats'"
+                class="absolute bottom-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-primary"
+              />
+            </button>
+          </div>
+
+          <!-- Panel content -->
+          <div class="flex-1 overflow-y-auto px-4 py-4 lg:px-5">
+            <!-- Finance tab -->
+            <div v-if="sidePanelTab === 'finance' && gameStore.currentPlayer" class="space-y-4">
+              <div class="flex items-center justify-between">
+                <h2 class="text-base font-semibold">财务报表</h2>
+                <span class="text-xs uppercase tracking-wider text-muted-foreground font-mono">
+                  {{ gameStore.currentPlayer.career.name }}
+                </span>
+              </div>
+
+              <section class="rounded-2xl border border-border bg-background p-4 shadow-sm">
+                <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">收入</h3>
+                <ul class="space-y-2 text-sm">
+                  <li class="flex justify-between">
+                    <span class="text-muted-foreground">工资</span>
+                    <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.salary) }}</span>
+                  </li>
+                  <li class="flex justify-between">
+                    <span class="text-muted-foreground">被动收入</span>
+                    <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.passiveIncome) }}</span>
+                  </li>
+                </ul>
+                <div class="mt-3 flex justify-between border-t border-border pt-3 text-sm font-semibold">
+                  <span>总收入</span>
+                  <span>{{ formatMoney(gameStore.currentPlayer.totalIncome) }}</span>
+                </div>
+              </section>
+
+              <section class="rounded-2xl border border-border bg-background p-4 shadow-sm">
+                <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">支出</h3>
+                <ul class="space-y-2 text-sm">
+                  <li class="flex justify-between">
+                    <span class="text-muted-foreground">税金</span>
+                    <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.expenses.taxes) }}</span>
+                  </li>
+                  <li class="flex justify-between">
+                    <span class="text-muted-foreground">房贷</span>
+                    <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.expenses.mortgage) }}</span>
+                  </li>
+                  <li class="flex justify-between">
+                    <span class="text-muted-foreground">学生贷款</span>
+                    <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.expenses.schoolLoan) }}</span>
+                  </li>
+                  <li class="flex justify-between">
+                    <span class="text-muted-foreground">车贷</span>
+                    <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.expenses.carLoan) }}</span>
+                  </li>
+                  <li class="flex justify-between">
+                    <span class="text-muted-foreground">信用卡</span>
+                    <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.expenses.creditCard) }}</span>
+                  </li>
+                  <li class="flex justify-between">
+                    <span class="text-muted-foreground">其他支出</span>
+                    <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.expenses.other) }}</span>
+                  </li>
+                  <li class="flex justify-between">
+                    <span class="text-muted-foreground">子女支出</span>
+                    <span class="font-medium">{{ formatMoney(gameStore.currentPlayer.expenses.child) }}</span>
+                  </li>
+                </ul>
+                <div class="mt-3 flex justify-between border-t border-border pt-3 text-sm font-semibold">
+                  <span>总支出</span>
+                  <span>{{ formatMoney(gameStore.currentPlayer.totalExpenses) }}</span>
+                </div>
+              </section>
+
+              <section class="grid grid-cols-2 gap-3">
+                <div class="rounded-2xl border border-border bg-background p-4 shadow-sm">
+                  <div class="mb-1 text-xs uppercase tracking-wider text-muted-foreground">现金流</div>
+                  <div class="text-lg font-semibold text-success">{{ formatMoney(gameStore.currentPlayer.cashFlow) }}</div>
+                </div>
+                <div class="rounded-2xl border border-border bg-background p-4 shadow-sm">
+                  <div class="mb-1 text-xs uppercase tracking-wider text-muted-foreground">现金</div>
+                  <div class="text-lg font-semibold">{{ formatMoney(gameStore.currentPlayer.cash) }}</div>
+                </div>
+              </section>
+
+              <section class="rounded-2xl border border-border bg-background p-4 shadow-sm">
+                <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">资产</h3>
+                <ul v-if="gameStore.currentPlayer.assets.length" class="space-y-3">
+                  <li
+                    v-for="asset in gameStore.currentPlayer.assets"
+                    :key="asset.id"
+                    class="rounded-xl border border-border/60 bg-secondary/20 p-3"
+                  >
+                    <div class="flex items-center justify-between mb-2">
+                      <div class="flex items-center gap-2 min-w-0">
+                        <span class="text-sm font-medium text-foreground truncate">{{ asset.name }}</span>
+                        <span
+                          v-if="asset.symbol"
+                          class="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-mono font-bold text-primary shrink-0"
+                        >
+                          {{ asset.symbol }}
+                        </span>
+                      </div>
+                      <span class="text-xs text-muted-foreground shrink-0">
+                        {{ asset.quantity }} {{ getFtUnitLabel(asset.type) }}
+                      </span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-y-1.5 gap-x-3 text-xs">
+                      <div class="flex justify-between">
+                        <span class="text-muted-foreground">成本价</span>
+                        <span class="font-medium text-foreground tabular-nums">{{ formatMoney(asset.cost) }}</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-muted-foreground">市价</span>
+                        <span class="font-medium text-foreground tabular-nums">{{ formatMoney(asset.marketPrice ?? asset.cost) }}</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-muted-foreground">总成本</span>
+                        <span class="font-medium text-foreground tabular-nums">{{ formatMoney(asset.cost * asset.quantity) }}</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-muted-foreground">总市值</span>
+                        <span class="font-medium text-foreground tabular-nums">{{ formatMoney((asset.marketPrice ?? asset.cost) * asset.quantity) }}</span>
+                      </div>
+                      <div class="flex justify-between col-span-2 pt-1 border-t border-border/50">
+                        <span class="text-muted-foreground">浮动盈亏</span>
+                        <span
+                          class="font-semibold tabular-nums"
+                          :class="getFtAssetPnL(asset) >= 0 ? 'text-success' : 'text-destructive'"
+                        >
+                          {{ getFtAssetPnL(asset) >= 0 ? '+' : '' }}{{ formatMoney(getFtAssetPnL(asset)) }}
+                          <span class="text-[10px] opacity-80">
+                            ({{ getFtAssetPnLPercent(asset) >= 0 ? '+' : '' }}{{ getFtAssetPnLPercent(asset).toFixed(1) }}%)
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                    <div v-if="asset.cashFlow > 0" class="mt-2 flex items-center justify-between text-xs pt-2 border-t border-border/50">
+                      <span class="text-muted-foreground">月现金流</span>
+                      <span class="font-medium text-success">+{{ formatMoney(asset.cashFlow * asset.quantity) }}/月</span>
+                    </div>
+                  </li>
+                </ul>
+                <div v-else class="text-sm text-muted-foreground">暂无资产</div>
+              </section>
+
+              <section class="rounded-2xl border border-border bg-background p-4 shadow-sm">
+                <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">负债</h3>
+                <ul v-if="gameStore.currentPlayer.liabilities.length" class="space-y-2 text-sm">
+                  <li
+                    v-for="loan in gameStore.currentPlayer.liabilities"
+                    :key="loan.id"
+                    class="flex items-center justify-between"
+                  >
+                    <span class="text-muted-foreground">{{ loan.name }}</span>
+                    <span class="font-medium">{{ formatMoney(loan.amount) }}</span>
+                  </li>
+                </ul>
+                <div v-else class="text-sm text-muted-foreground">无负债</div>
+              </section>
+            </div>
+
+            <!-- History tab -->
+            <div v-else-if="sidePanelTab === 'history'" class="space-y-4">
+              <div class="flex items-center justify-between">
+                <h2 class="text-base font-semibold">历史记录</h2>
+                <span class="text-xs text-muted-foreground">
+                  共 {{ gameStore.transactions.length + gameStore.cardHistory.length }} 条
+                </span>
+              </div>
+
+              <!-- History sub-tabs -->
+              <div class="flex border-b border-border">
+                <button
+                  type="button"
+                  class="relative flex-1 cursor-pointer pb-2 text-xs font-medium transition-colors"
+                  :class="historyTab === 'transactions' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+                  @click="historyTab = 'transactions'"
+                >
+                  <span class="flex items-center justify-center gap-1">
+                    <Receipt class="h-3.5 w-3.5" />
+                    交易记录
+                  </span>
+                  <span
+                    v-if="historyTab === 'transactions'"
+                    class="absolute bottom-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-primary"
+                  />
+                </button>
+                <button
+                  type="button"
+                  class="relative flex-1 cursor-pointer pb-2 text-xs font-medium transition-colors"
+                  :class="historyTab === 'cards' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+                  @click="historyTab = 'cards'"
+                >
+                  <span class="flex items-center justify-center gap-1">
+                    <CreditCard class="h-3.5 w-3.5" />
+                    抽卡记录
+                  </span>
+                  <span
+                    v-if="historyTab === 'cards'"
+                    class="absolute bottom-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-primary"
+                  />
+                </button>
+              </div>
+
+              <TransactionHistory v-if="historyTab === 'transactions'" />
+              <CardHistory v-else />
+            </div>
+
+            <!-- Stats tab -->
+            <div v-else-if="sidePanelTab === 'stats'" class="space-y-4">
+              <div class="flex items-center justify-between">
+                <h2 class="text-base font-semibold">财务统计</h2>
+                <span class="text-xs text-muted-foreground">
+                  {{ gameStore.currentPlayer?.financialSnapshots.length ?? 0 }} 个快照
+                </span>
+              </div>
+              <FinancialCharts v-if="gameStore.currentPlayer" :player-id="gameStore.currentPlayer.id" />
+            </div>
+          </div>
         </aside>
       </Transition>
 
