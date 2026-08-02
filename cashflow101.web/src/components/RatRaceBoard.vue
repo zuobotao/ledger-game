@@ -27,6 +27,10 @@ const props = withDefaults(defineProps<Props>(), {
   cardData: null,
 })
 
+const emit = defineEmits<{
+  (e: 'diceDone'): void
+}>()
+
 const cellColorClass: Record<string, string> = {
   green: 'bg-success',
   red: 'bg-destructive',
@@ -204,6 +208,7 @@ const cardTypeAccentClass = computed(() => {
               :count="2"
               inline
               size="md"
+              @done="emit('diceDone')"
             />
           </div>
 

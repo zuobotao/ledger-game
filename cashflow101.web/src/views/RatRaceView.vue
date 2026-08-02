@@ -8,15 +8,14 @@ import {
   Dice5,
   Dices,
   Landmark,
-  PieChart,
   Shield,
+  TrendingUp,
   BriefcaseBusiness,
-  Bot,
+  PieChart,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import type { Asset, Liability, MarketEventCard, OpportunityCard, StoryCard } from '@/types/game'
 import BankModal from '@/components/BankModal.vue'
-import DiceRoller from '@/components/DiceRoller.vue'
 import RatRaceBoard from '@/components/RatRaceBoard.vue'
 import TransactionHistory from '@/components/TransactionHistory.vue'
 import CardHistory from '@/components/CardHistory.vue'
@@ -652,6 +651,7 @@ const showPendingPanel = computed(() => {
               :show-card="showBoardCard"
               :card-type="boardCardType"
               :card-data="boardCardData"
+              @dice-done="onDiceAnimationDone"
             />
           </div>
         </div>
@@ -980,13 +980,6 @@ const showPendingPanel = computed(() => {
 
     <!-- Bank modal -->
     <BankModal :show="showBankModal" @close="showBankModal = false" />
-
-    <!-- Dice roller animation (fullscreen fallback, can be removed later) -->
-    <DiceRoller
-      :show="showDiceAnimation"
-      :values="gameStore.lastDiceValues"
-      @done="onDiceAnimationDone"
-    />
   </main>
 </template>
 
