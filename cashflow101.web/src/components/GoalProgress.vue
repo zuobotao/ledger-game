@@ -4,11 +4,15 @@ import { Target, TrendingUp, Trophy } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import { formatMoney } from '@/utils/format'
 
+const props = defineProps<{
+  phase: 'rat_race' | 'fast_track'
+}>()
+
 const gameStore = useGameStore()
 
 // ========== 原始积累阶段目标 ==========
 const ratRaceProgress = computed(() => {
-  const p = gameStore.currentPlayer
+  const p = gameStore.viewingPlayer
   if (!p) return { percent: 0, passive: 0, expenses: 0, reached: false }
   const expenses = p.totalExpenses
   const passive = p.passiveIncome
@@ -23,7 +27,7 @@ const ratRaceProgress = computed(() => {
 
 // ========== 资本游戏阶段目标 ==========
 const fastTrackProgress = computed(() => {
-  const p = gameStore.currentPlayer
+  const p = gameStore.viewingPlayer
   if (!p) return { dreamPercent: 0, cashPercent: 0, cash: 0, dreamPrice: 0, dreamName: '', hasDream: false }
   const cash = p.cash
   const dream = p.dream
@@ -45,10 +49,7 @@ const fastTrackProgress = computed(() => {
 
 <template>
   <!-- 原始积累阶段：财务自由进度 -->
-  <div
-    v-if="gameStore.phase === 'rat_race' && gameStore.currentPlayer"
-    class="goal-progress rat-race-goal"
-  >
+  <div v-if="phase === 'rat_race' && gameStore.viewingPlayer" class="goal-progress rat-race-goal">
     <div class="goal-header">
       <div class="goal-title">
         <Target class="goal-icon rat-race-icon" />
@@ -81,10 +82,7 @@ const fastTrackProgress = computed(() => {
   </div>
 
   <!-- 资本游戏阶段：梦想/现金目标进度 -->
-  <div
-    v-if="gameStore.phase === 'fast_track' && gameStore.currentPlayer"
-    class="goal-progress fast-track-goal"
-  >
+  <div v-if="phase === 'fast_track' && gameStore.viewingPlayer" class="goal-progress fast-track-goal">
     <!-- 梦想目标 -->
     <div v-if="fastTrackProgress.hasDream" class="goal-section">
       <div class="goal-header">

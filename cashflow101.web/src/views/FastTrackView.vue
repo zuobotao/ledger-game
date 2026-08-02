@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import {
   AlertCircle,
   ArrowLeft,
@@ -8,6 +8,7 @@ import {
   Banknote,
   Bot,
   Dices,
+  Eye,
   Landmark,
   PieChart,
   Rocket,
@@ -26,9 +27,14 @@ import CardHistory from '@/components/CardHistory.vue'
 import FinancialCharts from '@/components/FinancialCharts.vue'
 import PlayerSwitcher from '@/components/PlayerSwitcher.vue'
 import GoalProgress from '@/components/GoalProgress.vue'
+import PhaseSwitcher from '@/components/PhaseSwitcher.vue'
 
 const router = useRouter()
+const route = useRoute()
 const gameStore = useGameStore()
+
+// 是否处于观战模式
+const isSpectator = computed(() => route.query.spectator === 'true')
 
 function formatMoney(n: number): string {
   return `$${Math.round(n).toLocaleString()}`
@@ -120,7 +126,7 @@ const isCurrentPlayerAI = computed(() => {
 
 // 是否禁用人类操作
 const disableHumanActions = computed(() => {
-  return gameStore.isAIThinking || isCurrentPlayerAI.value
+  return isSpectator.value || gameStore.isAIThinking || isCurrentPlayerAI.value
 })
 
 function onBuyFtOpportunity() {
@@ -202,7 +208,16 @@ watch(
           <ArrowLeft class="h-5 w-5" />
         </button>
         <div class="hidden sm:block">
-          <h1 class="text-base font-semibold">资本游戏</h1>
+          <h1 class="text-base font-semibold flex items-center gap-2">
+            资本游戏
+            <span
+              v-if="isSpectator"
+              class="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-400"
+            >
+              <Eye class="h-3 w-3" />
+              观战模式
+            </span>
+          </h1>
           <p class="text-xs text-muted-foreground">第 {{ gameStore.turnNumber }} 回合</p>
         </div>
       </div>
@@ -276,7 +291,12 @@ watch(
 
           <!-- 目标进度 -->
           <div class="px-4 pt-3 lg:px-5">
-            <GoalProgress />
+            <GoalProgress phase="fast_track" />
+          </div>
+
+          <!-- 跨阶段观战切换 -->
+          <div class="px-4 pt-3 lg:px-5">
+            <PhaseSwitcher />
           </div>
 
           <!-- Panel tabs -->

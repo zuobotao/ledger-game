@@ -259,6 +259,7 @@ export const useGameStore = defineStore('game', () => {
   const cardHistory = ref<CardHistoryRecord[]>([])
   const isAIThinking = ref(false)
   const viewingPlayerId = ref<string | null>(null)
+  const viewingPhase = ref<'rat_race' | 'fast_track' | null>(null)
 
   const currentPlayer = computed<Player | null>(() => players.value[currentPlayerIndex.value] ?? null)
   const isGameStarted = computed(() => phase.value === 'rat_race' || phase.value === 'fast_track')
@@ -568,6 +569,17 @@ export const useGameStore = defineStore('game', () => {
     viewingPlayerId.value = playerId
     saveState()
   }
+
+  function setViewingPhase(phase: 'rat_race' | 'fast_track' | null) {
+    viewingPhase.value = phase
+    saveState()
+  }
+
+  // 当前显示的阶段（用于跨阶段观战）
+  const displayPhase = computed(() => viewingPhase.value ?? phase.value)
+
+  // 是否处于跨阶段观战模式
+  const isSpectatingOtherPhase = computed(() => viewingPhase.value !== null && viewingPhase.value !== phase.value)
 
   function moveToNextPlayer() {
     const count = players.value.length
@@ -2247,6 +2259,9 @@ export const useGameStore = defineStore('game', () => {
     isAIThinking,
     viewingPlayerId,
     viewingPlayer,
+    viewingPhase,
+    displayPhase,
+    isSpectatingOtherPhase,
     currentPlayer,
     isGameStarted,
     canCurrentPlayerEnterFastTrack,
@@ -2289,6 +2304,7 @@ export const useGameStore = defineStore('game', () => {
     declineLoanForPending,
     moveToNextPlayer,
     setViewingPlayer,
+    setViewingPhase,
     checkFinancialFreedom,
     enterFastTrack,
     buyDream,
