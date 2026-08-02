@@ -262,6 +262,55 @@ const linePoints = computed(() => {
 })
 
 const hoveredLinePoint = ref<number | null>(null)
+const hoveredBarGroup = ref<number | null>(null)
+
+// Tooltip 位置计算
+const lineTooltipStyle = computed(() => {
+  if (hoveredLinePoint.value === null || !linePoints.value) return {}
+  const point = linePoints.value.points[hoveredLinePoint.value]
+  if (!point) return {}
+  // 基于 SVG viewBox 坐标，转为百分比
+  const xPct = (point.x / LINE_CHART_W) * 100
+  return {
+    left: `${xPct}%`,
+    transform: 'translateX(-50%)',
+  }
+})
+
+const barTooltipStyle = computed(() => {
+  if (hoveredBarGroup.value === null) return {}
+  const group = barGroups.value[hoveredBarGroup.value]
+  if (!group) return {}
+  const xPct = (group.x / BAR_CHART_W) * 100
+  return {
+    left: `${xPct}%`,
+    transform: 'translateX(-50%)',
+  }
+})
+
+const hoveredLineData = computed(() => {
+  if (hoveredLinePoint.value === null || !linePoints.value) return null
+  const point = linePoints.value.points[hoveredLinePoint.value]
+  const data = lineChartData.value[hoveredLinePoint.value]
+  if (!point || !data) return null
+  return {
+    turn: data.turn,
+    netWorth: data.netWorth,
+    totalAssets: data.totalAssets,
+    monthlyCashFlow: data.monthlyCashFlow,
+  }
+})
+
+const hoveredBarData = computed(() => {
+  if (hoveredBarGroup.value === null) return null
+  const group = barGroups.value[hoveredBarGroup.value]
+  if (!group) return null
+  return {
+    turn: group.turn,
+    income: group.income,
+    expense: group.expense,
+  }
+})
 </script>
 
 <template>
@@ -372,10 +421,11 @@ const hoveredLinePoint = ref<number | null>(null)
 
       <!-- 柱状图：收支对比 -->
       <div v-else-if="activeTab === 'income'" class="chart-panel">
-        <div v-if="barChartData.length === 0" class="empty-state">
-          暂无收支数据，完成回合后显示
+        <div v-if="barGroups.length === 0" class="empty-state">
+          暂无收支数据
         </div>
-        <svg v-else :width="'100%'" :height="BAR_CHART_H" :viewBox="`0 0 ${BAR_CHART_W} ${BAR_CHART_H}`" preserveAspectRatio="xMidYMid meet">
+        <div v-else class="bar-chart-wrapper">
+        <svg :width="'100%'" :height="BAR_CHART_H" :viewBox="`0 0 ${BAR_CHART_W} ${BAR_CHART_H}`" preserveAspectRatio="xMidYMid meet">
           <!-- Y轴网格线 -->
           <g class="grid-lines">
             <line
@@ -424,6 +474,8 @@ const hoveredLinePoint = ref<number | null>(null)
                 :fill="COLORS.income"
                 rx="2"
                 class="bar-rect"
+                @mouseenter="hoveredBarGroup = i"
+                @mouseleave="hoveredBarGroup = null"
               />
               <!-- 支出柱 -->
               <rect
@@ -434,6 +486,8 @@ const hoveredLinePoint = ref<number | null>(null)
                 :fill="COLORS.expense"
                 rx="2"
                 class="bar-rect"
+                @mouseenter="hoveredBarGroup = i"
+                @mouseleave="hoveredBarGroup = null"
               />
             </g>
           </g>
@@ -454,6 +508,28 @@ const hoveredLinePoint = ref<number | null>(null)
           </g>
         </svg>
 
+          <!-- Bar chart tooltip -->
+          <div v-if="hoveredBarData" class="chart-tooltip" :style="barTooltipStyle">
+            <div class="tooltip-title">第 {{ hoveredBarData.turn }} 回合</div>
+            <div class="tooltip-row">
+              <span class="tooltip-dot" :style="{ backgroundColor: COLORS.income }"></span>
+              <span class="tooltip-name">收入</span>
+              <span class="tooltip-val">{{ formatMoney(hoveredBarData.income) }}</span>
+            </div>
+            <div class="tooltip-row">
+              <span class="tooltip-dot" :style="{ backgroundColor: COLORS.expense }"></span>
+              <span class="tooltip-name">支出</span>
+              <span class="tooltip-val">{{ formatMoney(hoveredBarData.expense) }}</span>
+            </div>
+            <div class="tooltip-row net-row">
+              <span class="tooltip-name">净收入</span>
+              <span class="tooltip-val" :class="hoveredBarData.income - hoveredBarData.expense >= 0 ? 'text-success' : 'text-destructive'">
+                {{ formatMoney(hoveredBarData.income - hoveredBarData.expense) }}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <!-- 图例 -->
         <div class="bar-legend">
           <div class="legend-item">
@@ -472,7 +548,8 @@ const hoveredLinePoint = ref<number | null>(null)
         <div v-if="!linePoints" class="empty-state">
           暂无趋势数据，完成更多回合后显示
         </div>
-        <svg v-else :width="'100%'" :height="LINE_CHART_H" :viewBox="`0 0 ${LINE_CHART_W} ${LINE_CHART_H}`" preserveAspectRatio="xMidYMid meet">
+        <div v-else class="line-chart-wrapper">
+        <svg :width="'100%'" :height="LINE_CHART_H" :viewBox="`0 0 ${LINE_CHART_W} ${LINE_CHART_H}`" preserveAspectRatio="xMidYMid meet">
           <!-- Y轴网格线 -->
           <g class="grid-lines">
             <line
@@ -548,23 +625,29 @@ const hoveredLinePoint = ref<number | null>(null)
               <circle
                 :cx="point.x"
                 :cy="point.totalAssetsY"
-                r="3"
+                r="4"
                 :fill="COLORS.totalAssets"
                 class="data-point"
+                @mouseenter="hoveredLinePoint = i"
+                @mouseleave="hoveredLinePoint = null"
               />
               <circle
                 :cx="point.x"
                 :cy="point.netWorthY"
-                r="3"
+                r="4"
                 :fill="COLORS.netWorth"
                 class="data-point"
+                @mouseenter="hoveredLinePoint = i"
+                @mouseleave="hoveredLinePoint = null"
               />
               <circle
                 :cx="point.x"
                 :cy="point.cashFlowY"
-                r="3"
+                r="4"
                 :fill="COLORS.cashFlow"
                 class="data-point"
+                @mouseenter="hoveredLinePoint = i"
+                @mouseleave="hoveredLinePoint = null"
               />
             </g>
           </g>
@@ -584,6 +667,27 @@ const hoveredLinePoint = ref<number | null>(null)
             </text>
           </g>
         </svg>
+
+          <!-- Line chart tooltip -->
+          <div v-if="hoveredLineData" class="chart-tooltip" :style="lineTooltipStyle">
+            <div class="tooltip-title">第 {{ hoveredLineData.turn }} 回合</div>
+            <div class="tooltip-row">
+              <span class="tooltip-dot" :style="{ backgroundColor: COLORS.netWorth }"></span>
+              <span class="tooltip-name">净资产</span>
+              <span class="tooltip-val">{{ formatMoney(hoveredLineData.netWorth) }}</span>
+            </div>
+            <div class="tooltip-row">
+              <span class="tooltip-dot" :style="{ backgroundColor: COLORS.totalAssets }"></span>
+              <span class="tooltip-name">总资产</span>
+              <span class="tooltip-val">{{ formatMoney(hoveredLineData.totalAssets) }}</span>
+            </div>
+            <div class="tooltip-row">
+              <span class="tooltip-dot" :style="{ backgroundColor: COLORS.cashFlow }"></span>
+              <span class="tooltip-name">月现金流</span>
+              <span class="tooltip-val">{{ formatMoney(hoveredLineData.monthlyCashFlow) }}</span>
+            </div>
+          </div>
+        </div>
 
         <!-- 图例 -->
         <div class="line-legend">
@@ -843,9 +947,75 @@ const hoveredLinePoint = ref<number | null>(null)
 
 .data-point {
   transition: r 0.2s ease;
+  cursor: pointer;
 }
 
 .data-point:hover {
-  r: 5;
+  r: 6;
+}
+
+/* Chart wrappers for tooltip positioning */
+.bar-chart-wrapper,
+.line-chart-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* Shared chart tooltip */
+.chart-tooltip {
+  position: absolute;
+  top: 8px;
+  pointer-events: none;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid var(--color-gray-600);
+  border-radius: 10px;
+  padding: 10px 12px;
+  z-index: 20;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  min-width: 140px;
+}
+
+.chart-tooltip .tooltip-title {
+  font-size: 11px;
+  color: var(--color-gray-400);
+  font-weight: 500;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-gray-700);
+}
+
+.chart-tooltip .tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.chart-tooltip .tooltip-row.net-row {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-gray-700);
+  font-weight: 600;
+}
+
+.chart-tooltip .tooltip-name {
+  color: var(--color-gray-400);
+  flex: 1;
+}
+
+.chart-tooltip .tooltip-val {
+  color: var(--color-gray-100);
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.text-success {
+  color: #22c55e;
+}
+
+.text-destructive {
+  color: #ef4444;
 }
 </style>
