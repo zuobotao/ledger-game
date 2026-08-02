@@ -184,6 +184,7 @@ export type PendingActionType =
   | 'fast_track_opportunity'
   | 'fast_track_dream'
   | 'story'
+  | 'stock_sell_opportunity'
   | null
 
 export interface PendingAction {
@@ -281,6 +282,15 @@ export interface MarketEventState {
   responderIndex: number  // 当前轮到回应的玩家索引
   respondedIds: string[]  // 已回应玩家ID
   phase: 'current_player' | 'other_players' | 'done'
+}
+
+export interface StockSellOpportunityState {
+  card: OpportunityCard
+  responderIndex: number  // 当前轮到回应的玩家索引
+  respondedIds: string[]  // 已回应玩家ID
+  phase: 'current_player' | 'other_players' | 'done'
+  price: number
+  symbol: string
 }
 
 export type TurnStatus = 'idle' | 'rolling' | 'resolving' | 'finished'

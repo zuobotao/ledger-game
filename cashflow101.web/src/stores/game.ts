@@ -20,6 +20,7 @@ import type {
   Player,
   PlayerColorId,
   StoryCard,
+  StockSellOpportunityState,
   TransactionRecord,
   TransactionType,
   TurnStatus,
@@ -250,6 +251,8 @@ export const useGameStore = defineStore('game', () => {
   const pendingAction = ref<PendingAction>({ type: null, card: null, message: '' })
   const marketEvent = ref<MarketEventCard | null>(null)
   const marketEventState = ref<MarketEventState | null>(null)
+  const stockSellOpportunity = ref<OpportunityCard | null>(null)
+  const stockSellOpportunityState = ref<StockSellOpportunityState | null>(null)
   const decks = ref<CardDeck>(createDecks())
   const transactions = ref<TransactionRecord[]>([])
   const cardHistory = ref<CardHistoryRecord[]>([])
@@ -556,6 +559,8 @@ export const useGameStore = defineStore('game', () => {
     pendingAction.value = { type: null, card: null, message: '' }
     marketEvent.value = null
     marketEventState.value = null
+    stockSellOpportunity.value = null
+    stockSellOpportunityState.value = null
   }
 
   function setViewingPlayer(playerId: string | null) {
@@ -904,6 +909,119 @@ export const useGameStore = defineStore('game', () => {
     saveState()
   }
 
+  // 检查玩家是否持有特定股票
+  function hasStockHolding(player: Player, symbol: string): boolean {
+    return player.assets.some((a) => a.type === 'stock' && a.symbol === symbol)
+  }
+
+  // 获取下一个持有特定股票的玩家索引（多人股票卖出机会）
+  function findNextStockSeller(startIndex: number, symbol: string): number | null {
+    const state = stockSellOpportunityState.value
+    if (!state) return null
+    const count = players.value.length
+    for (let i = 1; i <= count; i++) {
+      const idx = (startIndex + i) % count
+      const p = players.value[idx]
+      if (!p) continue
+      if (state.respondedIds.includes(p.id)) continue
+      if (!hasStockHolding(p, symbol)) continue
+      return idx
+    }
+    return null
+  }
+
+  // 推进股票卖出机会的下一个玩家
+  function advanceStockSellResponder() {
+    const state = stockSellOpportunityState.value
+    if (!state) return
+    const currPlayer = players.value[state.responderIndex]
+    if (currPlayer && !state.respondedIds.includes(currPlayer.id)) {
+      state.respondedIds.push(currPlayer.id)
+    }
+
+    const nextIdx = findNextStockSeller(state.responderIndex, state.symbol)
+    if (nextIdx === null) {
+      state.phase = 'done'
+      state.responderIndex = currentPlayerIndex.value
+      return
+    }
+    state.responderIndex = nextIdx
+    state.phase = 'other_players'
+  }
+
+  // 当前股票卖出机会的回应玩家
+  const stockSellResponder = computed<Player | null>(() => {
+    const state = stockSellOpportunityState.value
+    if (!state) return null
+    return players.value[state.responderIndex] ?? null
+  })
+
+  // 当前是否是我（当前回合玩家）在操作股票卖出机会
+  const isStockSellMyTurn = computed(() => {
+    const state = stockSellOpportunityState.value
+    if (!state) return false
+    return state.responderIndex === currentPlayerIndex.value
+  })
+
+  // 玩家通过股票卖出机会卖出股票
+  function sellStockFromOpportunity(symbol: string, price: number, quantity: number): boolean {
+    const state = stockSellOpportunityState.value
+    if (!state) return false
+    const player = players.value[state.responderIndex]
+    if (!player) return false
+
+    const asset = player.assets.find((a) => a.type === 'stock' && a.symbol === symbol)
+    if (!asset) return false
+
+    const sellQty = Math.min(quantity, asset.quantity)
+    if (sellQty <= 0) return false
+
+    const total = price * sellQty
+    player.cash += total
+    asset.quantity -= sellQty
+    if (asset.quantity <= 0) {
+      player.assets = player.assets.filter((a) => a.id !== asset.id)
+    }
+
+    recordTransaction('stock_sell', total, `机会卖出 ${symbol} 股票`, player.id, {
+      symbol,
+      price,
+      quantity: sellQty,
+    })
+    recalcPlayerFinancials(player)
+    return true
+  }
+
+  // 结束当前股票卖出回应，推进到下一个玩家
+  function dismissStockSellOpportunity() {
+    const state = stockSellOpportunityState.value
+    if (!state) return
+
+    advanceStockSellResponder()
+
+    if (state.phase === 'done') {
+      stockSellOpportunity.value = null
+      stockSellOpportunityState.value = null
+      setPending(null, '股票卖出机会结束，所有持有人已操作。')
+      turnStatus.value = 'resolving'
+    } else {
+      const nextPlayer = players.value[state.responderIndex]
+      setPending(
+        'stock_sell_opportunity',
+        `股票卖出机会：${state.card.title} — 轮到 ${nextPlayer?.name ?? '?'} 操作。`,
+        state.card,
+      )
+      turnStatus.value = 'resolving'
+
+      if (nextPlayer?.isAI) {
+        setTimeout(() => {
+          aiHandleStockSellOpportunity()
+        }, 300)
+      }
+    }
+    saveState()
+  }
+
   function ratRaceRollDice() {
     const player = currentPlayer.value
     if (!player || phase.value !== 'rat_race' || turnStatus.value !== 'idle') return
@@ -942,6 +1060,36 @@ export const useGameStore = defineStore('game', () => {
         const { card, remaining } = drawFn(decks.value[deckKey])
         decks.value[deckKey] = remaining
         recordCardDrawn('opportunity', card)
+
+        // 多人模式下，小机会的股票卖出卡：所有持有人都可以卖
+        if (
+          !isBig &&
+          card.type === 'stock' &&
+          card.action === 'sell' &&
+          card.symbol &&
+          players.value.length > 1
+        ) {
+          const hasAnyHolder = players.value.some((p) => hasStockHolding(p, card.symbol!))
+          if (hasAnyHolder) {
+            // 进入多人股票卖出轮询模式
+            stockSellOpportunity.value = card
+            stockSellOpportunityState.value = {
+              card,
+              responderIndex: currentPlayerIndex.value,
+              respondedIds: [],
+              phase: 'current_player',
+              price: card.cost,
+              symbol: card.symbol,
+            }
+            setPending(
+              'stock_sell_opportunity',
+              `小机会：${card.title} — 所有持有 ${card.symbol} 的玩家都可以卖出。`,
+              card,
+            )
+            break
+          }
+        }
+
         setPending('opportunity', `你遇到了一个${isBig ? '大' : '小'}机会。`, card)
         break
       }
@@ -1923,6 +2071,48 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  async function aiHandleStockSellOpportunity(): Promise<void> {
+    const state = stockSellOpportunityState.value
+    const card = stockSellOpportunity.value
+    if (!state || !card || !card.symbol) return
+
+    while (state.phase !== 'done') {
+      const responder = players.value[state.responderIndex]
+      if (!responder) break
+
+      if (responder.isAI) {
+        const difficulty: AIDifficulty = (responder.aiDifficulty as AIDifficulty) ?? 'medium'
+        await sleep(400)
+
+        const asset = responder.assets.find(
+          (a) => a.type === 'stock' && a.symbol === card.symbol,
+        )
+        if (asset) {
+          const sellQty = AIDecision.decideSellMarket(responder, asset, state.price, difficulty)
+          if (sellQty > 0) {
+            const originalIndex = currentPlayerIndex.value
+            currentPlayerIndex.value = state.responderIndex
+            sellStockFromOpportunity(state.symbol, state.price, sellQty)
+            currentPlayerIndex.value = originalIndex
+            await sleep(200)
+          }
+        }
+
+        advanceStockSellResponder()
+      } else {
+        break
+      }
+    }
+
+    if (state.phase === 'done') {
+      stockSellOpportunity.value = null
+      stockSellOpportunityState.value = null
+      setPending(null, '股票卖出机会结束，所有持有人已操作。')
+      turnStatus.value = 'resolving'
+      saveState()
+    }
+  }
+
   loadState()
 
   return {
@@ -1940,6 +2130,10 @@ export const useGameStore = defineStore('game', () => {
     marketEventState,
     marketResponder,
     isMarketMyTurn,
+    stockSellOpportunity,
+    stockSellOpportunityState,
+    stockSellResponder,
+    isStockSellMyTurn,
     decks,
     transactions,
     cardHistory,
@@ -1972,6 +2166,8 @@ export const useGameStore = defineStore('game', () => {
     declineOpportunity,
     sellAssetToMarket,
     dismissMarketEvent,
+    sellStockFromOpportunity,
+    dismissStockSellOpportunity,
     acceptCharity,
     declineCharity,
     dismissDoodad,
@@ -1996,5 +2192,6 @@ export const useGameStore = defineStore('game', () => {
     runAITurn,
     aiHandlePendingAction,
     aiHandleMarketEvent,
+    aiHandleStockSellOpportunity,
   }
 })

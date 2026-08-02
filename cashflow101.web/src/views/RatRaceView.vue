@@ -201,6 +201,22 @@ const sellableAssets = computed(() => {
   })
 })
 
+// 股票卖出机会（多人模式）
+const stockSellQty = ref(1)
+const stockSellAsset = computed(() => {
+  const state = gameStore.stockSellOpportunityState
+  const responder = gameStore.stockSellResponder
+  if (!state || !responder) return null
+  return responder.assets.find(
+    (a) => a.type === 'stock' && a.symbol === state.symbol,
+  ) ?? null
+})
+const stockSellHasMoreHolders = computed(() => {
+  const state = gameStore.stockSellOpportunityState
+  if (!state) return false
+  return state.phase !== 'done' && state.respondedIds.length < gameStore.players.length - 1
+})
+
 const opportunityQuantity = ref(1)
 const buyQuantity = ref(1)
 const sellQuantity = ref(1)
@@ -230,6 +246,10 @@ const disableHumanActions = computed(() => {
   if (gameStore.isAIThinking) return true
   if (gameStore.pendingAction.type === 'market' && gameStore.marketEventState) {
     const responder = gameStore.marketResponder
+    return responder?.isAI ?? false
+  }
+  if (gameStore.pendingAction.type === 'stock_sell_opportunity' && gameStore.stockSellOpportunityState) {
+    const responder = gameStore.stockSellResponder
     return responder?.isAI ?? false
   }
   return isCurrentPlayerAI.value
@@ -325,6 +345,13 @@ function onSellAsset(asset: Asset) {
   gameStore.sellAssetToMarket(asset.id, qty)
   // 重置数量
   delete sellQuantities.value[asset.id]
+}
+
+function onSellStockFromOpportunity() {
+  const state = gameStore.stockSellOpportunityState
+  if (!state) return
+  gameStore.sellStockFromOpportunity(state.symbol, state.price, stockSellQty.value)
+  stockSellQty.value = 1
 }
 
 function onRepayLoan(loan: Liability) {
@@ -1165,6 +1192,97 @@ const showPendingPanel = computed(() => {
                   @click="gameStore.dismissMarketEvent()"
                 >
                   {{ gameStore.marketEventState && gameStore.marketEventState.respondedIds.length < gameStore.players.length - 1 ? '下一位玩家' : '结束' }}
+                </button>
+              </div>
+
+              <!-- ========== 股票卖出机会操作区（多人模式） ========== -->
+              <div
+                v-if="gameStore.pendingAction.type === 'stock_sell_opportunity' && gameStore.stockSellOpportunityState"
+                class="card-action-panel"
+              >
+                <!-- 多玩家提示 -->
+                <div class="mb-3 flex items-center justify-between rounded-xl border border-teal-500/30 bg-teal-500/10 px-3 py-2 text-xs">
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="inline-block h-3 w-3 rounded-full"
+                      :style="{ backgroundColor: gameStore.stockSellResponder?.color }"
+                    />
+                    <span class="font-medium text-teal-400">
+                      {{ gameStore.stockSellResponder?.name }} 操作中
+                    </span>
+                  </div>
+                  <span class="text-muted-foreground">
+                    所有持有玩家轮询
+                  </span>
+                </div>
+
+                <div v-if="stockSellAsset" class="space-y-3">
+                  <p class="text-xs text-muted-foreground">你可以选择卖出持有的 {{ stockSellAsset.symbol }} 股票：</p>
+                  <div class="space-y-3 rounded-xl border border-border bg-background p-4 shadow-sm">
+                    <!-- 资产信息头部 -->
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                          <span class="text-sm font-semibold text-foreground">{{ stockSellAsset.name }}</span>
+                          <span class="inline-flex items-center rounded bg-teal-500/10 px-1.5 py-0.5 text-[10px] font-mono font-bold text-teal-400">
+                            {{ stockSellAsset.symbol }}
+                          </span>
+                        </div>
+                        <div class="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                          <div class="flex justify-between">
+                            <span class="text-muted-foreground">持有数量</span>
+                            <span class="font-medium text-foreground">{{ stockSellAsset.quantity }} 股</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-muted-foreground">卖出单价</span>
+                            <span class="font-medium text-success">{{ formatMoney(gameStore.stockSellOpportunityState.price) }}</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-muted-foreground">成本价</span>
+                            <span class="font-medium text-foreground">{{ formatMoney(stockSellAsset.cost) }}</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-muted-foreground">预计总收入</span>
+                            <span class="font-bold text-success">{{ formatMoney(gameStore.stockSellOpportunityState.price * stockSellQty) }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- 数量选择器 -->
+                    <QuantitySelector
+                      v-if="stockSellAsset.quantity > 1"
+                      :model-value="stockSellQty"
+                      @update:model-value="(v: number) => stockSellQty = v"
+                      :max-quantity="stockSellAsset.quantity"
+                      :unit-price="gameStore.stockSellOpportunityState.price"
+                      mode="sell"
+                      asset-type="stock"
+                      unit-label="股"
+                      :show-quick-buttons="stockSellAsset.quantity > 2"
+                    />
+
+                    <!-- 卖出按钮 -->
+                    <button
+                      type="button"
+                      :disabled="disableHumanActions"
+                      class="w-full rounded-full bg-teal-500 py-2.5 text-sm font-semibold text-white shadow-sm shadow-teal-500/20 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      @click="onSellStockFromOpportunity"
+                    >
+                      卖出 {{ stockSellQty }} 股 · 可得 {{ formatMoney(gameStore.stockSellOpportunityState.price * stockSellQty) }}
+                    </button>
+                  </div>
+                </div>
+                <div v-else class="text-xs text-muted-foreground">
+                  你不持有该股票，无法卖出。
+                </div>
+                <button
+                  type="button"
+                  :disabled="disableHumanActions"
+                  class="mt-3 w-full rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-40"
+                  @click="gameStore.dismissStockSellOpportunity()"
+                >
+                  {{ stockSellHasMoreHolders ? '下一位玩家' : '结束' }}
                 </button>
               </div>
 
