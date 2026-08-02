@@ -1,11 +1,23 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, Banknote, Gem, Rocket, RotateCcw, Target } from 'lucide-vue-next'
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Banknote,
+  Bot,
+  Dices,
+  Landmark,
+  PieChart,
+  Rocket,
+  Target,
+} from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
-import { FAST_TRACK_CELLS } from '@/data/board'
 import type { OpportunityCard } from '@/types/game'
-import DiceRoller from '@/components/DiceRoller.vue'
+import FastTrackBoard from '@/components/FastTrackBoard.vue'
+import BankModal from '@/components/BankModal.vue'
+import FinancialStatement from '@/components/FinancialStatement.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -19,6 +31,34 @@ function goHome() {
   router.push({ name: 'home' })
 }
 
+// ========== 骰子动画 ==========
+const showDiceAnimation = ref(false)
+
+function onRollDice() {
+  showDiceAnimation.value = true
+  gameStore.fastTrackRollDice()
+}
+
+function onDiceAnimationDone() {
+  showDiceAnimation.value = false
+}
+
+// ========== 棋盘中心卡片显示 ==========
+const showBoardOpportunity = computed(() => {
+  return gameStore.pendingAction.type === 'fast_track_opportunity'
+})
+
+const boardOpportunityCard = computed<OpportunityCard | null>(() => {
+  if (
+    gameStore.pendingAction.type === 'fast_track_opportunity' &&
+    gameStore.pendingAction.card
+  ) {
+    return gameStore.pendingAction.card as OpportunityCard
+  }
+  return null
+})
+
+// ========== 机会卡相关 ==========
 const ftOpportunityCard = computed<OpportunityCard | null>(() => {
   if (
     gameStore.pendingAction.type === 'fast_track_opportunity' &&
@@ -33,50 +73,18 @@ const ftDreamPending = computed(() => gameStore.pendingAction.type === 'fast_tra
 
 const ftQuantity = ref(1)
 const ftBuyError = ref('')
+const showBankModal = ref(false)
+const showFinancialPanel = ref(false)
 
-function cellIcon(type: string) {
-  switch (type) {
-    case 'cashflow':
-      return Banknote
-    case 'opportunity':
-    case 'investment':
-      return Gem
-    case 'doodad':
-      return RotateCcw
-    case 'dream':
-      return Target
-    default:
-      return Target
-  }
-}
+// 当前玩家是否是 AI
+const isCurrentPlayerAI = computed(() => {
+  return gameStore.currentPlayer?.isAI ?? false
+})
 
-function cellBgClass(type: string): string {
-  switch (type) {
-    case 'cashflow':
-      return 'bg-success text-success-foreground border-transparent'
-    case 'opportunity':
-      return 'bg-primary text-primary-foreground border-transparent'
-    case 'investment':
-      return 'bg-secondary text-secondary-foreground'
-    case 'doodad':
-      return 'bg-destructive text-destructive-foreground border-transparent'
-    case 'dream':
-      return 'bg-accent text-accent-foreground border-transparent'
-    default:
-      return 'bg-background'
-  }
-}
-
-function onRollDice() {
-  showDiceAnimation.value = true
-  gameStore.fastTrackRollDice()
-}
-
-function onDiceAnimationDone() {
-  showDiceAnimation.value = false
-}
-
-const showDiceAnimation = ref(false)
+// 是否禁用人类操作
+const disableHumanActions = computed(() => {
+  return gameStore.isAIThinking || isCurrentPlayerAI.value
+})
 
 function onBuyFtOpportunity() {
   const card = ftOpportunityCard.value
@@ -122,6 +130,11 @@ const winner = computed(() => {
   return gameStore.players.find((p) => p.id === gameStore.winnerId)
 })
 
+// 判断 pending action 浮层是否应该显示
+const showPendingPanel = computed(() => {
+  return gameStore.pendingAction.type || gameStore.pendingAction.message
+})
+
 // 获胜后自动跳转到胜利页面
 watch(
   () => gameStore.winnerId,
@@ -136,182 +149,314 @@ watch(
 </script>
 
 <template>
-  <main class="flex min-h-screen flex-col bg-background text-foreground">
+  <main class="flex h-screen w-full flex-col overflow-hidden bg-background text-foreground">
+    <!-- Top bar -->
     <header
-      class="flex items-center justify-between border-b border-border px-4 py-4 sm:px-6"
+      class="shrink-0 flex h-14 items-center justify-between gap-2 border-b border-border bg-secondary/50 px-3 py-2.5 backdrop-blur-sm sm:h-16 sm:gap-4 sm:px-6 sm:py-3"
     >
-      <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">资本游戏</h1>
-      <div class="flex items-center gap-3 sm:gap-4">
-        <span
-          v-if="gameStore.currentPlayer"
-          class="inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium sm:text-sm"
-        >
-          <Rocket class="h-4 w-4 text-primary" />
-          {{ gameStore.currentPlayer.name }}
-        </span>
+      <!-- 左侧：返回 + 阶段 + 回合 -->
+      <div class="flex items-center gap-2 sm:gap-3">
         <button
           type="button"
-          class="inline-flex h-10 items-center gap-1 rounded-[var(--radius-md)] px-3 text-sm font-semibold text-muted-foreground hover:bg-secondary"
+          class="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
+          title="返回首页"
           @click="goHome"
         >
-          <ArrowLeft class="h-4 w-4" />
-          返回首页
+          <ArrowLeft class="h-5 w-5" />
+        </button>
+        <div class="hidden sm:block">
+          <h1 class="text-base font-semibold">资本游戏</h1>
+          <p class="text-xs text-muted-foreground">第 {{ gameStore.turnNumber }} 回合</p>
+        </div>
+      </div>
+
+      <!-- 中间：当前玩家 -->
+      <div class="flex items-center gap-2">
+        <span
+          v-if="gameStore.currentPlayer"
+          class="h-3 w-3 rounded-full"
+          :style="{ backgroundColor: gameStore.currentPlayer.color }"
+        />
+        <Bot v-if="isCurrentPlayerAI" class="h-4 w-4 text-primary" />
+        <span class="text-sm font-medium">
+          {{ gameStore.currentPlayer?.name ?? '—' }}
+        </span>
+        <!-- AI 思考中提示 -->
+        <span
+          v-if="gameStore.isAIThinking"
+          class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary animate-pulse"
+        >
+          <Bot class="h-3 w-3" />
+          AI 思考中...
+        </span>
+        <!-- 梦想徽章 -->
+        <span
+          v-if="gameStore.currentPlayer?.dream"
+          class="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-400"
+        >
+          <Target class="h-3 w-3" />
+          {{ gameStore.currentPlayer.dream.name }}
+        </span>
+      </div>
+
+      <!-- 右侧：操作按钮 -->
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <!-- 银行 -->
+        <button
+          type="button"
+          :disabled="isCurrentPlayerAI"
+          class="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+          title="银行"
+          @click="showBankModal = true"
+        >
+          <Landmark class="h-5 w-5" />
+        </button>
+        <!-- 财务报表 -->
+        <button
+          type="button"
+          :disabled="isCurrentPlayerAI"
+          class="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+          title="财务报表"
+          @click="showFinancialPanel = !showFinancialPanel"
+        >
+          <PieChart class="h-5 w-5" />
         </button>
       </div>
     </header>
 
-    <section class="flex flex-1 flex-col items-center justify-center gap-6 px-4 py-8 sm:gap-8 sm:px-6">
-      <!-- Track -->
-      <div class="no-scrollbar flex w-full max-w-5xl gap-2 overflow-x-auto pb-4 sm:gap-3">
-        <div
-          v-for="cell in FAST_TRACK_CELLS"
-          :key="cell.index"
-          class="relative flex h-24 w-20 flex-shrink-0 flex-col items-center justify-center gap-1 rounded-2xl border border-border bg-background text-center shadow-sm sm:h-28 sm:w-24"
-          :class="[
-            cellBgClass(cell.type),
-            { 'ring-2 ring-primary': gameStore.currentPlayer?.fastTrackPosition === cell.index },
-          ]"
+    <!-- Game area -->
+    <div class="flex flex-1 overflow-hidden">
+      <!-- 左侧财务面板（可折叠） -->
+      <Transition name="side-panel">
+        <aside
+          v-if="showFinancialPanel"
+          class="shrink-0 w-72 overflow-y-auto border-r border-border bg-secondary/30 px-4 py-4 sm:w-80"
         >
-          <component :is="cellIcon(cell.type)" class="h-5 w-5 sm:h-6 sm:w-6" />
-          <span class="text-[10px] font-semibold leading-tight sm:text-xs">{{ cell.name }}</span>
-          <div
-            v-if="gameStore.currentPlayer?.fastTrackPosition === cell.index"
-            class="absolute -top-3 flex h-6 w-6 items-center justify-center rounded-full border-2 border-background text-[10px] font-bold text-background shadow-md"
-            :style="{ backgroundColor: gameStore.currentPlayer.color }"
-          >
-            {{ gameStore.currentPlayer.name.slice(0, 1) }}
-          </div>
-        </div>
-      </div>
+          <FinancialStatement v-if="gameStore.currentPlayer" />
+        </aside>
+      </Transition>
 
-      <!-- Dream card -->
-      <article
-        v-if="gameStore.currentPlayer?.dream"
-        class="flex w-full max-w-sm items-center justify-between rounded-2xl border border-border bg-background p-5 shadow-md"
-      >
-        <div>
-          <div class="text-xs uppercase tracking-wider text-muted-foreground">目标</div>
-          <h2 class="mt-1 text-lg font-semibold">{{ gameStore.currentPlayer.dream.name }}</h2>
-          <div class="mt-1 text-2xl font-bold text-primary">
-            {{ formatMoney(gameStore.currentPlayer.dream.price) }}
-          </div>
-        </div>
-        <Target class="h-10 w-10 text-primary" />
-      </article>
-
-      <!-- Summary -->
-      <div class="flex flex-wrap justify-center gap-3 sm:gap-4">
-        <div class="rounded-2xl bg-muted px-5 py-3 text-sm font-semibold">
-          月现金流：{{ formatMoney((gameStore.currentPlayer?.cashFlow ?? 0) * 100) }}
-        </div>
-        <div class="rounded-2xl bg-muted px-5 py-3 text-sm font-semibold">
-          现金：{{ formatMoney(gameStore.currentPlayer?.cash ?? 0) }}
-        </div>
-      </div>
-
-      <!-- Pending action -->
-      <div
-        v-if="gameStore.pendingAction.message"
-        class="w-full max-w-md rounded-2xl border border-border bg-background p-4 shadow-md"
-      >
-        <p class="text-sm font-medium">{{ gameStore.pendingAction.message }}</p>
-
-        <div v-if="ftOpportunityCard" class="mt-3 rounded-xl border border-border bg-secondary p-3">
-          <div class="text-xs uppercase tracking-wider text-muted-foreground">
-            {{ ftOpportunityCard.size === 'big' ? '大机会' : '小机会' }}
-          </div>
-          <div class="text-base font-semibold">{{ ftOpportunityCard.title }}</div>
-          <p class="text-sm text-muted-foreground">{{ ftOpportunityCard.description }}</p>
-          <div class="mt-2 flex gap-4 text-sm">
-            <span>价格：<span class="font-medium">{{ formatMoney(ftOpportunityCard.cost) }}</span></span>
-            <span>月现金流：<span class="font-medium text-success">{{ formatMoney(ftOpportunityCard.cashFlow) }}</span></span>
-          </div>
-          <div v-if="ftOpportunityCard.type === 'stock'" class="mt-2 flex items-center gap-2">
-            <label class="text-sm">数量：</label>
-            <input
-              v-model.number="ftQuantity"
-              type="number"
-              min="1"
-              :max="ftOpportunityCard.maxQuantity"
-              class="h-8 w-20 rounded-md border border-input px-2 text-sm"
+      <!-- Board -->
+      <section class="relative flex flex-1 flex-col overflow-hidden">
+        <div class="flex flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 lg:p-6">
+          <div class="h-full w-full max-h-full max-w-[560px]">
+            <FastTrackBoard
+              :players="gameStore.players"
+              :current-position="gameStore.currentPlayer?.fastTrackPosition ?? 0"
+              :last-roll="gameStore.lastRoll"
+              :turn-number="gameStore.turnNumber ?? 0"
+              :current-player-name="gameStore.currentPlayer?.name ?? ''"
+              :is-rolling="showDiceAnimation"
+              :dice-values="gameStore.lastDiceValues"
+              :dream="gameStore.currentPlayer?.dream ?? null"
+              :show-opportunity="showBoardOpportunity"
+              :opportunity-card="boardOpportunityCard"
+              @dice-done="onDiceAnimationDone"
             />
           </div>
-          <div class="mt-3 flex gap-2">
+        </div>
+
+        <!-- 主操作按钮（棋盘下方） -->
+        <div class="shrink-0 flex justify-center px-3 pb-3 sm:px-6 sm:pb-4">
+          <Transition name="main-btn" mode="out-in">
+            <!-- 掷骰子（idle 状态） -->
             <button
+              v-if="gameStore.turnStatus === 'idle'"
+              key="roll"
               type="button"
-              class="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
-              :class="{ 'opacity-70': ftBuyError }"
-              @click="onBuyFtOpportunity"
+              class="inline-flex h-12 items-center gap-2 rounded-full bg-primary px-8 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 sm:h-14 sm:px-10 sm:text-lg"
+              :disabled="disableHumanActions"
+              @click="onRollDice"
             >
-              买入
+              <Rocket class="h-5 w-5 sm:h-6 sm:w-6" />
+              <span>掷双骰</span>
             </button>
+            <!-- 结束回合（resolving 状态） -->
             <button
+              v-else
+              key="end"
               type="button"
-              class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted"
-              @click="onDeclineFtOpportunity"
+              class="inline-flex h-12 items-center gap-2 rounded-full bg-secondary px-8 text-base font-semibold text-foreground shadow-md transition hover:bg-muted active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 sm:h-14 sm:px-10 sm:text-lg"
+              :disabled="gameStore.turnStatus === 'rolling' || disableHumanActions"
+              @click="onEndTurn"
             >
-              放弃
+              <span>结束回合</span>
+              <ArrowRight class="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
+          </Transition>
+        </div>
+
+        <!-- Pending action floating panel -->
+        <Transition name="slide-up">
+          <div
+            v-if="showPendingPanel"
+            class="pointer-events-none absolute bottom-0 left-0 right-0 z-20 px-3 pb-3 sm:px-6 sm:pb-4"
+          >
+            <div class="pointer-events-auto mx-auto max-w-[560px] rounded-2xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur-md">
+              <div class="flex items-start gap-3">
+                <AlertCircle v-if="!showBoardOpportunity" class="mt-0.5 h-5 w-5 text-primary" />
+                <div class="flex-1">
+                  <!-- 非卡片类 pending action 显示消息 -->
+                  <p v-if="!showBoardOpportunity" class="text-sm font-medium">
+                    {{ gameStore.pendingAction.message }}
+                  </p>
+
+                  <!-- ========== 快车道机会卡操作区 ========== -->
+                  <div v-if="ftOpportunityCard" class="card-action-panel">
+                    <!-- 数量选择器（股票类） -->
+                    <div
+                      v-if="ftOpportunityCard.type === 'stock' && ftOpportunityCard.maxQuantity"
+                      class="mb-3 flex items-center gap-3"
+                    >
+                      <label class="text-sm font-medium text-foreground">购买数量：</label>
+                      <div class="flex items-center gap-1">
+                        <button
+                          type="button"
+                          :disabled="ftQuantity <= 1"
+                          class="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                          @click="ftQuantity = Math.max(1, ftQuantity - 1)"
+                        >
+                          <span class="text-lg font-bold">−</span>
+                        </button>
+                        <input
+                          v-model.number="ftQuantity"
+                          type="number"
+                          min="1"
+                          :max="ftOpportunityCard.maxQuantity"
+                          class="h-9 w-16 rounded-md border border-border bg-background text-center text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                        <button
+                          type="button"
+                          :disabled="ftQuantity >= (ftOpportunityCard.maxQuantity ?? 1)"
+                          class="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                          @click="
+                            ftQuantity = Math.min(ftOpportunityCard.maxQuantity ?? 1, ftQuantity + 1)
+                          "
+                        >
+                          <span class="text-lg font-bold">+</span>
+                        </button>
+                      </div>
+                      <span class="text-xs text-muted-foreground">
+                        最多 {{ ftOpportunityCard.maxQuantity }} 股
+                      </span>
+                    </div>
+
+                    <!-- 总价显示 -->
+                    <div class="mb-3 flex items-center justify-between rounded-lg bg-muted px-3 py-2">
+                      <span class="text-sm text-muted-foreground">总价：</span>
+                      <span class="text-base font-bold text-foreground">
+                        {{ formatMoney(ftOpportunityCard.cost * ftQuantity) }}
+                      </span>
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div class="flex gap-2">
+                      <button
+                        type="button"
+                        :disabled="
+                          (gameStore.currentPlayer
+                            ? gameStore.currentPlayer.cash <
+                              ftOpportunityCard.cost * ftQuantity
+                            : true) || disableHumanActions
+                        "
+                        class="flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
+                        @click="onBuyFtOpportunity"
+                      >
+                        买入
+                      </button>
+                      <button
+                        type="button"
+                        :disabled="disableHumanActions"
+                        class="flex-1 rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-40"
+                        @click="onDeclineFtOpportunity"
+                      >
+                        放弃
+                      </button>
+                    </div>
+                    <p v-if="ftBuyError" class="mt-2 text-xs font-medium text-destructive">
+                      {{ ftBuyError }}
+                    </p>
+                  </div>
+
+                  <!-- ========== 梦想购买操作区 ========== -->
+                  <div v-if="ftDreamPending" class="dream-action-panel">
+                    <div class="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+                      <div class="flex items-center gap-2">
+                        <Target class="h-5 w-5 text-amber-400" />
+                        <span class="font-semibold text-amber-400">
+                          {{ gameStore.currentPlayer?.dream?.name }}
+                        </span>
+                      </div>
+                      <div class="mt-1 text-sm text-amber-300/80">
+                        价格：
+                        <span class="font-bold">
+                          {{ formatMoney(gameStore.currentPlayer?.dream?.price ?? 0) }}
+                        </span>
+                      </div>
+                      <div class="mt-1 text-xs text-muted-foreground">
+                        当前现金：
+                        <span
+                          :class="
+                            (gameStore.currentPlayer?.cash ?? 0) >=
+                            (gameStore.currentPlayer?.dream?.price ?? 0)
+                              ? 'text-success'
+                              : 'text-destructive'
+                          "
+                        >
+                          {{ formatMoney(gameStore.currentPlayer?.cash ?? 0) }}
+                        </span>
+                      </div>
+                    </div>
+                    <div class="flex gap-2">
+                      <button
+                        type="button"
+                        :disabled="
+                          gameStore.currentPlayer
+                            ? gameStore.currentPlayer.cash <
+                              (gameStore.currentPlayer.dream?.price ?? Infinity)
+                            : true || disableHumanActions
+                        "
+                        class="flex-1 rounded-full bg-success px-4 py-2.5 text-sm font-semibold text-success-foreground hover:opacity-90 disabled:opacity-40"
+                        @click="onBuyDream"
+                      >
+                        购买梦想
+                      </button>
+                      <button
+                        type="button"
+                        :disabled="disableHumanActions"
+                        class="flex-1 rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-40"
+                        @click="onAcknowledge"
+                      >
+                        暂不购买
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Doodad / Generic -->
+                  <div
+                    v-if="
+                      !ftOpportunityCard &&
+                      !ftDreamPending &&
+                      gameStore.pendingAction.message
+                    "
+                    class="mt-3"
+                  >
+                    <button
+                      type="button"
+                      :disabled="disableHumanActions"
+                      class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-40"
+                      @click="onAcknowledge"
+                    >
+                      知道了
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <p v-if="ftBuyError" class="mt-2 text-xs font-medium text-destructive">
-            {{ ftBuyError }}
-          </p>
-        </div>
-
-        <div v-if="ftDreamPending" class="mt-3 flex gap-2">
-          <button
-            type="button"
-            :disabled="gameStore.currentPlayer ? (gameStore.currentPlayer.cash < (gameStore.currentPlayer.dream?.price ?? Infinity)) : true"
-            class="rounded-full bg-success px-4 py-2 text-sm font-semibold text-success-foreground hover:opacity-90 disabled:opacity-40"
-            @click="onBuyDream"
-          >
-            购买梦想
-          </button>
-          <button
-            type="button"
-            class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted"
-            @click="onAcknowledge"
-          >
-            暂不购买
-          </button>
-        </div>
-
-        <div
-          v-if="!ftOpportunityCard && !ftDreamPending"
-          class="mt-3"
-        >
-          <button
-            type="button"
-            class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted"
-            @click="onAcknowledge"
-          >
-            知道了
-          </button>
-        </div>
-      </div>
-
-      <!-- Actions -->
-      <div class="flex gap-3 sm:gap-4">
-        <button
-          type="button"
-          :disabled="gameStore.turnStatus !== 'idle'"
-          class="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          @click="onRollDice"
-        >
-          <Rocket class="h-5 w-5" />
-          掷双骰
-        </button>
-        <button
-          type="button"
-          :disabled="gameStore.turnStatus === 'idle'"
-          class="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-success px-6 text-sm font-semibold text-success-foreground shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          @click="onEndTurn"
-        >
-          <RotateCcw class="h-5 w-5" />
-          结束回合
-        </button>
-      </div>
-    </section>
+        </Transition>
+      </section>
+    </div>
 
     <!-- Winner overlay -->
     <div
@@ -336,21 +481,58 @@ watch(
       </div>
     </div>
 
-    <!-- Dice roller animation -->
-    <DiceRoller
-      :show="showDiceAnimation"
-      :values="gameStore.lastDiceValues"
-      @done="onDiceAnimationDone"
-    />
+    <!-- Bank modal -->
+    <BankModal :show="showBankModal" @close="showBankModal = false" />
   </main>
 </template>
 
 <style scoped>
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+.main-btn-enter-active,
+.main-btn-leave-active {
+  transition: all 0.25s ease;
 }
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+
+.main-btn-enter-from {
+  opacity: 0;
+  transform: translateY(8px) scale(0.96);
+}
+
+.main-btn-leave-to {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.96);
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.side-panel-enter-active,
+.side-panel-leave-active {
+  transition: all 0.3s ease;
+}
+
+.side-panel-enter-from,
+.side-panel-leave-to {
+  opacity: 0;
+  width: 0;
+  margin-left: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-right-width: 0;
+}
+
+.card-action-panel {
+  width: 100%;
+}
+
+.dream-action-panel {
+  width: 100%;
 }
 </style>
