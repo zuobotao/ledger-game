@@ -201,6 +201,7 @@ function createPlayer(
     hasInsurance: config.insurance,
     childrenCount: 0,
     doubleDiceNextTurn: false,
+    isAI: false,
     financialStatement: createFinancialStatement(),
     financialSnapshots: [],
   }
@@ -418,6 +419,7 @@ export const useGameStore = defineStore('game', () => {
         const patched: Player = { ...p }
         patched.unemploymentTurns ??= 0
         patched.doubleDiceNextTurn ??= false
+        patched.isAI ??= false
         if (!patched.financialStatement) {
           patched.financialStatement = createFinancialStatement()
         }

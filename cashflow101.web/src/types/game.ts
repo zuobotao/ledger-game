@@ -14,6 +14,10 @@ export interface Career {
   salary: number
   expenses: Expenses
   startingCash: number
+  difficulty?: 'easy' | 'medium' | 'hard' | 'expert'
+  tags?: string[]
+  description?: string
+  icon?: string
 }
 
 export interface Asset {
@@ -58,6 +62,8 @@ export interface Player {
   childrenCount: number
   doubleDiceNextTurn: boolean
   dream?: Dream
+  isAI: boolean
+  aiDifficulty?: 'easy' | 'medium' | 'hard'
   financialStatement: FinancialStatementState
   financialSnapshots: FinancialSnapshot[]
 }
@@ -124,6 +130,7 @@ export interface OpportunityCard {
   symbol?: string
   maxQuantity?: number
   action?: 'buy' | 'sell'
+  splitRatio?: number
 }
 
 export interface MarketEventCard {
@@ -149,6 +156,8 @@ export interface Dream {
   description: string
   price: number
   icon: string
+  category?: 'lifestyle' | 'charity' | 'investment' | 'career' | 'family' | 'freedom'
+  story?: string
 }
 
 export type PendingActionType =
@@ -160,6 +169,7 @@ export type PendingActionType =
   | 'need_loan'
   | 'fast_track_opportunity'
   | 'fast_track_dream'
+  | 'story'
   | null
 
 export interface PendingAction {
@@ -195,6 +205,9 @@ export type TransactionType =
   | 'charity'
   | 'child'
   | 'layoff'
+  | 'story_gain'
+  | 'story_loss'
+  | 'stock_split'
   | 'other'
 
 export interface TransactionRecord {
@@ -210,7 +223,7 @@ export interface TransactionRecord {
   timestamp: number
 }
 
-export type CardHistoryType = 'opportunity' | 'market' | 'doodad' | 'fast_track_opportunity'
+export type CardHistoryType = 'opportunity' | 'market' | 'doodad' | 'fast_track_opportunity' | 'story'
 
 export interface CardHistoryRecord {
   id: string
@@ -323,3 +336,52 @@ export const MAX_CHILDREN = {
   normal: 3,
   bigFamily: 6,
 } as const
+
+// ==================== v3 新增类型 ====================
+
+export interface PlayerConfig {
+  name: string
+  careerId: string | 'random'
+  color: string
+  isAI: boolean
+  aiDifficulty?: 'easy' | 'medium' | 'hard'
+}
+
+// ---- 故事卡 ----
+
+export type StoryCategory = 'jin' | 'hui' | 'nanyang' | 'lvmeng' | 'usa' | 'western'
+
+export type StoryEffectType = 'cash' | 'income' | 'expense' | 'passive_income' | 'opportunity'
+
+export interface StoryEffect {
+  type: StoryEffectType
+  amount?: number
+  description: string
+}
+
+export interface StoryCard {
+  id: string
+  category: StoryCategory
+  title: string
+  story: string
+  effect: StoryEffect
+  historicalNote: string
+}
+
+// ---- 财商教育提示 ----
+
+export type TipCategory =
+  | 'asset'
+  | 'cashflow'
+  | 'passive_income'
+  | 'risk'
+  | 'leverage'
+  | 'market_cycle'
+  | 'life_choice'
+
+export interface FinancialTip {
+  id: string
+  category: TipCategory
+  title: string
+  content: string
+}
