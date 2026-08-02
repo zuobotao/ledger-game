@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cashflow 101 - 首页</title>
+    <title>胜利结算 - Cashflow 101</title>
     <style id="theme-vars">
 /* Source: structured-spec */
 :root {
@@ -363,33 +363,197 @@
         mask-position: center;
         background-color: currentColor;
       }
+
+      /* 庆祝光晕背景 */
+      .victory-bg {
+        background:
+          radial-gradient(ellipse 80% 50% at 50% -20%, rgba(251, 191, 36, 0.15), transparent),
+          radial-gradient(ellipse 60% 40% at 50% 120%, rgba(249, 115, 22, 0.12), transparent),
+          var(--doubao-background);
+      }
+
+      /* 渐变文字 - 金色到橙色 */
+      .gradient-gold-text {
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 40%, #f97316 70%, #ea580c 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      /* 玻璃拟态卡片 */
+      .glass-card {
+        background: rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      /* 奖杯光晕效果 */
+      .trophy-glow {
+        filter: drop-shadow(0 0 40px rgba(251, 191, 36, 0.4))
+                drop-shadow(0 0 80px rgba(249, 115, 22, 0.2));
+      }
+
+      /* 徽章浮动动画 */
+      @keyframes badge-float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-4px); }
+      }
+      .badge-float {
+        animation: badge-float 3s ease-in-out infinite;
+      }
+      .badge-float:nth-child(2) {
+        animation-delay: 0.5s;
+      }
+      .badge-float:nth-child(3) {
+        animation-delay: 1s;
+      }
+
+      /* 按钮悬浮动效 - 使用豆包主色 */
+      .btn-primary-victory {
+        background: var(--doubao-primary);
+        color: var(--doubao-primary-foreground);
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 20px rgba(0, 101, 253, 0.3);
+      }
+      .btn-primary-victory:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0, 101, 253, 0.45);
+        filter: brightness(1.1);
+      }
+      .btn-primary-victory:active {
+        transform: translateY(0);
+      }
+
+      .btn-secondary-victory {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--doubao-foreground);
+        transition: all 0.3s ease;
+      }
+      .btn-secondary-victory:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+      }
+      .btn-secondary-victory:active {
+        transform: translateY(0);
+      }
+
+      /* 粒子效果（纯 CSS 模拟） */
+      .particle {
+        position: absolute;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        pointer-events: none;
+        opacity: 0.6;
+      }
+      @keyframes particle-float-up {
+        0% { transform: translateY(0) scale(1); opacity: 0.8; }
+        100% { transform: translateY(-200px) scale(0); opacity: 0; }
+      }
     </style>
 </head>
-<body class="min-h-screen font-sans antialiased">
-    <main>
-        <div class="relative flex min-h-screen flex-col items-center justify-center bg-background px-6 py-16 text-center">
-            <span class="absolute right-6 top-6 font-mono text-xs tracking-wide text-muted-foreground">原型 v0.1</span>
+<body class="min-h-screen font-sans antialiased victory-bg overflow-hidden">
+    <main class="relative min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 py-10 sm:py-16">
+        <!-- 装饰粒子 -->
+        <div class="absolute inset-0 overflow-hidden pointer-events-none">
+            <div class="particle bg-amber-400" style="left: 15%; top: 30%; animation: particle-float-up 4s ease-out infinite;"></div>
+            <div class="particle bg-orange-400" style="left: 25%; top: 60%; animation: particle-float-up 5s ease-out 1s infinite;"></div>
+            <div class="particle bg-yellow-400" style="left: 75%; top: 25%; animation: particle-float-up 4.5s ease-out 0.5s infinite;"></div>
+            <div class="particle bg-amber-300" style="left: 85%; top: 55%; animation: particle-float-up 5.5s ease-out 1.5s infinite;"></div>
+            <div class="particle bg-orange-300" style="left: 45%; top: 15%; animation: particle-float-up 4s ease-out 2s infinite;"></div>
+            <div class="particle bg-yellow-300" style="left: 60%; top: 70%; animation: particle-float-up 5s ease-out 0.8s infinite;"></div>
+        </div>
 
-            <div class="mx-auto max-w-2xl">
-                <h1 class="mb-4 text-5xl font-semibold tracking-tight text-foreground sm:text-6xl md:text-7xl">Cashflow 101</h1>
-                <p class="mb-6 text-xl font-medium text-foreground sm:text-2xl">罗伯特·清崎经典财商桌游</p>
-                <p class="mx-auto mb-10 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
-                    走出老鼠赛跑，进入财富快车道。练习投资、管理资产负债、实现财务自由。
-                </p>
-
-                <div class="flex flex-col items-center justify-center gap-4 sm:flex-row">
-                    <a id="btn-start" data-dom-id="btn-start" href="setup.html" class="inline-flex h-14 items-center justify-center gap-2 rounded-full bg-primary px-8 text-base font-semibold text-primary-foreground shadow-md transition hover:brightness-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
-                        <i data-lucide="play" class="h-5 w-5"></i>
-                        开始游戏
-                    </a>
-                    <a href="#" class="inline-flex h-12 items-center justify-center gap-2 rounded-full px-4 text-base font-semibold text-foreground transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
-                        <i data-lucide="help-circle" class="h-5 w-5"></i>
-                        游戏规则
-                    </a>
+        <div class="relative z-10 w-full max-w-2xl text-center">
+            <!-- 顶部奖杯图标 -->
+            <div class="mb-6 sm:mb-8 flex justify-center">
+                <div class="trophy-glow">
+                    <div class="w-20 h-20 sm:w-24 md:w-28 flex items-center justify-center">
+                        <i data-lucide="trophy" class="w-16 h-16 sm:w-20 md:w-24 text-amber-400" stroke-width="1.5"></i>
+                    </div>
                 </div>
             </div>
+
+            <!-- 主标题 -->
+            <h1 class="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-3 sm:mb-4 gradient-gold-text">
+                恭喜！财务自由
+            </h1>
+
+            <!-- 副标题 -->
+            <p class="text-lg sm:text-xl text-muted-foreground mb-8 sm:mb-10">
+                玩家 1 成功走出老鼠赛跑
+            </p>
+
+            <!-- 数据概览卡片 -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8 sm:mb-10">
+                <div class="glass-card rounded-[var(--radius)] p-4 sm:p-5">
+                    <div class="flex items-center justify-center mb-2">
+                        <i data-lucide="clock" class="w-5 h-5 sm:w-6 sm:h-6 text-amber-400"></i>
+                    </div>
+                    <div class="text-2xl sm:text-3xl font-bold text-foreground mb-1">24</div>
+                    <div class="text-xs sm:text-sm text-muted-foreground">游戏回合</div>
+                </div>
+                <div class="glass-card rounded-[var(--radius)] p-4 sm:p-5">
+                    <div class="flex items-center justify-center mb-2">
+                        <i data-lucide="dollar-sign" class="w-5 h-5 sm:w-6 sm:h-6 text-green-400"></i>
+                    </div>
+                    <div class="text-2xl sm:text-3xl font-bold text-foreground mb-1">$128K</div>
+                    <div class="text-xs sm:text-sm text-muted-foreground">最终现金</div>
+                </div>
+                <div class="glass-card rounded-[var(--radius)] p-4 sm:p-5">
+                    <div class="flex items-center justify-center mb-2">
+                        <i data-lucide="trending-up" class="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400"></i>
+                    </div>
+                    <div class="text-2xl sm:text-3xl font-bold text-foreground mb-1">$9.5K</div>
+                    <div class="text-xs sm:text-sm text-muted-foreground">被动收入</div>
+                </div>
+                <div class="glass-card rounded-[var(--radius)] p-4 sm:p-5">
+                    <div class="flex items-center justify-center mb-2">
+                        <i data-lucide="landmark" class="w-5 h-5 sm:w-6 sm:h-6 text-blue-400"></i>
+                    </div>
+                    <div class="text-2xl sm:text-3xl font-bold text-foreground mb-1">$485K</div>
+                    <div class="text-xs sm:text-sm text-muted-foreground">总资产价值</div>
+                </div>
+            </div>
+
+            <!-- 成就徽章区 -->
+            <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mb-10 sm:mb-12">
+                <div class="badge-float glass-card rounded-full px-4 py-2 sm:px-5 sm:py-2.5 flex items-center gap-2">
+                    <i data-lucide="trophy" class="w-4 h-4 sm:w-5 sm:h-5 text-amber-400"></i>
+                    <span class="text-sm sm:text-base font-medium text-foreground">快车道达成者</span>
+                </div>
+                <div class="badge-float glass-card rounded-full px-4 py-2 sm:px-5 sm:py-2.5 flex items-center gap-2">
+                    <i data-lucide="coins" class="w-4 h-4 sm:w-5 sm:h-5 text-green-400"></i>
+                    <span class="text-sm sm:text-base font-medium text-foreground">投资达人</span>
+                </div>
+                <div class="badge-float glass-card rounded-full px-4 py-2 sm:px-5 sm:py-2.5 flex items-center gap-2">
+                    <i data-lucide="target" class="w-4 h-4 sm:w-5 sm:h-5 text-orange-400"></i>
+                    <span class="text-sm sm:text-base font-medium text-foreground">梦想实现家</span>
+                </div>
+            </div>
+
+            <!-- 底部按钮 -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+                <a href="setup.html" class="btn-primary-victory inline-flex items-center justify-center h-12 sm:h-14 px-8 sm:px-10 rounded-full text-base sm:text-lg font-semibold w-full sm:w-auto">
+                    <i data-lucide="rotate-ccw" class="w-5 h-5 mr-2"></i>
+                    再来一局
+                </a>
+                <a href="home.html" class="btn-secondary-victory inline-flex items-center justify-center h-12 sm:h-14 px-8 sm:px-10 rounded-full text-base sm:text-lg font-semibold w-full sm:w-auto">
+                    <i data-lucide="home" class="w-5 h-5 mr-2"></i>
+                    返回首页
+                </a>
+            </div>
         </div>
+
+        <!-- 版本标签 -->
+        <span class="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground/60 font-mono">
+            Cashflow 101 · 原型 v1.4
+        </span>
     </main>
+
     <script>lucide.createIcons();</script>
 </body>
 </html>

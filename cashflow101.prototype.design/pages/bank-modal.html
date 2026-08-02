@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cashflow 101 - 首页</title>
+    <title>银行弹窗</title>
     <style id="theme-vars">
 /* Source: structured-spec */
 :root {
@@ -363,33 +363,356 @@
         mask-position: center;
         background-color: currentColor;
       }
+
+      /* 银行弹窗自定义样式 */
+      .modal-overlay {
+        background-color: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+
+      .tab-btn {
+        position: relative;
+        padding-bottom: 0.75rem;
+        transition: color 0.2s ease;
+      }
+
+      .tab-btn::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background-color: var(--doubao-primary);
+        transform: scaleX(0);
+        transition: transform 0.2s ease;
+      }
+
+      .tab-btn.active {
+        color: var(--doubao-primary);
+        font-weight: 600;
+      }
+
+      .tab-btn.active::after {
+        transform: scaleX(1);
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      .quick-amount-btn {
+        transition: all 0.15s ease;
+      }
+
+      .quick-amount-btn:hover {
+        background-color: var(--doubao-accent);
+        color: var(--doubao-accent-foreground);
+        border-color: var(--doubao-primary);
+      }
+
+      .amount-input:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0, 101, 253, 0.2);
+        border-color: var(--doubao-primary);
+      }
+
+      /* 简化的老鼠赛跑棋盘背景 */
+      .ratrace-board {
+        position: absolute;
+        inset: 0;
+        opacity: 0.3;
+        background:
+          radial-gradient(circle at 20% 30%, var(--doubao-primary) 0%, transparent 40%),
+          radial-gradient(circle at 80% 70%, var(--doubao-chart-3) 0%, transparent 40%),
+          radial-gradient(circle at 50% 50%, var(--doubao-accent) 0%, transparent 50%);
+      }
+
+      .board-grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(var(--doubao-border) 1px, transparent 1px),
+          linear-gradient(90deg, var(--doubao-border) 1px, transparent 1px);
+        background-size: 60px 60px;
+        opacity: 0.3;
+      }
+
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+      }
+
+      .info-row + .info-row {
+        border-top: 1px solid var(--doubao-border);
+      }
     </style>
 </head>
-<body class="min-h-screen font-sans antialiased">
-    <main>
-        <div class="relative flex min-h-screen flex-col items-center justify-center bg-background px-6 py-16 text-center">
-            <span class="absolute right-6 top-6 font-mono text-xs tracking-wide text-muted-foreground">原型 v0.1</span>
+<body class="min-h-screen font-sans antialiased overflow-hidden">
+    <!-- 背景：简化的老鼠赛跑棋盘示意 -->
+    <div class="fixed inset-0 bg-background">
+        <div class="ratrace-board"></div>
+        <div class="board-grid"></div>
+        <!-- 模拟棋盘上的一些元素 -->
+        <div class="absolute top-[15%] left-[10%] w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+            <i data-lucide="dollar-sign" class="w-6 h-6 text-primary"></i>
+        </div>
+        <div class="absolute top-[25%] right-[15%] w-10 h-10 rounded-lg bg-secondary/50 border border-border flex items-center justify-center">
+            <i data-lucide="home" class="w-5 h-5 text-muted-foreground"></i>
+        </div>
+        <div class="absolute bottom-[30%] left-[20%] w-10 h-10 rounded-lg bg-secondary/50 border border-border flex items-center justify-center">
+            <i data-lucide="briefcase" class="w-5 h-5 text-muted-foreground"></i>
+        </div>
+        <div class="absolute bottom-[20%] right-[25%] w-12 h-12 rounded-full bg-destructive/20 flex items-center justify-center">
+            <i data-lucide="alert-circle" class="w-6 h-6 text-destructive"></i>
+        </div>
+        <div class="absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 text-center">
+            <p class="text-2xl font-bold text-muted-foreground/50">老鼠赛跑</p>
+            <p class="text-sm text-muted-foreground/30 mt-1">RAT RACE</p>
+        </div>
+    </div>
 
-            <div class="mx-auto max-w-2xl">
-                <h1 class="mb-4 text-5xl font-semibold tracking-tight text-foreground sm:text-6xl md:text-7xl">Cashflow 101</h1>
-                <p class="mb-6 text-xl font-medium text-foreground sm:text-2xl">罗伯特·清崎经典财商桌游</p>
-                <p class="mx-auto mb-10 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
-                    走出老鼠赛跑，进入财富快车道。练习投资、管理资产负债、实现财务自由。
-                </p>
+    <!-- 半透明遮罩 + 银行弹窗 -->
+    <div class="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4">
+        <div class="bg-popover text-popover-foreground w-full max-w-[480px] rounded-[1.2rem] border border-border shadow-2xl overflow-hidden">
+            <!-- 弹窗标题栏 -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-border">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <i data-lucide="building-2" class="w-5 h-5 text-primary"></i>
+                    </div>
+                    <h2 class="text-lg font-semibold">银行</h2>
+                </div>
+                <button class="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
 
-                <div class="flex flex-col items-center justify-center gap-4 sm:flex-row">
-                    <a id="btn-start" data-dom-id="btn-start" href="setup.html" class="inline-flex h-14 items-center justify-center gap-2 rounded-full bg-primary px-8 text-base font-semibold text-primary-foreground shadow-md transition hover:brightness-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
-                        <i data-lucide="play" class="h-5 w-5"></i>
-                        开始游戏
-                    </a>
-                    <a href="#" class="inline-flex h-12 items-center justify-center gap-2 rounded-full px-4 text-base font-semibold text-foreground transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
-                        <i data-lucide="help-circle" class="h-5 w-5"></i>
-                        游戏规则
-                    </a>
+            <!-- Tab 导航栏 -->
+            <div class="flex border-b border-border px-6">
+                <button class="tab-btn active flex-1 py-3 text-sm font-medium text-muted-foreground hover:text-foreground" data-tab="deposit">
+                    存款
+                </button>
+                <button class="tab-btn flex-1 py-3 text-sm font-medium text-muted-foreground hover:text-foreground" data-tab="loan">
+                    贷款
+                </button>
+                <button class="tab-btn flex-1 py-3 text-sm font-medium text-muted-foreground hover:text-foreground" data-tab="repay">
+                    还款
+                </button>
+            </div>
+
+            <!-- Tab 内容区 -->
+            <div class="p-6">
+                <!-- Tab 1 - 存款 -->
+                <div class="tab-content active" id="tab-deposit">
+                    <!-- 当前现金余额 -->
+                    <div class="bg-muted rounded-xl p-4 mb-6">
+                        <div class="flex items-center gap-2 mb-1">
+                            <i data-lucide="wallet" class="w-4 h-4 text-muted-foreground"></i>
+                            <span class="text-sm text-muted-foreground">当前现金余额</span>
+                        </div>
+                        <p class="text-2xl font-bold">$3,200</p>
+                    </div>
+
+                    <!-- 存款金额输入 -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">存款金额</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">$</span>
+                            <input type="text" value="1,000" class="amount-input w-full pl-8 pr-4 py-3 bg-transparent border border-border rounded-xl text-lg font-medium text-foreground">
+                        </div>
+                    </div>
+
+                    <!-- 快捷金额按钮 -->
+                    <div class="flex flex-wrap gap-2 mb-6">
+                        <button class="quick-amount-btn px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground border border-border">
+                            $100
+                        </button>
+                        <button class="quick-amount-btn px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground border border-border">
+                            $500
+                        </button>
+                        <button class="quick-amount-btn px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground border border-border">
+                            $1,000
+                        </button>
+                        <button class="quick-amount-btn px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground border border-border">
+                            全部
+                        </button>
+                    </div>
+
+                    <!-- 说明文字 -->
+                    <div class="flex items-start gap-2 mb-6 p-3 bg-primary/5 rounded-lg border border-primary/10">
+                        <i data-lucide="info" class="w-4 h-4 text-primary mt-0.5 flex-shrink-0"></i>
+                        <p class="text-sm text-muted-foreground">
+                            存款可获得 <span class="text-primary font-medium">2% 年利率</span>，每月结算利息
+                        </p>
+                    </div>
+
+                    <!-- 确认按钮 -->
+                    <button class="w-full py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+                        <i data-lucide="arrow-down-to-line" class="w-4 h-4"></i>
+                        存入
+                    </button>
+                </div>
+
+                <!-- Tab 2 - 贷款 -->
+                <div class="tab-content" id="tab-loan">
+                    <!-- 当前贷款总额 -->
+                    <div class="bg-muted rounded-xl p-4 mb-6">
+                        <div class="flex items-center gap-2 mb-1">
+                            <i data-lucide="credit-card" class="w-4 h-4 text-muted-foreground"></i>
+                            <span class="text-sm text-muted-foreground">当前贷款总额</span>
+                        </div>
+                        <p class="text-2xl font-bold text-destructive">$5,000</p>
+                    </div>
+
+                    <!-- 贷款金额输入 -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">贷款金额</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">$</span>
+                            <input type="text" value="2,000" class="amount-input w-full pl-8 pr-4 py-3 bg-transparent border border-border rounded-xl text-lg font-medium text-foreground">
+                        </div>
+                    </div>
+
+                    <!-- 快捷金额按钮 -->
+                    <div class="flex flex-wrap gap-2 mb-6">
+                        <button class="quick-amount-btn px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground border border-border">
+                            $1,000
+                        </button>
+                        <button class="quick-amount-btn px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground border border-border">
+                            $5,000
+                        </button>
+                        <button class="quick-amount-btn px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground border border-border">
+                            $10,000
+                        </button>
+                    </div>
+
+                    <!-- 贷款信息 -->
+                    <div class="bg-muted rounded-xl p-4 mb-6">
+                        <p class="text-sm font-medium mb-3 flex items-center gap-2">
+                            <i data-lucide="file-text" class="w-4 h-4 text-muted-foreground"></i>
+                            贷款详情
+                        </p>
+                        <div class="info-row">
+                            <span class="text-sm text-muted-foreground">利率</span>
+                            <span class="text-sm font-medium text-destructive">10% 月息</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="text-sm text-muted-foreground">月还款额</span>
+                            <span class="text-sm font-medium">$200</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="text-sm text-muted-foreground">最高额度</span>
+                            <span class="text-sm font-medium">$10,500</span>
+                        </div>
+                        <p class="text-xs text-muted-foreground mt-3">
+                            <i data-lucide="info" class="w-3 h-3 inline mr-1"></i>
+                            最高额度为月收入的 3 倍
+                        </p>
+                    </div>
+
+                    <!-- 确认按钮 -->
+                    <button class="w-full py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+                        <i data-lucide="arrow-up-from-line" class="w-4 h-4"></i>
+                        借款
+                    </button>
+                </div>
+
+                <!-- Tab 3 - 还款 -->
+                <div class="tab-content" id="tab-repay">
+                    <!-- 当前未还贷款 -->
+                    <div class="bg-muted rounded-xl p-4 mb-6">
+                        <div class="flex items-center gap-2 mb-1">
+                            <i data-lucide="receipt" class="w-4 h-4 text-muted-foreground"></i>
+                            <span class="text-sm text-muted-foreground">当前未还贷款</span>
+                        </div>
+                        <p class="text-2xl font-bold text-destructive">$5,000</p>
+                        <div class="mt-2 w-full h-2 bg-border rounded-full overflow-hidden">
+                            <div class="h-full bg-destructive/60 rounded-full" style="width: 60%"></div>
+                        </div>
+                        <p class="text-xs text-muted-foreground mt-1">已还 40%</p>
+                    </div>
+
+                    <!-- 还款金额输入 -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">还款金额</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">$</span>
+                            <input type="text" value="1,000" class="amount-input w-full pl-8 pr-4 py-3 bg-transparent border border-border rounded-xl text-lg font-medium text-foreground">
+                        </div>
+                    </div>
+
+                    <!-- 快捷金额按钮 -->
+                    <div class="flex flex-wrap gap-2 mb-6">
+                        <button class="quick-amount-btn px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground border border-border">
+                            $500
+                        </button>
+                        <button class="quick-amount-btn px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground border border-border">
+                            $1,000
+                        </button>
+                        <button class="quick-amount-btn px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground border border-border">
+                            $5,000
+                        </button>
+                        <button class="quick-amount-btn px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground border border-border">
+                            全部还清
+                        </button>
+                    </div>
+
+                    <!-- 还款后预览 -->
+                    <div class="bg-success/10 border border-success/20 rounded-xl p-4 mb-6">
+                        <p class="text-sm font-medium mb-3 flex items-center gap-2">
+                            <i data-lucide="check-circle-2" class="w-4 h-4 text-success"></i>
+                            还款后贷款余额
+                        </p>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-lg text-muted-foreground line-through">$5,000</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4 text-muted-foreground"></i>
+                            <span class="text-2xl font-bold text-success">$4,000</span>
+                        </div>
+                    </div>
+
+                    <!-- 确认按钮 -->
+                    <button class="w-full py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                        还款
+                    </button>
                 </div>
             </div>
         </div>
-    </main>
-    <script>lucide.createIcons();</script>
+    </div>
+
+    <script>
+        // Tab 切换功能
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const targetTab = this.getAttribute('data-tab');
+
+                    // 移除所有 active 状态
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
+
+                    // 添加当前 active 状态
+                    this.classList.add('active');
+                    document.getElementById('tab-' + targetTab).classList.add('active');
+                });
+            });
+
+            // 初始化 lucide 图标
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        });
+    </script>
 </body>
 </html>
