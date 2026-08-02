@@ -52,6 +52,12 @@
 | FR-036 | 贷款 Tab：贷款总额 + 金额输入 + 快捷按钮 + 利息计算 | 高 | 已完成 | `src/components/BankModal.vue`, `src/stores/game.ts` | - | 原型已确认 |
 | FR-037 | 还款 Tab：未还贷款 + 进度条 + 金额输入 + 余额预览 | 中 | 已完成 | `src/components/BankModal.vue` | - | 原型已确认 |
 | FR-038 | 银行操作后实时更新玩家财务数据 | 高 | 已完成 | `src/components/BankModal.vue`, `src/stores/game.ts` | - | 原型已确认 |
+| FR-039 | 失业期间可继续掷骰子（仅停发工资） | 高 | 已完成 | `src/stores/game.ts`, `src/views/RatRaceView.vue` | - | 2 回合后自动恢复，顶栏显示失业徽章 |
+| FR-040 | 市场风云对所有玩家生效，均可卖出资产 | 高 | 已完成 | `src/stores/game.ts`, `src/views/RatRaceView.vue`, `src/types/game.ts` | - | 轮询式状态机，无资产玩家自动跳过 |
+| FR-041 | 慈善后双骰视觉反馈（徽章+按钮+消息） | 高 | 已完成 | `src/views/RatRaceView.vue`, `src/stores/game.ts` | - | 三层提示确保不遗漏 |
+| FR-042 | 掷骰子动画效果 | 高 | 已完成 | `src/components/DiceRoller.vue`, `src/views/RatRaceView.vue`, `src/views/FastTrackView.vue` | - | CSS+JS 驱动，先算后播 |
+| FR-043 | 正方形大富翁式环形棋盘 | 高 | 已完成 | `src/components/RatRaceBoard.vue`, `src/views/RatRaceView.vue` | - | 24 格环绕四边，中间信息区 |
+| FR-044 | 资产卖出机制优化（数量选择+银行资产Tab） | 中 | 已完成 | `src/views/RatRaceView.vue`, `src/components/BankModal.vue`, `src/stores/game.ts` | - | 股票支持数量选择，银行新增资产页 |
 | NFR-001 | 前端框架使用 Vue 3 + Vite | 高 | 已完成 | `package.json`, `vite.config.ts` | - | - |
 | NFR-002 | 状态管理使用 Pinia | 高 | 已完成 | `src/stores/game.ts` | - | - |
 | NFR-003 | 样式使用 Tailwind CSS 4，遵循豆包设计系统（深色模式） | 高 | 已完成 | `package.json`, `src/assets/base.css` | - | 设计 token 迁移完成 |
@@ -82,6 +88,7 @@
 | 2026-08-02 | v1.2 | 完成老鼠赛跑与快车道核心逻辑、棋盘、卡片、银行、梦想及视图绑定；更新 FR-009 ~ FR-022 状态为已完成 | Trae Design | 已审批 |
 | 2026-08-02 | v1.3 | 完善逻辑策略：无放回牌组、现金不足贷款确认、保险购买、抵押贷款规则、快车道专属卡片、失业支出；新增 FR-023a ~ FR-023f | Trae Design | 已审批 |
 | 2026-08-02 | v1.4 | 设计系统迁移至豆包深色模式；新增游戏规则页、胜利结算页、银行三 Tab 弹窗；新增 FR-026 ~ FR-038、NFR-008 ~ NFR-009 | Trae Design | 已审批 |
+| 2026-08-02 | v1.5 | 6 项游戏逻辑优化：失业规则、市场风云多玩家、双骰反馈、骰子动画、正方形棋盘、资产卖出优化；新增 FR-039 ~ FR-044 | Trae Design | 已审批 |
 
 ---
 

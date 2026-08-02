@@ -5,6 +5,7 @@ import { ArrowLeft, Banknote, Gem, Rocket, RotateCcw, Target } from 'lucide-vue-
 import { useGameStore } from '@/stores/game'
 import { FAST_TRACK_CELLS } from '@/data/board'
 import type { OpportunityCard } from '@/types/game'
+import DiceRoller from '@/components/DiceRoller.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -66,8 +67,15 @@ function cellBgClass(type: string): string {
 }
 
 function onRollDice() {
+  showDiceAnimation.value = true
   gameStore.fastTrackRollDice()
 }
+
+function onDiceAnimationDone() {
+  showDiceAnimation.value = false
+}
+
+const showDiceAnimation = ref(false)
 
 function onBuyFtOpportunity() {
   gameStore.buyOpportunity(ftQuantity.value)
@@ -309,6 +317,13 @@ watch(
         </button>
       </div>
     </div>
+
+    <!-- Dice roller animation -->
+    <DiceRoller
+      :show="showDiceAnimation"
+      :values="gameStore.lastDiceValues"
+      @done="onDiceAnimationDone"
+    />
   </main>
 </template>
 

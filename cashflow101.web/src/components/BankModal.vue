@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { Landmark, X } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
+import type { Asset } from '@/types/game'
 
 const props = defineProps<{
   show: boolean
@@ -13,7 +14,7 @@ const emit = defineEmits<{
 
 const store = useGameStore()
 
-type TabKey = 'deposit' | 'loan' | 'repay'
+type TabKey = 'deposit' | 'loan' | 'repay' | 'assets'
 const activeTab = ref<TabKey>('deposit')
 
 const depositAmount = ref<number>(0)
@@ -106,6 +107,25 @@ function handleRepay() {
     showSuccess(`已还款 $${Math.round(amount).toLocaleString()}`)
     repayAmount.value = 0
   }
+}
+
+// --- Assets tab ---
+const playerAssets = computed<Asset[]>(() => store.currentPlayer?.assets ?? [])
+
+const stockAssets = computed(() =>
+  playerAssets.value.filter((a) => a.type === 'stock'),
+)
+
+const realEstateAssets = computed(() =>
+  playerAssets.value.filter((a) => a.type === 'real_estate'),
+)
+
+const businessAssets = computed(() =>
+  playerAssets.value.filter((a) => a.type === 'business'),
+)
+
+function formatMoney(n: number): string {
+  return `$${Math.round(n).toLocaleString()}`
 }
 
 // Reset inputs when modal closes
@@ -202,6 +222,17 @@ function handleOverlayClick(e: MouseEvent) {
                 还款
                 <span
                   v-if="activeTab === 'repay'"
+                  class="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full"
+                />
+              </button>
+              <button
+                class="flex-1 py-3 text-sm font-medium transition-colors relative"
+                :class="activeTab === 'assets' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+                @click="activeTab = 'assets'"
+              >
+                资产
+                <span
+                  v-if="activeTab === 'assets'"
                   class="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full"
                 />
               </button>
@@ -426,6 +457,101 @@ function handleOverlayClick(e: MouseEvent) {
                 >
                   还款
                 </button>
+              </template>
+
+              <!-- ====== Assets Tab ====== -->
+              <template v-else-if="activeTab === 'assets'">
+                <div class="space-y-4">
+                  <p class="text-xs text-muted-foreground">
+                    查看你持有的所有资产。当市场风云发生时，相关资产可以卖出。
+                  </p>
+
+                  <!-- 股票类资产 -->
+                  <div>
+                    <h4 class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">股票</h4>
+                    <div v-if="stockAssets.length" class="space-y-2">
+                      <div
+                        v-for="asset in stockAssets"
+                        :key="asset.id"
+                        class="flex items-center justify-between rounded-xl border border-border bg-secondary/50 p-3"
+                      >
+                        <div>
+                          <div class="text-sm font-medium">{{ asset.name }}</div>
+                          <div class="text-xs text-muted-foreground">
+                            {{ asset.quantity }} 股 · 成本 {{ formatMoney(asset.cost) }}/股
+                          </div>
+                        </div>
+                        <div class="text-right">
+                          <div class="text-sm font-semibold text-success">
+                            {{ formatMoney((asset.marketPrice ?? asset.cost) * asset.quantity) }}
+                          </div>
+                          <div class="text-xs text-muted-foreground">
+                            市值 {{ formatMoney(asset.marketPrice ?? asset.cost) }}/股
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                      暂无股票资产
+                    </div>
+                  </div>
+
+                  <!-- 房产类资产 -->
+                  <div>
+                    <h4 class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">房产</h4>
+                    <div v-if="realEstateAssets.length" class="space-y-2">
+                      <div
+                        v-for="asset in realEstateAssets"
+                        :key="asset.id"
+                        class="flex items-center justify-between rounded-xl border border-border bg-secondary/50 p-3"
+                      >
+                        <div>
+                          <div class="text-sm font-medium">{{ asset.name }}</div>
+                          <div class="text-xs text-muted-foreground">
+                            成本 {{ formatMoney(asset.cost) }} · 月现金流 +{{ formatMoney(asset.cashFlow) }}
+                          </div>
+                        </div>
+                        <div class="text-right">
+                          <div class="text-sm font-semibold">
+                            {{ formatMoney((asset.marketPrice ?? asset.cost) * asset.quantity) }}
+                          </div>
+                          <div class="text-xs text-muted-foreground">市值</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                      暂无房产资产
+                    </div>
+                  </div>
+
+                  <!-- 企业类资产 -->
+                  <div>
+                    <h4 class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">企业</h4>
+                    <div v-if="businessAssets.length" class="space-y-2">
+                      <div
+                        v-for="asset in businessAssets"
+                        :key="asset.id"
+                        class="flex items-center justify-between rounded-xl border border-border bg-secondary/50 p-3"
+                      >
+                        <div>
+                          <div class="text-sm font-medium">{{ asset.name }}</div>
+                          <div class="text-xs text-muted-foreground">
+                            成本 {{ formatMoney(asset.cost) }} · 月现金流 +{{ formatMoney(asset.cashFlow) }}
+                          </div>
+                        </div>
+                        <div class="text-right">
+                          <div class="text-sm font-semibold">
+                            {{ formatMoney((asset.marketPrice ?? asset.cost) * asset.quantity) }}
+                          </div>
+                          <div class="text-xs text-muted-foreground">市值</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                      暂无企业资产
+                    </div>
+                  </div>
+                </div>
               </template>
             </div>
           </div>

@@ -6,15 +6,18 @@ import {
   ArrowLeft,
   ArrowRight,
   Dice5,
+  Dices,
   Landmark,
   RotateCcw,
   Shield,
   TrendingUp,
+  BriefcaseBusiness,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
-import { RAT_RACE_CELLS } from '@/data/board'
-import type { Asset, Liability, MarketEventCard, OpportunityCard, Player } from '@/types/game'
+import type { Asset, Liability, MarketEventCard, OpportunityCard } from '@/types/game'
 import BankModal from '@/components/BankModal.vue'
+import DiceRoller from '@/components/DiceRoller.vue'
+import RatRaceBoard from '@/components/RatRaceBoard.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -33,25 +36,18 @@ function enterFastTrack() {
   router.push({ name: 'fast-track' })
 }
 
-const cellColorClass: Record<string, string> = {
-  green: 'bg-success',
-  red: 'bg-destructive',
-  gold: 'bg-amber-400',
-  yellow: 'bg-yellow-400',
-  blue: 'bg-primary',
-  teal: 'bg-teal-500',
-  purple: 'bg-purple-500',
+// 骰子动画
+const showDiceAnimation = ref(false)
+
+function onRollDice() {
+  // 先触发动画，动画结束后 store 已经计算好了结果
+  showDiceAnimation.value = true
+  gameStore.ratRaceRollDice()
 }
 
-const playersOnCell = computed(() => {
-  const map: Record<number, Player[]> = {}
-  for (const p of gameStore.players) {
-    const list = map[p.ratRacePosition] ?? []
-    list.push(p)
-    map[p.ratRacePosition] = list
-  }
-  return map
-})
+function onDiceAnimationDone() {
+  showDiceAnimation.value = false
+}
 
 const opportunityCard = computed<OpportunityCard | null>(() => {
   if (gameStore.pendingAction.type === 'opportunity' && gameStore.pendingAction.card) {
@@ -77,13 +73,14 @@ const marketCard = computed<MarketEventCard | null>(() => {
 })
 
 const sellableAssets = computed(() => {
-  const p = gameStore.currentPlayer
+  const p = gameStore.marketResponder
   const card = marketCard.value
   if (!p || !card) return []
   return p.assets.filter((a) => {
     if (card.targetType === 'stock' && card.targetSymbol) {
       return a.type === 'stock' && a.symbol === card.targetSymbol
     }
+    if (card.targetType === 'all') return true
     return a.type === card.targetType
   })
 })
@@ -99,10 +96,6 @@ const canBuyInsurance = computed(() => {
   return p.cash >= cost && gameStore.turnStatus === 'idle'
 })
 
-function onRollDice() {
-  gameStore.ratRaceRollDice()
-}
-
 function onEndTurn() {
   gameStore.moveToNextPlayer()
 }
@@ -117,9 +110,34 @@ function onDeclineOpportunity() {
   opportunityQuantity.value = 1
 }
 
+const sellQuantities = ref<Record<string, number>>({})
+
+function getSellQuantity(assetId: string): number {
+  return sellQuantities.value[assetId] ?? 1
+}
+
+function changeSellQty(assetId: string, delta: number) {
+  const asset = sellableAssets.value.find((a) => a.id === assetId)
+  if (!asset) return
+  const current = sellQuantities.value[assetId] ?? 1
+  const next = Math.max(1, Math.min(asset.quantity, current + delta))
+  sellQuantities.value[assetId] = next
+}
+
+function getMarketPrice(asset: Asset): number {
+  const card = marketCard.value
+  if (!card) return asset.cost
+  if (card.targetType === 'stock' && card.targetSymbol && asset.symbol === card.targetSymbol) {
+    return card.fixedPrice ?? asset.cost
+  }
+  return asset.cost * card.multiplier
+}
+
 function onSellAsset(asset: Asset) {
-  const qty = asset.type === 'stock' ? 1 : asset.quantity
+  const qty = asset.type === 'stock' ? getSellQuantity(asset.id) : asset.quantity
   gameStore.sellAssetToMarket(asset.id, qty)
+  // 重置数量
+  delete sellQuantities.value[asset.id]
 }
 
 function onRepayLoan(loan: Liability) {
@@ -158,6 +176,22 @@ function onAcknowledge() {
             :style="{ backgroundColor: gameStore.currentPlayer.color }"
           />
           当前玩家：{{ gameStore.currentPlayer.name }}
+        </span>
+        <!-- 失业状态徽章 -->
+        <span
+          v-if="gameStore.currentPlayer?.isUnemployed"
+          class="inline-flex items-center gap-1 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive sm:text-sm"
+        >
+          <BriefcaseBusiness class="h-3.5 w-3.5" />
+          失业中 (剩{{ gameStore.currentPlayer.unemploymentTurns }}回合)
+        </span>
+        <!-- 双骰 buff 徽章 -->
+        <span
+          v-if="gameStore.currentPlayer?.doubleDiceNextTurn"
+          class="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary animate-pulse sm:text-sm"
+        >
+          <Dices class="h-3.5 w-3.5" />
+          下次双骰
         </span>
         <button
           type="button"
@@ -321,31 +355,15 @@ function onAcknowledge() {
 
       <!-- Board -->
       <section class="order-1 flex flex-1 flex-col overflow-hidden">
-        <div class="flex-1 overflow-y-auto overflow-x-hidden p-4 lg:p-6">
-          <div class="mx-auto max-w-5xl">
-            <div class="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6 lg:gap-3">
-              <div
-                v-for="cell in RAT_RACE_CELLS"
-                :key="cell.index"
-                class="relative flex flex-col justify-between rounded-2xl border border-border bg-secondary p-2 shadow-sm transition sm:p-3"
-                :class="{ 'ring-2 ring-primary': gameStore.currentPlayer?.ratRacePosition === cell.index }"
-              >
-                <span class="absolute right-2 top-2 text-[10px] font-mono text-muted-foreground">
-                  {{ String(cell.index + 1).padStart(2, '0') }}
-                </span>
-                <div class="h-1.5 w-8 rounded-full" :class="cellColorClass[cell.color]" />
-                <div class="mt-2 text-xs font-semibold sm:text-sm">{{ cell.name }}</div>
-                <div class="mt-1 flex -space-x-1">
-                  <div
-                    v-for="p in playersOnCell[cell.index]"
-                    :key="p.id"
-                    class="h-4 w-4 rounded-full border border-background"
-                    :style="{ backgroundColor: p.color }"
-                    :title="p.name"
-                  />
-                </div>
-              </div>
-            </div>
+        <div class="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-6">
+          <div class="mx-auto max-w-[680px]">
+            <RatRaceBoard
+              :players="gameStore.players"
+              :current-position="gameStore.currentPlayer?.ratRacePosition ?? 0"
+              :last-roll="gameStore.lastRoll"
+              :turn-number="gameStore.turnNumber"
+              :current-player-name="gameStore.currentPlayer?.name ?? ''"
+            />
           </div>
         </div>
 
@@ -428,29 +446,89 @@ function onAcknowledge() {
 
               <!-- Market event -->
               <div v-if="marketCard && gameStore.pendingAction.type === 'market'" class="mt-3">
+                <!-- 多玩家提示 -->
+                <div
+                  v-if="gameStore.marketEventState"
+                  class="mb-3 flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs"
+                >
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="inline-block h-3 w-3 rounded-full"
+                      :style="{ backgroundColor: gameStore.marketResponder?.color }"
+                    />
+                    <span class="font-medium text-primary">
+                      {{ gameStore.marketResponder?.name }} 操作中
+                    </span>
+                  </div>
+                  <span class="text-muted-foreground">
+                    {{ gameStore.marketEventState.respondedIds.length }}/{{ gameStore.players.length }} 玩家
+                  </span>
+                </div>
+
                 <div v-if="sellableAssets.length" class="space-y-2">
-                  <p class="text-xs text-muted-foreground">你可以选择卖出以下资产：</p>
+                  <p class="text-xs text-muted-foreground">可以选择卖出以下资产：</p>
                   <div
                     v-for="asset in sellableAssets"
                     :key="asset.id"
-                    class="flex items-center justify-between rounded-xl border border-border bg-secondary p-2"
+                    class="space-y-2 rounded-xl border border-border bg-secondary p-3"
                   >
-                    <span class="text-sm">{{ asset.name }} ×{{ asset.quantity }}</span>
-                    <button
-                      type="button"
-                      class="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:opacity-90"
-                      @click="onSellAsset(asset)"
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm font-medium">{{ asset.name }} ×{{ asset.quantity }}</span>
+                      <span class="text-xs text-success">
+                        单价 {{ formatMoney(getMarketPrice(asset)) }}
+                      </span>
+                    </div>
+                    <!-- 数量选择器（仅股票类） -->
+                    <div
+                      v-if="asset.type === 'stock' && asset.quantity > 1"
+                      class="flex items-center justify-between"
                     >
-                      卖出
-                    </button>
+                      <span class="text-xs text-muted-foreground">卖出数量：</span>
+                      <div class="flex items-center gap-1">
+                        <button
+                          type="button"
+                          :disabled="getSellQuantity(asset.id) <= 1"
+                          class="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-sm font-bold transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                          @click="changeSellQty(asset.id, -1)"
+                        >
+                          −
+                        </button>
+                        <span class="w-8 text-center text-sm font-semibold">
+                          {{ getSellQuantity(asset.id) }}
+                        </span>
+                        <button
+                          type="button"
+                          :disabled="getSellQuantity(asset.id) >= asset.quantity"
+                          class="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-sm font-bold transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                          @click="changeSellQty(asset.id, 1)"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs text-muted-foreground">
+                        可得：<span class="font-semibold text-success">{{ formatMoney(getMarketPrice(asset) * getSellQuantity(asset.id)) }}</span>
+                      </span>
+                      <button
+                        type="button"
+                        class="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90"
+                        @click="onSellAsset(asset)"
+                      >
+                        卖出
+                      </button>
+                    </div>
                   </div>
+                </div>
+                <div v-else class="text-xs text-muted-foreground">
+                  无可卖出的相关资产。
                 </div>
                 <button
                   type="button"
-                  class="mt-2 rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted"
+                  class="mt-3 w-full rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted"
                   @click="gameStore.dismissMarketEvent()"
                 >
-                  结束
+                  {{ gameStore.marketEventState && gameStore.marketEventState.respondedIds.length < gameStore.players.length - 1 ? '下一位玩家' : '结束' }}
                 </button>
               </div>
 
@@ -528,8 +606,9 @@ function onAcknowledge() {
         class="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:px-6"
         @click="onRollDice"
       >
-        <Dice5 class="h-5 w-5" />
-        掷骰子
+        <Dices v-if="gameStore.currentPlayer?.doubleDiceNextTurn" class="h-5 w-5" />
+        <Dice5 v-else class="h-5 w-5" />
+        {{ gameStore.currentPlayer?.doubleDiceNextTurn ? '掷双骰' : '掷骰子' }}
       </button>
       <button
         type="button"
@@ -561,5 +640,12 @@ function onAcknowledge() {
 
     <!-- Bank modal -->
     <BankModal :show="showBankModal" @close="showBankModal = false" />
+
+    <!-- Dice roller animation -->
+    <DiceRoller
+      :show="showDiceAnimation"
+      :values="gameStore.lastDiceValues"
+      @done="onDiceAnimationDone"
+    />
   </main>
 </template>

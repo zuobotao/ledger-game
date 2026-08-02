@@ -167,9 +167,18 @@ export interface GameState {
   winnerId: string | null
   turnStatus: TurnStatus
   lastRoll: number
+  turnNumber?: number
   pendingAction: PendingAction
   marketEvent?: MarketEventCard | null
+  marketEventState?: MarketEventState | null
   decks?: CardDeck
+}
+
+export interface MarketEventState {
+  card: MarketEventCard
+  responderIndex: number  // 当前轮到回应的玩家索引
+  respondedIds: string[]  // 已回应玩家ID
+  phase: 'current_player' | 'other_players' | 'done'
 }
 
 export type TurnStatus = 'idle' | 'rolling' | 'resolving' | 'finished'

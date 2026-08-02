@@ -8,6 +8,7 @@ import type {
   GameState,
   Liability,
   MarketEventCard,
+  MarketEventState,
   OpportunityCard,
   PendingAction,
   Player,
@@ -149,12 +150,12 @@ function createPlayer(
   return player
 }
 
-function rollDice(count = 1): number {
-  let sum = 0
+function rollDiceValues(count = 1): number[] {
+  const values: number[] = []
   for (let i = 0; i < count; i++) {
-    sum += Math.floor(Math.random() * 6) + 1
+    values.push(Math.floor(Math.random() * 6) + 1)
   }
-  return sum
+  return values
 }
 
 export const useGameStore = defineStore('game', () => {
@@ -171,8 +172,11 @@ export const useGameStore = defineStore('game', () => {
   const winnerId = ref<string | null>(null)
   const turnStatus = ref<TurnStatus>('idle')
   const lastRoll = ref(0)
+  const lastDiceValues = ref<number[]>([])
+  const turnNumber = ref(1)
   const pendingAction = ref<PendingAction>({ type: null, card: null, message: '' })
   const marketEvent = ref<MarketEventCard | null>(null)
+  const marketEventState = ref<MarketEventState | null>(null)
   const decks = ref<CardDeck>(createDecks())
 
   const currentPlayer = computed<Player | null>(() => players.value[currentPlayerIndex.value] ?? null)
@@ -193,8 +197,10 @@ export const useGameStore = defineStore('game', () => {
       winnerId: winnerId.value,
       turnStatus: turnStatus.value,
       lastRoll: lastRoll.value,
+      turnNumber: turnNumber.value,
       pendingAction: pendingAction.value,
       marketEvent: marketEvent.value,
+      marketEventState: marketEventState.value,
       decks: decks.value,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
@@ -217,8 +223,10 @@ export const useGameStore = defineStore('game', () => {
       winnerId.value = state.winnerId ?? null
       turnStatus.value = state.turnStatus ?? 'idle'
       lastRoll.value = state.lastRoll ?? 0
+      turnNumber.value = state.turnNumber ?? 1
       pendingAction.value = state.pendingAction ?? { type: null, card: null, message: '' }
       marketEvent.value = state.marketEvent ?? null
+      marketEventState.value = state.marketEventState ?? null
       decks.value = state.decks ?? createDecks()
       players.value.forEach(recalcPlayerFinancials)
     } catch {
@@ -237,8 +245,10 @@ export const useGameStore = defineStore('game', () => {
     winnerId.value = null
     turnStatus.value = 'idle'
     lastRoll.value = 0
+    turnNumber.value = 1
     pendingAction.value = { type: null, card: null, message: '' }
     marketEvent.value = null
+    marketEventState.value = null
     decks.value = createDecks()
     saveState()
     return true
@@ -251,8 +261,10 @@ export const useGameStore = defineStore('game', () => {
     winnerId.value = null
     turnStatus.value = 'idle'
     lastRoll.value = 0
+    turnNumber.value = 1
     pendingAction.value = { type: null, card: null, message: '' }
     marketEvent.value = null
+    marketEventState.value = null
     decks.value = createDecks()
     localStorage.removeItem(STORAGE_KEY)
   }
@@ -269,12 +281,17 @@ export const useGameStore = defineStore('game', () => {
   function clearPending() {
     pendingAction.value = { type: null, card: null, message: '' }
     marketEvent.value = null
+    marketEventState.value = null
   }
 
   function moveToNextPlayer() {
     const count = players.value.length
     if (count === 0) return
+    const wasLastPlayer = currentPlayerIndex.value === count - 1
     currentPlayerIndex.value = (currentPlayerIndex.value + 1) % count
+    if (wasLastPlayer) {
+      turnNumber.value += 1
+    }
     const p = currentPlayer.value
     if (!p) return
 
@@ -332,17 +349,160 @@ export const useGameStore = defineStore('game', () => {
     return `Doodad：${card.title}，支出 ${formatMoney(card.cost)}。`
   }
 
-  function applyMarketEvent(card: MarketEventCard, player: Player): string {
-    if (card.multiplier < 1) {
-      player.assets
-        .filter((a) => card.targetType === 'all' || a.type === card.targetType)
+  function applyMarketEvent(card: MarketEventCard, _player: Player): string {
+    // 先对所有玩家应用价格变动（贬值/升值都更新市价）
+    for (const p of players.value) {
+      p.assets
+        .filter((a) => card.targetType === 'all' || a.type === card.targetType ||
+          (card.targetType === 'stock' && card.targetSymbol && a.symbol === card.targetSymbol))
         .forEach((a) => {
           a.marketPrice = (a.marketPrice ?? a.cost) * card.multiplier
         })
+    }
+
+    if (card.multiplier < 1) {
       return `${card.title}：受影响的资产贬值 ${Math.round((1 - card.multiplier) * 100)}%。`
     }
+
+    // 升值：进入多玩家轮询模式
     marketEvent.value = card
+    marketEventState.value = {
+      card,
+      responderIndex: currentPlayerIndex.value,
+      respondedIds: [],
+      phase: 'current_player',
+    }
     return card.description
+  }
+
+  // 检查玩家是否有可卖出的相关资产
+  function hasSellableAssetsForMarket(player: Player, card: MarketEventCard): boolean {
+    return player.assets.some((a) => {
+      if (card.targetType === 'all') return true
+      if (card.targetType === 'stock' && card.targetSymbol) {
+        return a.type === 'stock' && a.symbol === card.targetSymbol
+      }
+      return a.type === card.targetType
+    })
+  }
+
+  // 获取下一个有可卖资产的玩家索引
+  function findNextResponder(startIndex: number): number | null {
+    const card = marketEventState.value?.card
+    if (!card) return null
+    const count = players.value.length
+    for (let i = 1; i <= count; i++) {
+      const idx = (startIndex + i) % count
+      const p = players.value[idx]
+      if (!p) continue
+      // 跳过已回应的
+      if (marketEventState.value?.respondedIds.includes(p.id)) continue
+      // 跳过没有可卖资产的玩家
+      if (!hasSellableAssetsForMarket(p, card)) continue
+      return idx
+    }
+    return null
+  }
+
+  // 推进到下一个回应玩家
+  function advanceMarketResponder() {
+    const state = marketEventState.value
+    if (!state) return
+    const currentPlayer = players.value[state.responderIndex]
+    if (currentPlayer && !state.respondedIds.includes(currentPlayer.id)) {
+      state.respondedIds.push(currentPlayer.id)
+    }
+
+    const nextIdx = findNextResponder(state.responderIndex)
+    if (nextIdx === null) {
+      // 所有玩家都处理完了
+      state.phase = 'done'
+      state.responderIndex = currentPlayerIndex.value
+      return
+    }
+
+    state.responderIndex = nextIdx
+    state.phase = 'other_players'
+  }
+
+  // 获取当前市场事件的回应玩家
+  const marketResponder = computed<Player | null>(() => {
+    const state = marketEventState.value
+    if (!state) return null
+    return players.value[state.responderIndex] ?? null
+  })
+
+  // 当前是否是我（当前回合玩家）在操作市场
+  const isMarketMyTurn = computed(() => {
+    const state = marketEventState.value
+    if (!state) return false
+    return state.responderIndex === currentPlayerIndex.value
+  })
+
+  function sellAssetToMarket(assetId: string, quantity?: number) {
+    const state = marketEventState.value
+    const card = marketEvent.value
+    if (!state || !card) return false
+    const player = players.value[state.responderIndex]
+    if (!player) return false
+
+    const assetIndex = player.assets.findIndex((a) => a.id === assetId)
+    if (assetIndex === -1) return false
+    const asset = player.assets[assetIndex]!
+
+    const sellQty = Math.min(quantity ?? asset.quantity, asset.quantity)
+    if (sellQty <= 0) return false
+
+    let price = 0
+    if (card.targetType === 'stock' && card.targetSymbol && asset.symbol === card.targetSymbol) {
+      price = (card.fixedPrice ?? asset.cost) * sellQty
+    } else if (card.targetType === asset.type) {
+      price = asset.cost * card.multiplier * sellQty
+    } else if (card.targetType === 'all') {
+      price = asset.cost * card.multiplier * sellQty
+    } else {
+      return false
+    }
+
+    asset.quantity -= sellQty
+    if (asset.quantity <= 0) {
+      player.assets.splice(assetIndex, 1)
+    }
+    player.cash += price
+    recalcPlayerFinancials(player)
+
+    const msg = `${player.name} 卖出 ${asset.name} ×${sellQty}，获得 ${formatMoney(price)}。`
+    setPending(null, msg)
+    turnStatus.value = 'resolving'
+    saveState()
+    return true
+  }
+
+  function dismissMarketEvent() {
+    const state = marketEventState.value
+    if (!state) {
+      setPending(null, '市场风云结束。')
+      turnStatus.value = 'resolving'
+      saveState()
+      return
+    }
+
+    // 当前回应玩家完成
+    advanceMarketResponder()
+
+    if (state.phase === 'done') {
+      // 全部完成
+      marketEvent.value = null
+      marketEventState.value = null
+      setPending(null, '市场风云结束，所有玩家已操作。')
+      turnStatus.value = 'resolving'
+    } else {
+      // 切换到下一个玩家
+      const nextPlayer = players.value[state.responderIndex]
+      setPending('market', `${state.card.title} — 轮到 ${nextPlayer?.name ?? '?'} 操作。`, state.card)
+      turnStatus.value = 'resolving'
+    }
+    saveState()
   }
 
   function ratRaceRollDice() {
@@ -351,7 +511,9 @@ export const useGameStore = defineStore('game', () => {
 
     const diceCount = player.doubleDiceNextTurn ? 2 : 1
     player.doubleDiceNextTurn = false
-    const roll = rollDice(diceCount)
+    const diceValues = rollDiceValues(diceCount)
+    lastDiceValues.value = diceValues
+    const roll = diceValues.reduce((a, b) => a + b, 0)
     lastRoll.value = roll
     turnStatus.value = 'rolling'
 
@@ -495,47 +657,6 @@ export const useGameStore = defineStore('game', () => {
 
   function declineOpportunity() {
     setPending(null, '你放弃了这个机会。')
-    turnStatus.value = 'resolving'
-    saveState()
-  }
-
-  function sellAssetToMarket(assetId: string, quantity?: number) {
-    const player = currentPlayer.value
-    if (!player || pendingAction.value.type !== 'market') return false
-
-    const card = marketEvent.value ?? (pendingAction.value.card as MarketEventCard)
-    if (!card) return false
-
-    const assetIndex = player.assets.findIndex((a) => a.id === assetId)
-    if (assetIndex === -1) return false
-    const asset = player.assets[assetIndex]!
-
-    const sellQty = Math.min(quantity ?? asset.quantity, asset.quantity)
-    if (sellQty <= 0) return false
-
-    let price = 0
-    if (card.targetType === 'stock' && card.targetSymbol && asset.symbol === card.targetSymbol) {
-      price = (card.fixedPrice ?? asset.cost) * sellQty
-    } else if (card.targetType === asset.type) {
-      price = asset.cost * card.multiplier * sellQty
-    } else {
-      return false
-    }
-
-    asset.quantity -= sellQty
-    if (asset.quantity <= 0) {
-      player.assets.splice(assetIndex, 1)
-    }
-    player.cash += price
-    recalcPlayerFinancials(player)
-    setPending(null, `卖出 ${asset.name} ×${sellQty}，获得 ${formatMoney(price)}。`)
-    turnStatus.value = 'resolving'
-    saveState()
-    return true
-  }
-
-  function dismissMarketEvent() {
-    setPending(null, '市场风云结束。')
     turnStatus.value = 'resolving'
     saveState()
   }
@@ -764,7 +885,9 @@ export const useGameStore = defineStore('game', () => {
     const player = currentPlayer.value
     if (!player || phase.value !== 'fast_track' || turnStatus.value !== 'idle') return
 
-    const roll = rollDice(2)
+    const diceValues = rollDiceValues(2)
+    lastDiceValues.value = diceValues
+    const roll = diceValues.reduce((a, b) => a + b, 0)
     lastRoll.value = roll
     turnStatus.value = 'rolling'
 
@@ -840,8 +963,13 @@ export const useGameStore = defineStore('game', () => {
     winnerId,
     turnStatus,
     lastRoll,
+    lastDiceValues,
+    turnNumber,
     pendingAction,
     marketEvent,
+    marketEventState,
+    marketResponder,
+    isMarketMyTurn,
     decks,
     currentPlayer,
     isGameStarted,
