@@ -39,28 +39,28 @@
 | FR-023 | 游戏状态本地持久化 | 中 | 已完成 | `src/stores/game.ts` | - | localStorage |
 | FR-024 | 提供重新开始与回到首页入口 | 中 | 已完成 | `src/views/RatRaceView.vue`, `src/views/FastTrackView.vue` | - | 占位页面已提供 |
 | FR-025 | 响应式布局适配桌面与平板 | 高 | 已完成 | `src/views/HomeView.vue`, `src/views/SetupView.vue` | - | 适配 sm 断点 |
-| FR-026 | 游戏规则页左侧 Tab 导航（4 分类） | 中 | 待实现 | - | - | 原型已确认 |
-| FR-027 | 规则页右侧折叠面板展示详细规则 | 中 | 待实现 | - | - | 原型已确认 |
-| FR-028 | 规则页支持返回首页导航 | 低 | 待实现 | - | - | 原型已确认 |
-| FR-029 | 规则页响应式布局（移动端 Tab 顶部横排） | 中 | 待实现 | - | - | 原型已确认 |
-| FR-030 | 胜利结算页展示获胜信息与庆祝动效 | 高 | 待实现 | - | - | 原型已确认 |
-| FR-031 | 胜利页关键数据概览（回合/现金/被动收入/总资产） | 中 | 待实现 | - | - | 原型已确认 |
-| FR-032 | 胜利页成就徽章展示 | 低 | 待实现 | - | - | 原型已确认 |
-| FR-033 | 胜利页再来一局与返回首页入口 | 高 | 待实现 | - | - | 原型已确认 |
-| FR-034 | 银行弹窗三 Tab 模式（存款/贷款/还款） | 高 | 待实现 | - | - | 原型已确认 |
-| FR-035 | 存款 Tab：余额显示 + 金额输入 + 快捷按钮 + 利率说明 | 中 | 待实现 | - | - | 原型已确认 |
-| FR-036 | 贷款 Tab：贷款总额 + 金额输入 + 快捷按钮 + 利息计算 | 高 | 待实现 | - | - | 原型已确认 |
-| FR-037 | 还款 Tab：未还贷款 + 进度条 + 金额输入 + 余额预览 | 中 | 待实现 | - | - | 原型已确认 |
-| FR-038 | 银行操作后实时更新玩家财务数据 | 高 | 待实现 | - | - | 原型已确认 |
+| FR-026 | 游戏规则页左侧 Tab 导航（4 分类） | 中 | 已完成 | `src/views/RulesView.vue`, `src/router/index.ts` | - | 原型已确认 |
+| FR-027 | 规则页右侧折叠面板展示详细规则 | 中 | 已完成 | `src/views/RulesView.vue` | - | 原型已确认 |
+| FR-028 | 规则页支持返回首页导航 | 低 | 已完成 | `src/views/RulesView.vue`, `src/router/index.ts` | - | 原型已确认 |
+| FR-029 | 规则页响应式布局（移动端 Tab 顶部横排） | 中 | 已完成 | `src/views/RulesView.vue` | - | 原型已确认 |
+| FR-030 | 胜利结算页展示获胜信息与庆祝动效 | 高 | 已完成 | `src/views/VictoryView.vue`, `src/views/FastTrackView.vue`, `src/router/index.ts` | - | 原型已确认 |
+| FR-031 | 胜利页关键数据概览（回合/现金/被动收入/总资产） | 中 | 已完成 | `src/views/VictoryView.vue` | - | 原型已确认 |
+| FR-032 | 胜利页成就徽章展示 | 低 | 已完成 | `src/views/VictoryView.vue` | - | 原型已确认 |
+| FR-033 | 胜利页再来一局与返回首页入口 | 高 | 已完成 | `src/views/VictoryView.vue`, `src/router/index.ts` | - | 原型已确认 |
+| FR-034 | 银行弹窗三 Tab 模式（存款/贷款/还款） | 高 | 已完成 | `src/components/BankModal.vue`, `src/views/RatRaceView.vue`, `src/stores/game.ts`, `src/types/game.ts` | - | 原型已确认 |
+| FR-035 | 存款 Tab：余额显示 + 金额输入 + 快捷按钮 + 利率说明 | 中 | 已完成 | `src/components/BankModal.vue` | - | 原型已确认 |
+| FR-036 | 贷款 Tab：贷款总额 + 金额输入 + 快捷按钮 + 利息计算 | 高 | 已完成 | `src/components/BankModal.vue`, `src/stores/game.ts` | - | 原型已确认 |
+| FR-037 | 还款 Tab：未还贷款 + 进度条 + 金额输入 + 余额预览 | 中 | 已完成 | `src/components/BankModal.vue` | - | 原型已确认 |
+| FR-038 | 银行操作后实时更新玩家财务数据 | 高 | 已完成 | `src/components/BankModal.vue`, `src/stores/game.ts` | - | 原型已确认 |
 | NFR-001 | 前端框架使用 Vue 3 + Vite | 高 | 已完成 | `package.json`, `vite.config.ts` | - | - |
 | NFR-002 | 状态管理使用 Pinia | 高 | 已完成 | `src/stores/game.ts` | - | - |
-| NFR-003 | 样式使用 Tailwind CSS 4，遵循豆包设计系统（深色模式） | 高 | 进行中 | `package.json`, `src/assets/base.css` | - | 设计 token 迁移中 |
+| NFR-003 | 样式使用 Tailwind CSS 4，遵循豆包设计系统（深色模式） | 高 | 已完成 | `package.json`, `src/assets/base.css` | - | 设计 token 迁移完成 |
 | NFR-004 | 图标使用 Lucide Vue | 高 | 已完成 | `package.json`, 各视图文件 | - | - |
 | NFR-005 | 单页应用，使用 Vue Router | 高 | 已完成 | `src/router/index.ts` | - | - |
 | NFR-006 | 无后端依赖，数据存储在浏览器本地 | 高 | 已完成 | `src/stores/game.ts` | - | - |
 | NFR-007 | 代码通过 ESLint + Prettier 检查 | 中 | 已完成 | `package.json`, `eslint.config.ts` | - | `npm run lint` 通过 |
-| NFR-008 | 设计 token 统一使用 `--doubao-` 前缀语义化变量 | 高 | 待实现 | - | - | 原型已确认 |
-| NFR-009 | 默认深色主题（背景 #0e1115 / 主色 #0065fd / 圆角 19.2px） | 高 | 待实现 | - | - | 原型已确认 |
+| NFR-008 | 设计 token 统一使用 `--doubao-` 前缀语义化变量 | 高 | 已完成 | `src/assets/base.css` | - | 原型已确认 |
+| NFR-009 | 默认深色主题（背景 #0e1115 / 主色 #0065fd / 圆角 19.2px） | 高 | 已完成 | `src/assets/base.css` | - | 原型已确认 |
 
 ---
 
