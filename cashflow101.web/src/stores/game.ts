@@ -726,6 +726,22 @@ export const useGameStore = defineStore('game', () => {
     return card.description
   }
 
+  // 资本游戏阶段的市场事件：仅更新价格，不进入多玩家轮询
+  function applyMarketEventFastTrack(card: MarketEventCard, _player: Player): string {
+    for (const p of players.value) {
+      p.assets
+        .filter((a) => card.targetType === 'all' || a.type === card.targetType ||
+          (card.targetType === 'stock' && card.targetSymbol && a.symbol === card.targetSymbol))
+        .forEach((a) => {
+          a.marketPrice = (a.marketPrice ?? a.cost) * card.multiplier
+        })
+    }
+    if (card.multiplier < 1) {
+      return `资产贬值 ${Math.round((1 - card.multiplier) * 100)}%`
+    }
+    return `资产升值 ${Math.round((card.multiplier - 1) * 100)}%`
+  }
+
   // 检查玩家是否有可卖出的相关资产
   function hasSellableAssetsForMarket(player: Player, card: MarketEventCard): boolean {
     return player.assets.some((a) => {
@@ -1531,16 +1547,42 @@ export const useGameStore = defineStore('game', () => {
         setPending(null, `现金流日：获得 ${formatMoney(payout)}。`)
         break
       }
-      case 'opportunity': {
+      case 'opportunity':
+      case 'deal': {
         const { card, remaining } = drawFastTrackOpportunity(decks.value)
         decks.value.fastTrackOpportunity = remaining
-        setPending('fast_track_opportunity', `资本游戏机会：${card.title}`, card)
+        setPending('fast_track_opportunity', cell.type === 'deal' ? `大宗交易：${card.title}` : `资本游戏机会：${card.title}`, card)
         break
       }
       case 'investment': {
         const { card, remaining } = drawFastTrackOpportunity(decks.value)
         decks.value.fastTrackOpportunity = remaining
-        setPending('fast_track_opportunity', `投资机会：${card.title}`, card)
+        setPending('fast_track_opportunity', `不动产投资：${card.title}`, card)
+        break
+      }
+      case 'stock': {
+        const { card, remaining } = drawMarketCard(decks.value.market)
+        decks.value.market = remaining
+        // Apply market effect to stock holdings
+        const result = applyMarketEventFastTrack(card, player)
+        setPending('market', `股票交易：${card.title} — ${result}`, card)
+        break
+      }
+      case 'market': {
+        const { card, remaining } = drawMarketCard(decks.value.market)
+        decks.value.market = remaining
+        const result = applyMarketEventFastTrack(card, player)
+        setPending('market', `市场风云：${card.title} — ${result}`, card)
+        break
+      }
+      case 'charity': {
+        const donation = Math.floor(player.cashFlow * 5)
+        if (player.cash >= donation) {
+          player.cash -= donation
+          setPending(null, `慈善捐赠：捐赠了 ${formatMoney(donation)}，获得心灵满足。`)
+        } else {
+          setPending(null, `慈善捐赠：现金不足，跳过本次捐赠。`)
+        }
         break
       }
       case 'doodad': {

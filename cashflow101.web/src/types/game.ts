@@ -112,12 +112,22 @@ export interface RatRaceCell {
   color: string
 }
 
-export type FastTrackCellType = 'cashflow' | 'opportunity' | 'investment' | 'doodad' | 'dream'
+export type FastTrackCellType =
+  | 'cashflow'
+  | 'opportunity'
+  | 'investment'
+  | 'doodad'
+  | 'dream'
+  | 'market'
+  | 'charity'
+  | 'deal'
+  | 'stock'
 
 export interface FastTrackCell {
   index: number
   type: FastTrackCellType
   name: string
+  color: string
 }
 
 export type OpportunityCardType = 'stock' | 'real_estate' | 'business' | 'other'
@@ -341,7 +351,7 @@ export const BANK_CONFIG = {
 
 export const RAT_RACE_BOARD_SIZE = 24
 
-export const FAST_TRACK_BOARD_SIZE = 12
+export const FAST_TRACK_BOARD_SIZE = 20
 
 export const MAX_CHILDREN = {
   normal: 3,

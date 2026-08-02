@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Banknote, Gem, RotateCcw, Target, TrendingUp } from 'lucide-vue-next'
+import { Banknote, Gem, Heart, LineChart, RotateCcw, ShoppingBag, Target, TrendingUp, Zap } from 'lucide-vue-next'
 import { FAST_TRACK_CELLS } from '@/data/board'
 import type { Dream, FastTrackCellType, Player } from '@/types/game'
 import type { OpportunityCard } from '@/types/game'
@@ -38,48 +38,60 @@ const cellIconMap: Record<FastTrackCellType, typeof Banknote> = {
   investment: TrendingUp,
   doodad: RotateCcw,
   dream: Target,
+  market: LineChart,
+  charity: Heart,
+  deal: Zap,
+  stock: ShoppingBag,
 }
 
 // 格子类型对应的背景色 class
 const cellBgClassMap: Record<FastTrackCellType, string> = {
   cashflow: 'bg-success/15 border-success/40 text-success',
-  opportunity: 'bg-primary/15 border-primary/40 text-primary',
+  opportunity: 'bg-amber-500/15 border-amber-500/40 text-amber-400',
   investment: 'bg-purple-500/15 border-purple-500/40 text-purple-400',
   doodad: 'bg-destructive/15 border-destructive/40 text-destructive',
-  dream: 'bg-amber-500/15 border-amber-500/40 text-amber-400',
+  dream: 'bg-yellow-400/20 border-yellow-400/50 text-yellow-300',
+  market: 'bg-primary/15 border-primary/40 text-primary',
+  charity: 'bg-pink-500/15 border-pink-500/40 text-pink-400',
+  deal: 'bg-indigo-500/15 border-indigo-500/40 text-indigo-400',
+  stock: 'bg-teal-500/15 border-teal-500/40 text-teal-400',
 }
 
 // 格子类型对应的颜色条 class
 const cellColorBarClass: Record<FastTrackCellType, string> = {
   cashflow: 'bg-success',
-  opportunity: 'bg-primary',
+  opportunity: 'bg-amber-500',
   investment: 'bg-purple-500',
   doodad: 'bg-destructive',
-  dream: 'bg-amber-500',
+  dream: 'bg-yellow-400',
+  market: 'bg-primary',
+  charity: 'bg-pink-500',
+  deal: 'bg-indigo-500',
+  stock: 'bg-teal-500',
 }
 
 /**
- * 获取格子在 5x5 Grid 中的行列位置（1-based，与 CSS grid 一致）
+ * 获取格子在 7x7 Grid 中的行列位置（1-based，与 CSS grid 一致）
  *
- * Grid 布局（12 个格子）：
- * - 上边（第1行）：格子 0-3，grid-column 1 到 4，从左到右
- * - 右边（第5列）：格子 4-5，grid-row 2 到 3，从上到下
- * - 下边（第5行）：格子 6-9，grid-column 5 到 2，从右到左
- * - 左边（第1列）：格子 10-11，grid-row 4 到 3，从下到上
+ * Grid 布局（20 个格子）：
+ * - 上边（第1行）：格子 0-5，grid-column 1 到 6，从左到右
+ * - 右边（第7列）：格子 6-8，grid-row 2 到 4，从上到下
+ * - 下边（第7行）：格子 9-14，grid-column 7 到 2，从右到左
+ * - 左边（第1列）：格子 15-19，grid-row 6 到 2，从下到上
  */
 function getCellGridArea(index: number): { row: number; col: number } {
-  if (index >= 0 && index <= 3) {
-    // 上边：row=1, col=index+1 (1~4)
+  if (index >= 0 && index <= 5) {
+    // 上边：row=1, col=index+1 (1~6)
     return { row: 1, col: index + 1 }
-  } else if (index >= 4 && index <= 5) {
-    // 右边：row=index-2 (2~3), col=5
-    return { row: index - 2, col: 5 }
-  } else if (index >= 6 && index <= 9) {
-    // 下边：row=5, col=11-index (6→5, 7→4, 8→3, 9→2)
-    return { row: 5, col: 11 - index }
+  } else if (index >= 6 && index <= 8) {
+    // 右边：row=index-4 (2~4), col=7
+    return { row: index - 4, col: 7 }
+  } else if (index >= 9 && index <= 14) {
+    // 下边：row=7, col=16-index (9→7, 10→6, 11→5, 12→4, 13→3, 14→2)
+    return { row: 7, col: 16 - index }
   } else {
-    // 左边：row=14-index (10→4, 11→3), col=1
-    return { row: 14 - index, col: 1 }
+    // 左边：row=22-index (15→7, 16→6, 17→5, 18→4, 19→3), col=1
+    return { row: 22 - index, col: 1 }
   }
 }
 
@@ -162,7 +174,7 @@ const opportunityAccentClass = computed(() => {
         </div>
       </div>
 
-      <!-- 中心信息区：grid-column 2 / span 3, grid-row 2 / span 3 -->
+      <!-- 中心信息区：grid-column 2 / span 5, grid-row 2 / span 5 -->
       <div
         class="center-info flex items-center justify-center rounded-3xl border border-border bg-background/60 backdrop-blur-md shadow-inner"
       >
@@ -318,9 +330,9 @@ const opportunityAccentClass = computed(() => {
 /* 5x5 CSS Grid 棋盘容器 */
 .board-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  grid-template-rows: repeat(5, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
   aspect-ratio: 1;
   width: 100%;
   max-width: min(75vh, 100%);
@@ -329,8 +341,8 @@ const opportunityAccentClass = computed(() => {
 
 @media (min-width: 640px) {
   .board-grid {
-    gap: 6px;
-    max-width: min(70vh, 560px);
+    gap: 5px;
+    max-width: min(70vh, 620px);
   }
 }
 
@@ -424,8 +436,8 @@ const opportunityAccentClass = computed(() => {
 
 /* 中心信息区：占据 2-4 行、2-4 列（共 3x3） */
 .center-info {
-  grid-column: 2 / span 3;
-  grid-row: 2 / span 3;
+  grid-column: 2 / span 5;
+  grid-row: 2 / span 5;
   overflow: hidden;
 }
 

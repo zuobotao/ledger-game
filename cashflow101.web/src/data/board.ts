@@ -28,18 +28,26 @@ export const RAT_RACE_CELLS: RatRaceCell[] = [
 ]
 
 export const FAST_TRACK_CELLS: FastTrackCell[] = [
-  { index: 0, type: 'cashflow', name: '现金流日' },
-  { index: 1, type: 'opportunity', name: '机会' },
-  { index: 2, type: 'investment', name: '投资' },
-  { index: 3, type: 'doodad', name: '生活意外' },
-  { index: 4, type: 'cashflow', name: '现金流日' },
-  { index: 5, type: 'opportunity', name: '机会' },
-  { index: 6, type: 'investment', name: '投资' },
-  { index: 7, type: 'doodad', name: '生活意外' },
-  { index: 8, type: 'cashflow', name: '现金流日' },
-  { index: 9, type: 'opportunity', name: '机会' },
-  { index: 10, type: 'investment', name: '投资' },
-  { index: 11, type: 'dream', name: '梦想' },
+  { index: 0, type: 'cashflow', name: '现金流日', color: 'green' },
+  { index: 1, type: 'opportunity', name: '企业机会', color: 'gold' },
+  { index: 2, type: 'market', name: '市场风云', color: 'blue' },
+  { index: 3, type: 'stock', name: '股票交易', color: 'teal' },
+  { index: 4, type: 'cashflow', name: '现金流日', color: 'green' },
+  { index: 5, type: 'investment', name: '不动产投资', color: 'amber' },
+  { index: 6, type: 'doodad', name: '生活意外', color: 'red' },
+  { index: 7, type: 'deal', name: '大宗交易', color: 'purple' },
+  { index: 8, type: 'cashflow', name: '现金流日', color: 'green' },
+  { index: 9, type: 'charity', name: '慈善捐赠', color: 'pink' },
+  { index: 10, type: 'opportunity', name: '企业机会', color: 'gold' },
+  { index: 11, type: 'market', name: '市场风云', color: 'blue' },
+  { index: 12, type: 'cashflow', name: '现金流日', color: 'green' },
+  { index: 13, type: 'investment', name: '不动产投资', color: 'amber' },
+  { index: 14, type: 'stock', name: '股票交易', color: 'teal' },
+  { index: 15, type: 'deal', name: '大宗交易', color: 'purple' },
+  { index: 16, type: 'cashflow', name: '现金流日', color: 'green' },
+  { index: 17, type: 'doodad', name: '生活意外', color: 'red' },
+  { index: 18, type: 'opportunity', name: '企业机会', color: 'gold' },
+  { index: 19, type: 'dream', name: '梦想', color: 'yellow' },
 ]
 
 export function getRatRaceCell(position: number): RatRaceCell {
