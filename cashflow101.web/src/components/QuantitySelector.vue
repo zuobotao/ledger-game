@@ -102,6 +102,15 @@ function setPercentage(pct: number) {
 }
 
 const quickPercentages = [0.25, 0.5, 0.75, 1] as const
+
+function quickButtonLabel(pct: number): string {
+  if (pct === 1 && props.mode === 'sell') return '全部'
+  return `${Math.round(pct * 100)}%`
+}
+
+function setAll() {
+  setQuantity(effectiveMax.value)
+}
 </script>
 
 <template>
@@ -155,10 +164,11 @@ const quickPercentages = [0.25, 0.5, 0.75, 1] as const
         v-for="pct in quickPercentages"
         :key="pct"
         class="px-3 py-1.5 rounded-full text-xs bg-secondary text-secondary-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        :class="pct === 1 && mode === 'sell' ? 'bg-primary text-primary-foreground hover:opacity-90' : ''"
         :disabled="Math.floor(effectiveMax * pct) < 1"
-        @click="setPercentage(pct)"
+        @click="pct === 1 ? setAll() : setPercentage(pct)"
       >
-        {{ Math.round(pct * 100) }}%
+        {{ quickButtonLabel(pct) }}
       </button>
     </div>
 

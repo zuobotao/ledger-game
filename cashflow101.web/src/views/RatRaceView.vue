@@ -223,7 +223,7 @@ function getMarketPrice(asset: Asset): number {
 }
 
 function onSellAsset(asset: Asset) {
-  const qty = getSellQuantity(asset.id)
+  const qty = getSellQuantity(asset.id, asset.quantity)
   gameStore.sellAssetToMarket(asset.id, qty)
   // 重置数量
   delete sellQuantities.value[asset.id]
@@ -815,20 +815,47 @@ const showPendingPanel = computed(() => {
                   </span>
                 </div>
 
-                <div v-if="sellableAssets.length" class="space-y-2">
+                <div v-if="sellableAssets.length" class="space-y-3">
                   <p class="text-xs text-muted-foreground">可以选择卖出以下资产：</p>
                   <div
                     v-for="asset in sellableAssets"
                     :key="asset.id"
-                    class="space-y-2 rounded-xl border border-border bg-secondary/50 p-3"
+                    class="space-y-3 rounded-xl border border-border bg-background p-4 shadow-sm"
                   >
-                    <div class="flex items-center justify-between">
-                      <span class="text-sm font-medium">{{ asset.name }} ×{{ asset.quantity }}</span>
-                      <span class="text-xs text-success">
-                        单价 {{ formatMoney(getMarketPrice(asset)) }}
-                      </span>
+                    <!-- 资产信息头部 -->
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                          <span class="text-sm font-semibold text-foreground">{{ asset.name }}</span>
+                          <span
+                            v-if="asset.symbol"
+                            class="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-mono font-bold text-primary"
+                          >
+                            {{ asset.symbol }}
+                          </span>
+                        </div>
+                        <div class="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                          <div class="flex justify-between">
+                            <span class="text-muted-foreground">持有数量</span>
+                            <span class="font-medium text-foreground">{{ asset.quantity }} {{ getUnitLabel(asset.type) }}</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-muted-foreground">卖出单价</span>
+                            <span class="font-medium text-success">{{ formatMoney(getMarketPrice(asset)) }}</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-muted-foreground">成本价</span>
+                            <span class="font-medium text-foreground">{{ formatMoney(asset.cost) }}</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-muted-foreground">预计总收入</span>
+                            <span class="font-bold text-success">{{ formatMoney(getMarketPrice(asset) * getSellQuantity(asset.id, asset.quantity)) }}</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <!-- 数量选择器（所有资产类型，数量>1时显示） -->
+
+                    <!-- 数量选择器（数量>1时显示） -->
                     <QuantitySelector
                       v-if="asset.quantity > 1"
                       :model-value="getSellQuantity(asset.id, asset.quantity)"
@@ -838,19 +865,14 @@ const showPendingPanel = computed(() => {
                       mode="sell"
                       :asset-type="asset.type as 'stock' | 'real_estate' | 'business' | 'other'"
                       :unit-label="getUnitLabel(asset.type)"
-                      :show-quick-buttons="asset.quantity > 10"
+                      :show-quick-buttons="asset.quantity > 2"
                     />
-                    <!-- 数量=1时：简单显示 -->
-                    <div v-else class="flex items-center justify-between">
-                      <span class="text-xs text-muted-foreground">
-                        可得：<span class="font-semibold text-success">{{ formatMoney(getMarketPrice(asset)) }}</span>
-                      </span>
-                    </div>
-                    <!-- 卖出按钮 -->
+
+                    <!-- 卖出按钮（醒目） -->
                     <button
                       type="button"
                       :disabled="disableHumanActions"
-                      class="w-full rounded-full bg-primary py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
+                      class="w-full rounded-full bg-success py-2.5 text-sm font-semibold text-success-foreground shadow-sm shadow-success/20 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                       @click="onSellAsset(asset)"
                     >
                       卖出 {{ getSellQuantity(asset.id, asset.quantity) }} {{ getUnitLabel(asset.type) }} · 可得 {{ formatMoney(getMarketPrice(asset) * getSellQuantity(asset.id, asset.quantity)) }}
