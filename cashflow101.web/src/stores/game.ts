@@ -284,9 +284,7 @@ export const useGameStore = defineStore('game', () => {
   const isGameStarted = computed(() => phase.value === 'rat_race' || phase.value === 'fast_track')
 
   const currentPlayerAge = computed(() => {
-    const p = currentPlayer.value
-    if (!p) return { years: START_AGE, months: 0, percent: 0, totalMonths: 0 }
-    const totalMonths = p.ageMonths ?? 0
+    const totalMonths = gameMonth.value
     const years = START_AGE + Math.floor(totalMonths / 12)
     const months = totalMonths % 12
     const percent = Math.min(100, (totalMonths / MAX_AGE_MONTHS) * 100)
@@ -571,9 +569,11 @@ export const useGameStore = defineStore('game', () => {
     currentPlayerIndex.value = 0
     phase.value = 'setup'
     winnerId.value = null
+    gameEndReason.value = null
     turnStatus.value = 'idle'
     lastRoll.value = 0
     turnNumber.value = 1
+    gameMonth.value = 0
     pendingAction.value = { type: null, card: null, message: '' }
     marketEvent.value = null
     marketEventState.value = null
@@ -712,8 +712,7 @@ export const useGameStore = defineStore('game', () => {
       msg = `发工资：获得 ${formatMoney(player.cashFlow)} 现金流${premium > 0 ? `，扣除失业保险 ${formatMoney(premium)}` : ''}。`
     }
 
-    // 年龄递增
-    player.ageMonths += 1
+    // 年龄递增（全局游戏时间）
     gameMonth.value += 1
 
     // 检查退休
@@ -1925,8 +1924,7 @@ export const useGameStore = defineStore('game', () => {
         const payout = player.cashFlow * 100
         player.cash += payout
         recordTransaction('salary', payout, '现金流日', player.id)
-        // FastTrack 现金流日也推进年龄
-        player.ageMonths += 1
+        // FastTrack 现金流日也推进年龄（全局游戏时间）
         gameMonth.value += 1
         if (config.value.ageLimit && gameMonth.value >= MAX_AGE_MONTHS) {
           triggerRetirement()

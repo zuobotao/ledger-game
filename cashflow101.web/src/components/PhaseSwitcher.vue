@@ -89,6 +89,8 @@ function returnToCurrentPhase() {
 </template>
 
 <style scoped>
+@reference "../assets/base.css";
+
 .phase-switcher {
   @apply rounded-xl border border-border bg-secondary/30 p-3 backdrop-blur-sm;
 }

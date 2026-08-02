@@ -134,6 +134,8 @@ const fastTrackProgress = computed(() => {
 </template>
 
 <style scoped>
+@reference "../assets/base.css";
+
 .goal-progress {
   @apply rounded-xl border border-border bg-secondary/30 p-3 backdrop-blur-sm;
 }

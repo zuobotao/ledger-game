@@ -206,6 +206,8 @@ const typeIcons = {
 </template>
 
 <style scoped>
+@reference "../assets/base.css";
+
 .ai-tutor-advice {
   @apply rounded-xl border p-3;
 }

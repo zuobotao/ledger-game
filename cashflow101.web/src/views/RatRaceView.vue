@@ -516,7 +516,7 @@ const showPendingPanel = computed(() => {
           :disabled="isCurrentPlayerAI"
           class="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
           title="银行"
-          @click="showBankModal = true"
+          @click="bankInitialTab = 'deposit'; showBankModal = true"
         >
           <Landmark class="h-5 w-5" />
         </button>
