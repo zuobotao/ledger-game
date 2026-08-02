@@ -27,6 +27,7 @@ import FinancialCharts from '@/components/FinancialCharts.vue'
 import StockPortfolioChart from '@/components/StockPortfolioChart.vue'
 import GameSummary from '@/components/GameSummary.vue'
 import PlayerSwitcher from '@/components/PlayerSwitcher.vue'
+import GoalProgress from '@/components/GoalProgress.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -494,6 +495,12 @@ const showPendingPanel = computed(() => {
         <div v-if="gameStore.players.length > 1" class="px-4 pt-3 lg:px-5">
           <PlayerSwitcher v-model:show="showPlayerSwitcher" />
         </div>
+
+        <!-- 目标进度 -->
+        <div class="px-4 pt-3 lg:px-5">
+          <GoalProgress />
+        </div>
+
         <div class="flex border-b border-border px-4 pt-3 lg:px-5">
           <button
             type="button"

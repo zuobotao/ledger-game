@@ -25,6 +25,7 @@ import TransactionHistory from '@/components/TransactionHistory.vue'
 import CardHistory from '@/components/CardHistory.vue'
 import FinancialCharts from '@/components/FinancialCharts.vue'
 import PlayerSwitcher from '@/components/PlayerSwitcher.vue'
+import GoalProgress from '@/components/GoalProgress.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -272,6 +273,12 @@ watch(
           <div v-if="gameStore.players.length > 1" class="px-4 pt-3 lg:px-5">
             <PlayerSwitcher v-model:show="showPlayerSwitcher" />
           </div>
+
+          <!-- 目标进度 -->
+          <div class="px-4 pt-3 lg:px-5">
+            <GoalProgress />
+          </div>
+
           <!-- Panel tabs -->
           <div class="flex border-b border-border px-4 pt-3 lg:px-5">
             <button
