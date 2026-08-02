@@ -561,7 +561,7 @@ const showPendingPanel = computed(() => {
     <div class="flex flex-1 flex-col overflow-hidden lg:flex-row">
       <!-- Left side panel -->
       <aside
-        class="order-2 flex shrink-0 flex-col overflow-hidden border-t border-border bg-secondary/30 lg:order-1 lg:w-80 lg:border-t-0 lg:border-r xl:w-96"
+        class="order-2 flex max-h-[35vh] min-h-0 shrink-0 flex-col overflow-y-auto border-t border-border bg-secondary/30 lg:max-h-none lg:order-1 lg:w-80 lg:overflow-hidden lg:border-t-0 lg:border-r xl:w-96"
       >
         <!-- Panel tabs -->
         <div v-if="gameStore.players.length > 1" class="px-4 pt-3 lg:px-5">
@@ -932,7 +932,7 @@ const showPendingPanel = computed(() => {
         </div>
 
         <!-- 主操作按钮（棋盘下方） -->
-        <div class="shrink-0 flex justify-center px-3 pb-3 sm:px-6 sm:pb-4">
+        <div class="relative z-30 shrink-0 flex justify-center px-3 pb-3 sm:px-6 sm:pb-4">
           <Transition name="main-btn" mode="out-in">
             <!-- 掷骰子（idle 状态） -->
             <button
