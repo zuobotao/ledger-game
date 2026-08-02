@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   AlertCircle,
@@ -40,11 +40,24 @@ function goHome() {
 }
 
 const showRatRaceSummary = ref(false)
+const fastTrackOfferShown = ref(false)
 
 function enterFastTrack() {
   // 先显示总结，用户确认后再进入快车道
   showRatRaceSummary.value = true
 }
+
+// 被动收入达标后自动弹出进入资本游戏提示
+watch(
+  () => gameStore.canCurrentPlayerEnterFastTrack,
+  (canEnter) => {
+    if (canEnter && !fastTrackOfferShown.value && !gameStore.isCurrentPlayerAI) {
+      fastTrackOfferShown.value = true
+      showRatRaceSummary.value = true
+    }
+  },
+  { immediate: true },
+)
 
 function confirmEnterFastTrack() {
   gameStore.enterFastTrack()

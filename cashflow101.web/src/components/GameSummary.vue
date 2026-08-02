@@ -78,6 +78,8 @@ const resultInfo = computed(() => {
         iconBg: 'bg-primary/15',
         gradientFrom: 'from-blue-500',
         gradientTo: 'to-cyan-400',
+        primaryBtnText: '进入资本游戏',
+        showClose: true,
       }
     case 'victory':
       return {
@@ -88,6 +90,8 @@ const resultInfo = computed(() => {
         iconBg: 'bg-amber-500/15',
         gradientFrom: 'from-amber-400',
         gradientTo: 'to-yellow-300',
+        primaryBtnText: '再来一局',
+        showClose: false,
       }
     case 'game_over':
       return {
@@ -98,6 +102,8 @@ const resultInfo = computed(() => {
         iconBg: 'bg-destructive/15',
         gradientFrom: 'from-red-500',
         gradientTo: 'to-orange-500',
+        primaryBtnText: '再来一局',
+        showClose: false,
       }
   }
 })
@@ -513,7 +519,7 @@ const cashFlowSparkline = computed(() => {
       <!-- 头部 -->
       <div class="summary-header" :class="phase">
         <div class="header-glow" aria-hidden="true" />
-        <button class="close-btn" @click="emit('close')" title="关闭">
+        <button v-if="resultInfo.showClose" class="close-btn" @click="emit('close')" title="关闭">
           <X class="h-5 w-5" />
         </button>
         <div class="header-icon" :class="resultInfo.iconBg">
@@ -955,7 +961,7 @@ const cashFlowSparkline = computed(() => {
         </button>
         <button class="footer-btn primary" @click="emit('restart')">
           <RotateCcw class="h-4 w-4" />
-          <span>再来一局</span>
+          <span>{{ resultInfo.primaryBtnText }}</span>
         </button>
       </div>
     </div>
