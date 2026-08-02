@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@theme {
+  /* Primitive palette */
+  --color-brand-50: #e8f2ff;
+  --color-brand-100: #cfe5ff;
+  --color-brand-200: #9fcbff;
+  --color-brand-300: #66abff;
+  --color-brand-400: #2e8dff;
+  --color-brand-500: #007aff;
+  --color-brand-600: #0064d6;
+  --color-brand-700: #004fad;
+  --color-brand-800: #003b82;
+  --color-brand-900: #00275a;
+
+  --color-gray-50: #ffffff;
+  --color-gray-100: #f7f7fa;
+  --color-gray-200: #f2f2f7;
+  --color-gray-300: #e5e5ea;
+  --color-gray-400: #d1d1d6;
+  --color-gray-500: #aeaeb2;
+  --color-gray-600: #8e8e93;
+  --color-gray-700: #3a3a3c;
+  --color-gray-800: #1c1c1e;
+  --color-gray-900: #000000;
+
+  /* Semantic tokens */
+  --color-background: var(--color-gray-50);
+  --color-foreground: #1d1d1f;
+  --color-card: var(--color-gray-50);
+  --color-card-foreground: #1d1d1f;
+  --color-primary: var(--color-brand-500);
+  --color-primary-foreground: var(--color-gray-50);
+  --color-muted: var(--color-gray-200);
+  --color-muted-foreground: #8e8e93;
+  --color-destructive: #ff3b30;
+  --color-destructive-foreground: #ffffff;
+  --color-success: #34c759;
+  --color-success-foreground: #ffffff;
+  --color-border: var(--color-gray-300);
+  --color-input: var(--color-gray-400);
+  --color-ring: var(--color-brand-500);
+
+  /* Typography */
+  --font-sans: 'DM Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Radius */
+  --radius-sm: 0.6rem;
+  --radius-md: 1.2rem;
+  --radius-lg: 1.8rem;
+  --radius-xl: 2.4rem;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 1px 3px -1px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 16px 40px -10px rgba(0, 0, 0, 0.10), 0 8px 16px -8px rgba(0, 0, 0, 0.06);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    min-height: 100vh;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+
+  #app {
+    min-height: 100vh;
+  }
+}
