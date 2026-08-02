@@ -5,16 +5,16 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
-  Banknote,
   Dice5,
+  Landmark,
   RotateCcw,
   Shield,
   TrendingUp,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import { RAT_RACE_CELLS } from '@/data/board'
-import { BANK_CONFIG } from '@/types/game'
 import type { Asset, Liability, MarketEventCard, OpportunityCard, Player } from '@/types/game'
+import BankModal from '@/components/BankModal.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -60,6 +60,15 @@ const opportunityCard = computed<OpportunityCard | null>(() => {
   return null
 })
 
+const maxOpportunityQuantity = computed(() => {
+  const card = opportunityCard.value
+  const player = gameStore.currentPlayer
+  if (!card || !player || card.cost <= 0) return 1
+  if (card.maxQuantity) return card.maxQuantity
+  // 根据现金计算最大可购买数量
+  return Math.max(1, Math.floor(player.cash / card.cost))
+})
+
 const marketCard = computed<MarketEventCard | null>(() => {
   if (gameStore.pendingAction.type === 'market') {
     return gameStore.marketEvent ?? (gameStore.pendingAction.card as MarketEventCard)
@@ -80,8 +89,7 @@ const sellableAssets = computed(() => {
 })
 
 const opportunityQuantity = ref(1)
-const loanAmount = ref(BANK_CONFIG.minLoanAmount)
-const showLoanModal = ref(false)
+const showBankModal = ref(false)
 const repayInputs = ref<Record<string, number>>({})
 
 const canBuyInsurance = computed(() => {
@@ -114,14 +122,6 @@ function onSellAsset(asset: Asset) {
   gameStore.sellAssetToMarket(asset.id, qty)
 }
 
-function onTakeLoan() {
-  const ok = gameStore.takeBankLoan(loanAmount.value)
-  if (ok) {
-    showLoanModal.value = false
-    loanAmount.value = BANK_CONFIG.minLoanAmount
-  }
-}
-
 function onRepayLoan(loan: Liability) {
   const amount = repayInputs.value[loan.id] ?? loan.amount
   gameStore.repayBankLoan(loan.id, amount)
@@ -129,12 +129,6 @@ function onRepayLoan(loan: Liability) {
 
 function onPayoffLiability(loan: Liability) {
   gameStore.payoffLiability(loan.id)
-}
-
-function maxLoanForCurrent(): number {
-  const p = gameStore.currentPlayer
-  if (!p) return 0
-  return gameStore.maxBankLoanAmount(p)
 }
 
 function onAcknowledge() {
@@ -376,15 +370,42 @@ function onAcknowledge() {
                   <span>价格：<span class="font-medium">{{ formatMoney(opportunityCard.cost) }}</span></span>
                   <span>月现金流：<span class="font-medium text-success">{{ formatMoney(opportunityCard.cashFlow) }}</span></span>
                 </div>
-                <div v-if="opportunityCard.type === 'stock'" class="mt-2 flex items-center gap-2">
-                  <label class="text-sm">数量：</label>
-                  <input
-                    v-model.number="opportunityQuantity"
-                    type="number"
-                    min="1"
-                    :max="opportunityCard.maxQuantity"
-                    class="h-8 w-20 rounded-md border border-input px-2 text-sm"
-                  />
+                <div class="mt-3 flex items-center gap-3">
+                  <label class="text-sm font-medium text-foreground">购买数量：</label>
+                  <div class="flex items-center gap-1">
+                    <button
+                      type="button"
+                      :disabled="opportunityQuantity <= 1"
+                      class="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                      @click="opportunityQuantity = Math.max(1, opportunityQuantity - 1)"
+                    >
+                      <span class="text-lg font-bold">−</span>
+                    </button>
+                    <input
+                      v-model.number="opportunityQuantity"
+                      type="number"
+                      min="1"
+                      :max="maxOpportunityQuantity"
+                      class="h-9 w-16 rounded-md border border-border bg-background text-center text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <button
+                      type="button"
+                      :disabled="opportunityQuantity >= maxOpportunityQuantity"
+                      class="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                      @click="opportunityQuantity = Math.min(maxOpportunityQuantity, opportunityQuantity + 1)"
+                    >
+                      <span class="text-lg font-bold">+</span>
+                    </button>
+                  </div>
+                  <span v-if="maxOpportunityQuantity > 1" class="text-xs text-muted-foreground">
+                    最多 {{ maxOpportunityQuantity }} 份
+                  </span>
+                </div>
+                <div class="mt-2 flex items-center justify-between rounded-lg bg-muted px-3 py-2">
+                  <span class="text-sm text-muted-foreground">总价：</span>
+                  <span class="text-base font-bold text-foreground">
+                    {{ formatMoney(opportunityCard.cost * opportunityQuantity) }}
+                  </span>
                 </div>
                 <div class="mt-3 flex gap-2">
                   <button
@@ -513,10 +534,10 @@ function onAcknowledge() {
       <button
         type="button"
         class="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-secondary px-4 text-sm font-semibold text-secondary-foreground shadow-sm hover:bg-muted sm:h-12 sm:px-6"
-        @click="showLoanModal = true"
+        @click="showBankModal = true"
       >
-        <Banknote class="h-5 w-5" />
-        贷款
+        <Landmark class="h-5 w-5" />
+        银行
       </button>
       <button
         v-if="canBuyInsurance"
@@ -538,44 +559,7 @@ function onAcknowledge() {
       </button>
     </footer>
 
-    <!-- Loan modal -->
-    <div
-      v-if="showLoanModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      @click.self="showLoanModal = false"
-    >
-      <div class="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-2xl">
-        <h2 class="text-lg font-semibold">银行贷款</h2>
-        <p class="mt-1 text-sm text-muted-foreground">
-          最高可贷 {{ formatMoney(maxLoanForCurrent()) }}（总收入的 {{ BANK_CONFIG.maxLoanMultiple }} 倍）
-        </p>
-        <div class="mt-4">
-          <label class="block text-sm font-medium">贷款金额</label>
-          <input
-            v-model.number="loanAmount"
-            type="number"
-            :step="BANK_CONFIG.loanStep"
-            class="mt-1 h-11 w-full rounded-[var(--radius-md)] border border-input bg-background px-3 text-foreground"
-          />
-        </div>
-        <div class="mt-6 flex justify-end gap-2">
-          <button
-            type="button"
-            class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted"
-            @click="showLoanModal = false"
-          >
-            取消
-          </button>
-          <button
-            type="button"
-            :disabled="loanAmount > maxLoanForCurrent() || loanAmount < BANK_CONFIG.minLoanAmount"
-            class="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
-            @click="onTakeLoan"
-          >
-            确认贷款
-          </button>
-        </div>
-      </div>
-    </div>
+    <!-- Bank modal -->
+    <BankModal :show="showBankModal" @close="showBankModal = false" />
   </main>
 </template>

@@ -133,6 +133,7 @@ function createPlayer(
     totalExpenses: totalExpenses(expenses),
     cashFlow: career.salary - totalExpenses(expenses),
     cash: startingCash,
+    savings: 0,
     assets: [],
     liabilities,
     ratRacePosition: 0,
@@ -630,6 +631,70 @@ export const useGameStore = defineStore('game', () => {
     return true
   }
 
+  // 存款：从现金转入储蓄
+  function depositToSavings(amount: number): boolean {
+    const player = currentPlayer.value
+    if (!player || amount < BANK_CONFIG.minDeposit) return false
+    const rounded = Math.floor(amount / BANK_CONFIG.depositStep) * BANK_CONFIG.depositStep
+    if (rounded > player.cash) return false
+
+    player.cash -= rounded
+    player.savings += rounded
+    saveState()
+    return true
+  }
+
+  // 取款：从储蓄转出现金
+  function withdrawFromSavings(amount: number): boolean {
+    const player = currentPlayer.value
+    if (!player || amount <= 0) return false
+    const rounded = Math.floor(amount / BANK_CONFIG.depositStep) * BANK_CONFIG.depositStep
+    if (rounded > player.savings) return false
+
+    player.savings -= rounded
+    player.cash += rounded
+    saveState()
+    return true
+  }
+
+  // 统一还款：按比例偿还所有银行贷款
+  function repayAllBankLoans(amount: number): boolean {
+    const player = currentPlayer.value
+    if (!player || amount <= 0) return false
+    if (player.cash < amount) return false
+
+    const totalLoan = totalBankLoanAmount(player)
+    if (totalLoan <= 0) return false
+
+    const repayAmount = Math.min(amount, totalLoan)
+    let remaining = repayAmount
+
+    // 按贷款金额从大到小依次偿还
+    const bankLoans = player.liabilities
+      .filter((l) => l.category === 'bank_loan')
+      .sort((a, b) => b.amount - a.amount)
+
+    for (const loan of bankLoans) {
+      if (remaining <= 0) break
+      const pay = Math.min(remaining, loan.amount)
+      const idx = player.liabilities.findIndex((l) => l.id === loan.id)
+      if (idx === -1) continue
+
+      player.liabilities[idx]!.amount -= pay
+      remaining -= pay
+
+      if (player.liabilities[idx]!.amount <= 0) {
+        player.expenses.other -= player.liabilities[idx]!.monthlyPayment
+        player.liabilities.splice(idx, 1)
+      }
+    }
+
+    player.cash -= repayAmount
+    recalcPlayerFinancials(player)
+    saveState()
+    return true
+  }
+
   function payoffLiability(liabilityId: string): boolean {
     const player = currentPlayer.value
     if (!player) return false
@@ -795,6 +860,9 @@ export const useGameStore = defineStore('game', () => {
     dismissDoodad,
     takeBankLoan,
     repayBankLoan,
+    repayAllBankLoans,
+    depositToSavings,
+    withdrawFromSavings,
     payoffLiability,
     confirmLoanForPending,
     declineLoanForPending,

@@ -7,6 +7,10 @@ const router = useRouter()
 function goToSetup() {
   router.push({ name: 'setup' })
 }
+
+function goToRules() {
+  router.push({ name: 'rules' })
+}
 </script>
 
 <template>
@@ -43,6 +47,7 @@ function goToSetup() {
           </button>
           <button
             type="button"
+            @click="goToRules"
             class="inline-flex h-12 items-center justify-center gap-2 rounded-full px-4 text-base font-semibold text-foreground transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <HelpCircle class="h-5 w-5" />

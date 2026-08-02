@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, Banknote, Gem, Rocket, RotateCcw, Target } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
@@ -82,7 +82,7 @@ function onDeclineFtOpportunity() {
 function onBuyDream() {
   const ok = gameStore.buyDream()
   if (ok) {
-    router.push({ name: 'home' })
+    router.push({ name: 'victory' })
   }
 }
 
@@ -98,6 +98,18 @@ const winner = computed(() => {
   if (!gameStore.winnerId) return null
   return gameStore.players.find((p) => p.id === gameStore.winnerId)
 })
+
+// 获胜后自动跳转到胜利页面
+watch(
+  () => gameStore.winnerId,
+  (id) => {
+    if (id) {
+      setTimeout(() => {
+        router.push({ name: 'victory' })
+      }, 500)
+    }
+  },
+)
 </script>
 
 <template>

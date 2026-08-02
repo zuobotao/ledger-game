@@ -11,6 +11,11 @@ const router = createRouter({
       component: HomeView,
     },
     {
+      path: '/rules',
+      name: 'rules',
+      component: () => import('../views/RulesView.vue'),
+    },
+    {
       path: '/setup',
       name: 'setup',
       component: SetupView,
@@ -24,6 +29,11 @@ const router = createRouter({
       path: '/fast-track',
       name: 'fast-track',
       component: () => import('../views/FastTrackView.vue'),
+    },
+    {
+      path: '/victory',
+      name: 'victory',
+      component: () => import('../views/VictoryView.vue'),
     },
   ],
 })

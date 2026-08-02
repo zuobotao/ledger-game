@@ -1,62 +1,93 @@
 @import "tailwindcss";
 
 @theme {
-  /* Primitive palette */
-  --color-brand-50: #e8f2ff;
-  --color-brand-100: #cfe5ff;
-  --color-brand-200: #9fcbff;
-  --color-brand-300: #66abff;
-  --color-brand-400: #2e8dff;
-  --color-brand-500: #007aff;
-  --color-brand-600: #0064d6;
-  --color-brand-700: #004fad;
-  --color-brand-800: #003b82;
-  --color-brand-900: #00275a;
+  /* ============================================
+     豆包设计系统 - 深色模式语义 token
+     主色: #0065fd | 背景: #0e1115 | 圆角: 1.2rem
+     ============================================ */
 
+  /* Primitive palette - Blue primary scale */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #0065fd;
+  --color-brand-600: #0057da;
+  --color-brand-700: #0043ad;
+  --color-brand-800: #002e7d;
+  --color-brand-900: #001a4d;
+
+  /* Neutral scale (dark mode) */
   --color-gray-50: #ffffff;
-  --color-gray-100: #f7f7fa;
-  --color-gray-200: #f2f2f7;
-  --color-gray-300: #e5e5ea;
-  --color-gray-400: #d1d1d6;
-  --color-gray-500: #aeaeb2;
-  --color-gray-600: #8e8e93;
-  --color-gray-700: #3a3a3c;
-  --color-gray-800: #1c1c1e;
-  --color-gray-900: #000000;
+  --color-gray-100: #f9f9fa;
+  --color-gray-200: #eff1f4;
+  --color-gray-300: #e7eaef;
+  --color-gray-400: #afbbcb;
+  --color-gray-500: #7f8d9f;
+  --color-gray-600: #333942;
+  --color-gray-700: #22252a;
+  --color-gray-800: #161a20;
+  --color-gray-900: #0e1115;
 
-  /* Semantic tokens */
-  --color-background: var(--color-gray-50);
-  --color-foreground: #1d1d1f;
-  --color-card: var(--color-gray-50);
-  --color-card-foreground: #1d1d1f;
+  /* Semantic tokens - Dark mode defaults */
+  --color-background: var(--color-gray-900);
+  --color-foreground: var(--color-gray-200);
+  --color-card: var(--color-gray-900);
+  --color-card-foreground: var(--color-gray-200);
+  --color-popover: var(--color-gray-700);
+  --color-popover-foreground: #e5e5e5;
+
   --color-primary: var(--color-brand-500);
   --color-primary-foreground: var(--color-gray-50);
-  --color-muted: var(--color-gray-200);
-  --color-muted-foreground: #8e8e93;
-  --color-destructive: #ff3b30;
+  --color-secondary: var(--color-gray-700);
+  --color-secondary-foreground: #e5e5e5;
+  --color-muted: var(--color-gray-800);
+  --color-muted-foreground: var(--color-gray-400);
+  --color-accent: #00266b;
+  --color-accent-foreground: #bfdbfe;
+  --color-destructive: #ef4444;
   --color-destructive-foreground: #ffffff;
-  --color-success: #34c759;
+  --color-success: #30d158;
   --color-success-foreground: #ffffff;
-  --color-border: var(--color-gray-300);
-  --color-input: var(--color-gray-400);
-  --color-ring: var(--color-brand-500);
+  --color-warning: #f59e0b;
+  --color-warning-foreground: #1c1917;
+
+  --color-border: var(--color-gray-600);
+  --color-input: var(--color-gray-600);
+  --color-ring: #00266b;
+
+  --color-chart-1: #60a5fa;
+  --color-chart-2: #3b82f6;
+  --color-chart-3: #2563eb;
+  --color-chart-4: #1d4ed8;
+  --color-chart-5: #1e40af;
+
+  --color-sidebar: #171717;
+  --color-sidebar-foreground: #e5e5e5;
+  --color-sidebar-primary: var(--color-brand-500);
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: #00266b;
+  --color-sidebar-accent-foreground: #bfdbfe;
+  --color-sidebar-border: #404040;
+  --color-sidebar-ring: #00266b;
 
   /* Typography */
-  --font-sans: 'DM Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: 'Stack Sans Text', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  /* Radius */
+  /* Radius - Doubao: 19.2px base */
   --radius-sm: 0.6rem;
   --radius-md: 1.2rem;
   --radius-lg: 1.8rem;
   --radius-xl: 2.4rem;
 
-  /* Shadows */
-  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 1px 3px -1px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.05);
-  --shadow-xl: 0 16px 40px -10px rgba(0, 0, 0, 0.10), 0 8px 16px -8px rgba(0, 0, 0, 0.06);
+  /* Shadows - minimal in dark mode (borders used instead) */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.15);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.18), 0 1px 3px -1px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.22), 0 2px 4px -2px rgba(0, 0, 0, 0.18);
+  --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.30), 0 4px 8px -4px rgba(0, 0, 0, 0.22);
+  --shadow-xl: 0 16px 40px -10px rgba(0, 0, 0, 0.35), 0 8px 16px -8px rgba(0, 0, 0, 0.28);
 }
 
 @layer base {
@@ -74,5 +105,21 @@
 
   #app {
     min-height: 100vh;
+  }
+
+  /* Scrollbar styling for dark mode */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-gray-800);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-gray-600);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-gray-500);
   }
 }

@@ -47,6 +47,7 @@ export interface Player {
   totalExpenses: number
   cashFlow: number
   cash: number
+  savings: number
   assets: Asset[]
   liabilities: Liability[]
   ratRacePosition: number
@@ -190,6 +191,9 @@ export const BANK_CONFIG = {
   maxLoanMultiple: 10,
   minLoanAmount: 1000,
   loanStep: 1000,
+  savingsRate: 0.02,
+  minDeposit: 100,
+  depositStep: 100,
 } as const
 
 export const RAT_RACE_BOARD_SIZE = 24
