@@ -7,6 +7,8 @@ import {
   Landmark,
   CircleDollarSign,
   Receipt,
+  ArrowUpRight,
+  ArrowDownRight,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import type { TransactionRecord, TransactionType } from '@/types/game'
@@ -14,20 +16,19 @@ import type { TransactionRecord, TransactionType } from '@/types/game'
 const store = useGameStore()
 
 type FilterKey = 'all' | 'income' | 'expense' | 'investment' | 'bank'
+type InvestmentSubFilter = 'all' | 'buy' | 'sell'
+type SoldAssetTypeFilter = 'all' | 'stock' | 'real_estate' | 'business'
 
 const activeFilter = ref<FilterKey>('all')
+const investmentSubFilter = ref<InvestmentSubFilter>('all')
+const soldAssetTypeFilter = ref<SoldAssetTypeFilter>('all')
 
 // 交易类型分类映射
 const incomeTypes: TransactionType[] = ['salary', 'passive_income']
-const expenseTypes: TransactionType[] = ['expense', 'doodad', 'charity', 'child', 'layoff']
-const investmentTypes: TransactionType[] = [
-  'stock_buy',
-  'stock_sell',
-  'real_estate_buy',
-  'real_estate_sell',
-  'business_buy',
-  'business_sell',
-]
+const expenseTypes: TransactionType[] = ['expense', 'doodad', 'charity', 'child', 'layoff', 'story_loss']
+const investmentBuyTypes: TransactionType[] = ['stock_buy', 'real_estate_buy', 'business_buy']
+const investmentSellTypes: TransactionType[] = ['stock_sell', 'real_estate_sell', 'business_sell']
+const investmentTypes: TransactionType[] = [...investmentBuyTypes, ...investmentSellTypes, 'stock_split']
 const bankTypes: TransactionType[] = [
   'bank_loan',
   'loan_repay',
@@ -57,6 +58,17 @@ const typeLabels: Record<TransactionType, string> = {
   savings_withdraw: '取款',
   insurance_buy: '保险',
   other: '其他',
+  story_gain: '故事收益',
+  story_loss: '故事损失',
+  stock_split: '股票拆分',
+}
+
+// 资产类型中文标签
+const assetTypeLabels: Record<string, string> = {
+  stock: '股票',
+  real_estate: '房产',
+  business: '企业',
+  other: '其他',
 }
 
 // 按筛选条件过滤当前玩家的交易记录
@@ -72,6 +84,16 @@ const filteredTransactions = computed<TransactionRecord[]>(() => {
     records = records.filter((t) => expenseTypes.includes(t.type))
   } else if (activeFilter.value === 'investment') {
     records = records.filter((t) => investmentTypes.includes(t.type))
+    // 投资子筛选
+    if (investmentSubFilter.value === 'buy') {
+      records = records.filter((t) => investmentBuyTypes.includes(t.type))
+    } else if (investmentSubFilter.value === 'sell') {
+      records = records.filter((t) => investmentSellTypes.includes(t.type))
+      // 卖出资产类型筛选
+      if (soldAssetTypeFilter.value !== 'all') {
+        records = records.filter((t) => t.assetType === soldAssetTypeFilter.value)
+      }
+    }
   } else if (activeFilter.value === 'bank') {
     records = records.filter((t) => bankTypes.includes(t.type))
   }
@@ -82,6 +104,21 @@ const filteredTransactions = computed<TransactionRecord[]>(() => {
     return b.timestamp - a.timestamp
   })
 })
+
+// 计算卖出交易的盈亏
+function getSellPnL(tx: TransactionRecord): number {
+  if (tx.costBasis !== undefined) {
+    return tx.amount - tx.costBasis
+  }
+  return 0
+}
+
+function getSellPnLPercent(tx: TransactionRecord): number {
+  if (tx.costBasis !== undefined && tx.costBasis > 0) {
+    return ((tx.amount - tx.costBasis) / tx.costBasis) * 100
+  }
+  return 0
+}
 
 // 判断交易类型所属分类
 function getCategory(type: TransactionType): FilterKey {
@@ -94,6 +131,8 @@ function getCategory(type: TransactionType): FilterKey {
 
 // 获取交易对应的图标组件
 function getIconComponent(type: TransactionType) {
+  if (investmentSellTypes.includes(type)) return ArrowUpRight
+  if (investmentBuyTypes.includes(type)) return ArrowDownRight
   const category = getCategory(type)
   switch (category) {
     case 'income':
@@ -111,6 +150,8 @@ function getIconComponent(type: TransactionType) {
 
 // 获取图标背景色
 function getIconBgClass(type: TransactionType): string {
+  if (investmentSellTypes.includes(type)) return 'bg-success/15 text-success'
+  if (investmentBuyTypes.includes(type)) return 'bg-primary/15 text-primary'
   const category = getCategory(type)
   switch (category) {
     case 'income':
@@ -126,9 +167,14 @@ function getIconBgClass(type: TransactionType): string {
   }
 }
 
-// 判断是否为股票类交易
-function isStockTransaction(type: TransactionType): boolean {
-  return type === 'stock_buy' || type === 'stock_sell'
+// 判断是否为投资类交易（需要显示详细信息）
+function isInvestmentTransaction(type: TransactionType): boolean {
+  return investmentTypes.includes(type)
+}
+
+// 判断是否为卖出交易
+function isSellTransaction(type: TransactionType): boolean {
+  return investmentSellTypes.includes(type)
 }
 
 // 格式化金额
@@ -144,6 +190,13 @@ function getAmountClass(amount: number): string {
   return 'text-foreground'
 }
 
+// 盈亏颜色
+function getPnLClass(pnl: number): string {
+  if (pnl > 0) return 'text-success'
+  if (pnl < 0) return 'text-destructive'
+  return 'text-muted-foreground'
+}
+
 // 筛选 Tab 配置
 const filterTabs: { key: FilterKey; label: string }[] = [
   { key: 'all', label: '全部' },
@@ -151,6 +204,21 @@ const filterTabs: { key: FilterKey; label: string }[] = [
   { key: 'expense', label: '支出' },
   { key: 'investment', label: '投资' },
   { key: 'bank', label: '银行' },
+]
+
+// 投资子筛选 Tab
+const investmentSubTabs: { key: InvestmentSubFilter; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'buy', label: '买入' },
+  { key: 'sell', label: '已卖出' },
+]
+
+// 卖出资产类型筛选
+const soldAssetTypeTabs: { key: SoldAssetTypeFilter; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'stock', label: '股票' },
+  { key: 'real_estate', label: '房产' },
+  { key: 'business', label: '企业' },
 ]
 </script>
 
@@ -186,6 +254,38 @@ const filterTabs: { key: FilterKey; label: string }[] = [
       </button>
     </div>
 
+    <!-- Investment sub-tabs (only shown when investment tab is active) -->
+    <div v-if="activeFilter === 'investment'" class="flex border-b border-border px-3 bg-secondary/20">
+      <button
+        v-for="tab in investmentSubTabs"
+        :key="tab.key"
+        class="px-3 py-2.5 text-xs font-medium transition-colors relative"
+        :class="investmentSubFilter === tab.key ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+        @click="investmentSubFilter = tab.key"
+      >
+        {{ tab.label }}
+        <span
+          v-if="investmentSubFilter === tab.key"
+          class="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full"
+        />
+      </button>
+
+      <!-- Sold asset type filter (only for "已卖出" sub-tab) -->
+      <div v-if="investmentSubFilter === 'sell'" class="ml-auto flex items-center gap-1">
+        <button
+          v-for="typeTab in soldAssetTypeTabs"
+          :key="typeTab.key"
+          class="px-2 py-1 text-[10px] font-medium rounded-md transition-colors"
+          :class="soldAssetTypeFilter === typeTab.key
+            ? 'bg-primary/15 text-primary'
+            : 'text-muted-foreground hover:text-foreground hover:bg-secondary'"
+          @click="soldAssetTypeFilter = typeTab.key"
+        >
+          {{ typeTab.label }}
+        </button>
+      </div>
+    </div>
+
     <!-- Transaction List -->
     <div class="overflow-y-auto max-h-[420px]">
       <!-- Empty State -->
@@ -209,46 +309,82 @@ const filterTabs: { key: FilterKey; label: string }[] = [
         <div
           v-for="tx in filteredTransactions"
           :key="tx.id"
-          class="flex items-center gap-3 px-5 py-3.5 hover:bg-secondary/30 transition-colors"
+          class="px-5 py-3.5 hover:bg-secondary/30 transition-colors"
         >
-          <!-- Icon -->
-          <div
-            class="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-            :class="getIconBgClass(tx.type)"
-          >
-            <component :is="getIconComponent(tx.type)" class="w-5 h-5" />
+          <!-- Main row -->
+          <div class="flex items-center gap-3">
+            <!-- Icon -->
+            <div
+              class="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+              :class="getIconBgClass(tx.type)"
+            >
+              <component :is="getIconComponent(tx.type)" class="w-5 h-5" />
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-foreground truncate">
+                  {{ tx.description }}
+                </span>
+              </div>
+              <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                <span class="text-xs text-muted-foreground">
+                  第 {{ tx.turnNumber }} 回合
+                </span>
+                <span class="text-xs text-muted-foreground">·</span>
+                <span class="text-xs text-muted-foreground">
+                  {{ typeLabels[tx.type] }}
+                </span>
+                <span
+                  v-if="tx.assetType"
+                  class="text-xs text-muted-foreground"
+                >
+                  · {{ assetTypeLabels[tx.assetType] ?? tx.assetType }}
+                </span>
+                <span
+                  v-if="isInvestmentTransaction(tx.type) && tx.assetQuantity && tx.unitPrice !== undefined"
+                  class="text-xs text-muted-foreground"
+                >
+                  · {{ tx.assetSymbol ?? '' }} {{ tx.assetQuantity }} × ${{ Math.round(tx.unitPrice).toLocaleString() }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Amount -->
+            <div
+              class="text-sm font-semibold shrink-0 tabular-nums text-right"
+              :class="getAmountClass(tx.amount)"
+            >
+              {{ formatMoney(tx.amount) }}
+            </div>
           </div>
 
-          <!-- Content -->
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-medium text-foreground truncate">
-                {{ tx.description }}
-              </span>
+          <!-- Sell transaction P&L detail -->
+          <div
+            v-if="isSellTransaction(tx.type) && tx.costBasis !== undefined"
+            class="mt-2 ml-13 pl-13 grid grid-cols-3 gap-2 text-xs border-t border-border/40 pt-2"
+          >
+            <div>
+              <div class="text-muted-foreground">买入成本</div>
+              <div class="font-medium text-foreground tabular-nums">${{ Math.round(tx.costBasis).toLocaleString() }}</div>
             </div>
-            <div class="flex items-center gap-2 mt-0.5">
-              <span class="text-xs text-muted-foreground">
-                第 {{ tx.turnNumber }} 回合
-              </span>
-              <span class="text-xs text-muted-foreground">·</span>
-              <span class="text-xs text-muted-foreground">
-                {{ typeLabels[tx.type] }}
-              </span>
-              <span
-                v-if="isStockTransaction(tx.type) && tx.assetSymbol && tx.assetQuantity"
-                class="text-xs text-muted-foreground"
+            <div>
+              <div class="text-muted-foreground">卖出收入</div>
+              <div class="font-medium text-foreground tabular-nums">${{ Math.round(tx.amount).toLocaleString() }}</div>
+            </div>
+            <div>
+              <div class="text-muted-foreground">盈亏</div>
+              <div
+                class="font-semibold tabular-nums"
+                :class="getPnLClass(getSellPnL(tx))"
               >
-                · {{ tx.assetSymbol }} ×{{ tx.assetQuantity }}
-              </span>
+                {{ getSellPnL(tx) >= 0 ? '+' : '' }}${{ Math.round(getSellPnL(tx)).toLocaleString() }}
+                <span class="text-[10px] opacity-80">
+                  ({{ getSellPnLPercent(tx) >= 0 ? '+' : '' }}{{ getSellPnLPercent(tx).toFixed(1) }}%)
+                </span>
+              </div>
             </div>
-          </div>
-
-          <!-- Amount -->
-          <div
-            class="text-sm font-semibold shrink-0 tabular-nums"
-            :class="getAmountClass(tx.amount)"
-          >
-            {{ formatMoney(tx.amount) }}
           </div>
         </div>
       </div>
@@ -270,5 +406,13 @@ const filterTabs: { key: FilterKey; label: string }[] = [
 }
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: var(--color-gray-500);
+}
+
+.ml-13 {
+  margin-left: 3.25rem;
+}
+
+.pl-13 {
+  padding-left: 3.25rem;
 }
 </style>

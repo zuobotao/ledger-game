@@ -274,6 +274,21 @@ function getMarketPrice(asset: Asset): number {
   return asset.cost * card.multiplier
 }
 
+// 计算资产浮动盈亏金额
+function getAssetPnL(asset: Asset): number {
+  const marketValue = (asset.marketPrice ?? asset.cost) * asset.quantity
+  const costValue = asset.cost * asset.quantity
+  return marketValue - costValue
+}
+
+// 计算资产浮动盈亏百分比
+function getAssetPnLPercent(asset: Asset): number {
+  const costValue = asset.cost * asset.quantity
+  if (costValue === 0) return 0
+  const pnl = getAssetPnL(asset)
+  return (pnl / costValue) * 100
+}
+
 function onSellAsset(asset: Asset) {
   const qty = getSellQuantity(asset.id, asset.quantity)
   gameStore.sellAssetToMarket(asset.id, qty)
@@ -538,14 +553,60 @@ const showPendingPanel = computed(() => {
 
           <section class="rounded-2xl border border-border bg-background p-4 shadow-sm">
             <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">资产</h3>
-            <ul v-if="gameStore.currentPlayer.assets.length" class="space-y-2 text-sm">
+            <ul v-if="gameStore.currentPlayer.assets.length" class="space-y-3">
               <li
                 v-for="asset in gameStore.currentPlayer.assets"
                 :key="asset.id"
-                class="flex items-center justify-between"
+                class="rounded-xl border border-border/60 bg-secondary/20 p-3"
               >
-                <span class="text-muted-foreground">{{ asset.name }} ×{{ asset.quantity }}</span>
-                <span class="font-medium">+{{ formatMoney(asset.cashFlow * asset.quantity) }}/月</span>
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-sm font-medium text-foreground truncate">{{ asset.name }}</span>
+                    <span
+                      v-if="asset.symbol"
+                      class="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-mono font-bold text-primary shrink-0"
+                    >
+                      {{ asset.symbol }}
+                    </span>
+                  </div>
+                  <span class="text-xs text-muted-foreground shrink-0">
+                    {{ asset.quantity }} {{ getUnitLabel(asset.type) }}
+                  </span>
+                </div>
+                <div class="grid grid-cols-2 gap-y-1.5 gap-x-3 text-xs">
+                  <div class="flex justify-between">
+                    <span class="text-muted-foreground">成本价</span>
+                    <span class="font-medium text-foreground tabular-nums">{{ formatMoney(asset.cost) }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-muted-foreground">市价</span>
+                    <span class="font-medium text-foreground tabular-nums">{{ formatMoney(asset.marketPrice ?? asset.cost) }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-muted-foreground">总成本</span>
+                    <span class="font-medium text-foreground tabular-nums">{{ formatMoney(asset.cost * asset.quantity) }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-muted-foreground">总市值</span>
+                    <span class="font-medium text-foreground tabular-nums">{{ formatMoney((asset.marketPrice ?? asset.cost) * asset.quantity) }}</span>
+                  </div>
+                  <div class="flex justify-between col-span-2 pt-1 border-t border-border/50">
+                    <span class="text-muted-foreground">浮动盈亏</span>
+                    <span
+                      class="font-semibold tabular-nums"
+                      :class="getAssetPnL(asset) >= 0 ? 'text-success' : 'text-destructive'"
+                    >
+                      {{ getAssetPnL(asset) >= 0 ? '+' : '' }}{{ formatMoney(getAssetPnL(asset)) }}
+                      <span class="text-[10px] opacity-80">
+                        ({{ getAssetPnLPercent(asset) >= 0 ? '+' : '' }}{{ getAssetPnLPercent(asset).toFixed(1) }}%)
+                      </span>
+                    </span>
+                  </div>
+                </div>
+                <div v-if="asset.cashFlow > 0" class="mt-2 flex items-center justify-between text-xs pt-2 border-t border-border/50">
+                  <span class="text-muted-foreground">月现金流</span>
+                  <span class="font-medium text-success">+{{ formatMoney(asset.cashFlow * asset.quantity) }}/月</span>
+                </div>
               </li>
             </ul>
             <div v-else class="text-sm text-muted-foreground">暂无资产</div>

@@ -222,6 +222,9 @@ export interface TransactionRecord {
   assetSymbol?: string
   assetQuantity?: number
   unitPrice?: number
+  costBasis?: number
+  assetName?: string
+  assetType?: 'stock' | 'real_estate' | 'business' | 'other'
   timestamp: number
 }
 

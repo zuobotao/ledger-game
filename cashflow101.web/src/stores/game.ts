@@ -824,6 +824,9 @@ export const useGameStore = defineStore('game', () => {
       assetSymbol: asset.symbol,
       assetQuantity: sellQty,
       unitPrice: price / sellQty,
+      costBasis: asset.cost * sellQty,
+      assetName: asset.name,
+      assetType: asset.type,
     })
 
     const msg = `${player.name} 卖出 ${asset.name} ×${sellQty}，获得 ${formatMoney(price)}。可继续卖出其他资产，或点击结束。`
@@ -1024,6 +1027,9 @@ export const useGameStore = defineStore('game', () => {
       assetSymbol: symbol,
       assetQuantity: quantity,
       unitPrice: price,
+      costBasis: asset.cost * quantity,
+      assetName: asset.name,
+      assetType: 'stock',
     })
 
     setPending(null, `卖出 ${symbol} ×${quantity}，获得 ${formatMoney(total)}`)
@@ -1045,7 +1051,10 @@ export const useGameStore = defineStore('game', () => {
     player.cash -= cost
     const existing = player.assets.find((a) => a.type === 'stock' && a.symbol === card.symbol)
     if (existing) {
+      // 计算加权平均成本
+      const totalCost = existing.cost * existing.quantity + card.cost * quantity
       existing.quantity += quantity
+      existing.cost = totalCost / existing.quantity
     } else {
       const asset: Asset = {
         id: createId(),
@@ -1064,6 +1073,8 @@ export const useGameStore = defineStore('game', () => {
       assetSymbol: card.symbol,
       assetQuantity: quantity,
       unitPrice: card.cost,
+      assetName: card.title,
+      assetType: 'stock',
     })
     recordCardDrawn('opportunity', card, player.id, 'accepted', cost)
 
@@ -1105,6 +1116,9 @@ export const useGameStore = defineStore('game', () => {
       assetSymbol: symbol,
       assetQuantity: quantity,
       unitPrice: price,
+      costBasis: asset.cost * quantity,
+      assetName: asset.name,
+      assetType: 'stock',
     })
     recordCardDrawn('opportunity', card, player.id, 'sold', total)
 
@@ -1186,7 +1200,10 @@ export const useGameStore = defineStore('game', () => {
     player.cash -= cost
     const existing = player.assets.find((a) => a.type === card.type && a.symbol && a.symbol === card.symbol)
     if (existing && card.type === 'stock') {
+      // 计算加权平均成本
+      const totalCost = existing.cost * existing.quantity + card.cost * quantity
       existing.quantity += quantity
+      existing.cost = totalCost / existing.quantity
     } else {
       const asset: Asset = {
         id: createId(),
@@ -1207,6 +1224,8 @@ export const useGameStore = defineStore('game', () => {
       assetSymbol: card.symbol,
       assetQuantity: quantity,
       unitPrice: card.cost,
+      assetName: card.title,
+      assetType: card.type,
     })
     recordCardDrawn(cardTypeForRecord, card, player.id, 'accepted', cost)
     setPending(null, `买入 ${card.title} ×${quantity}，支出 ${formatMoney(cost)}。`)
