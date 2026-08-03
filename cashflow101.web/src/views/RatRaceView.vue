@@ -423,12 +423,18 @@ function onAcknowledge() {
   gameStore.acknowledgeMessage()
 }
 
-// 判断 pending action 浮层是否应该显示
-// 当有卡片在棋盘中心显示时，浮层仍然显示操作按钮
+// 操作型 pending action（底部浮层，需要用户操作）
 // 骰子动画期间抑制显示，等动画结束后再弹出
-const showPendingPanel = computed(() => {
+const showActionPanel = computed(() => {
   if (suppressUI.value) return false
-  return gameStore.pendingAction.type || gameStore.pendingAction.message
+  return !!gameStore.pendingAction.type
+})
+
+// 纯消息型提示（棋盘上方，不需要点击确认，结束回合自动消失）
+const showMessageToast = computed(() => {
+  if (suppressUI.value) return false
+  // type 为空但有消息 → 纯消息提示
+  return !gameStore.pendingAction.type && !!gameStore.pendingAction.message
 })
 </script>
 
@@ -918,6 +924,16 @@ const showPendingPanel = computed(() => {
 
       <!-- Board -->
       <section class="relative order-1 flex flex-1 flex-col overflow-hidden min-h-0">
+        <!-- 消息提示（纯消息类，不需要确认） -->
+        <Transition name="fade-down">
+          <div
+            v-if="showMessageToast"
+            class="absolute top-2 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full border border-border bg-background/90 backdrop-blur-md shadow-lg text-sm font-medium text-foreground max-w-[90%] text-center"
+          >
+            {{ gameStore.pendingAction.message }}
+          </div>
+        </Transition>
+
         <div class="flex flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 lg:p-6 min-h-0">
           <div class="h-full w-full max-h-full max-w-[680px] min-h-0">
             <RatRaceBoard
@@ -974,10 +990,10 @@ const showPendingPanel = computed(() => {
           </Transition>
         </div>
 
-        <!-- Pending action floating panel -->
+        <!-- Pending action 操作面板（仅操作型，需要用户选择） -->
         <Transition name="slide-up">
           <div
-            v-if="showPendingPanel"
+            v-if="showActionPanel"
             class="pointer-events-none absolute bottom-0 left-0 right-0 z-40 px-3 pb-3 sm:px-6 sm:pb-4"
           >
             <div class="pointer-events-auto mx-auto max-w-[680px] rounded-2xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur-md">
@@ -1538,6 +1554,17 @@ const showPendingPanel = computed(() => {
 .slide-up-leave-to {
   opacity: 0;
   transform: translateY(20px);
+}
+
+.fade-down-enter-active,
+.fade-down-leave-active {
+  transition: all 0.25s ease;
+}
+
+.fade-down-enter-from,
+.fade-down-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -10px);
 }
 
 /* 卡片操作面板样式 */
