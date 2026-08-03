@@ -28,11 +28,12 @@ function goToRules() {
         >
           Cashflow 101
         </h1>
-        <p class="mb-6 text-xl font-medium text-foreground sm:text-2xl">罗伯特·清崎经典财商桌游</p>
+        <p class="mb-6 text-xl font-medium text-foreground sm:text-2xl">《穷爸爸富爸爸》经典财商桌游</p>
         <p
           class="mx-auto mb-10 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg"
         >
-          完成原始资本积累，进入资本游戏。练习投资、管理资产负债、实现财务自由。
+          源自罗伯特·清崎畅销理财书《穷爸爸富爸爸》，在游戏中学习富人思维，
+          完成原始资本积累，进入资本游戏，练习投资、管理资产负债、实现财务自由。
         </p>
 
         <div class="flex flex-col items-center justify-center gap-4 sm:flex-row">

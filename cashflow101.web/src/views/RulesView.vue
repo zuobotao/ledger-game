@@ -96,8 +96,9 @@ function goHome() {
                 <h2 class="text-lg font-semibold">游戏目标</h2>
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
-                Cashflow 101 是一款财商教育桌游，由罗伯特·清崎设计。游戏的核心目标是让玩家通过模拟真实的财务决策，
-                学习如何管理个人财务、进行投资、积累资产，最终实现<strong class="text-foreground">财务自由</strong>——
+                Cashflow 101 是一款财商教育桌游，源自罗伯特·清崎的畅销理财书《穷爸爸富爸爸》。
+                游戏的核心目标是让玩家通过模拟真实的财务决策，学习如何管理个人财务、进行投资、积累资产，
+                最终实现<strong class="text-foreground">财务自由</strong>——
                 即被动收入超过总支出，从而完成「原始资本积累」，进入财富的「资本游戏」。
               </p>
             </div>
