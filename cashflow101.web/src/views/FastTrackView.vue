@@ -55,18 +55,26 @@ function goHome() {
 
 // ========== 骰子动画 ==========
 const showDiceAnimation = ref(false)
+// 骰子动画期间抑制卡片和操作框显示
+const suppressUI = ref(false)
 
 function onRollDice() {
+  suppressUI.value = true
   showDiceAnimation.value = true
   gameStore.fastTrackRollDice()
 }
 
 function onDiceAnimationDone() {
   showDiceAnimation.value = false
+  // 骰子动画结束后，延迟一小段时间再显示卡片和操作框
+  setTimeout(() => {
+    suppressUI.value = false
+  }, 200)
 }
 
 // ========== 棋盘中心卡片显示 ==========
 const showBoardOpportunity = computed(() => {
+  if (suppressUI.value) return false
   return gameStore.pendingAction.type === 'fast_track_opportunity'
 })
 
@@ -183,6 +191,7 @@ const winner = computed(() => {
 
 // 判断 pending action 浮层是否应该显示
 const showPendingPanel = computed(() => {
+  if (suppressUI.value) return false
   return gameStore.pendingAction.type || gameStore.pendingAction.message
 })
 
@@ -664,7 +673,7 @@ watch(
         <Transition name="slide-up">
           <div
             v-if="showPendingPanel"
-            class="pointer-events-none absolute bottom-0 left-0 right-0 z-20 px-3 pb-3 sm:px-6 sm:pb-4"
+            class="pointer-events-none absolute bottom-0 left-0 right-0 z-40 px-3 pb-3 sm:px-6 sm:pb-4"
           >
             <div class="pointer-events-auto mx-auto max-w-[560px] rounded-2xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur-md">
               <div class="flex items-start gap-3">

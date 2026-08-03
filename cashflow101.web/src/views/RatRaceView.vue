@@ -99,19 +99,27 @@ function closeRatRaceSummary() {
 
 // 骰子动画
 const showDiceAnimation = ref(false)
+// 骰子动画期间抑制卡片和操作框显示
+const suppressUI = ref(false)
 
 function onRollDice() {
-  // 先触发动画，动画结束后 store 已经计算好了结果
+  // 先抑制 UI 显示，再触发骰子动画，然后执行游戏逻辑
+  suppressUI.value = true
   showDiceAnimation.value = true
   gameStore.ratRaceRollDice()
 }
 
 function onDiceAnimationDone() {
   showDiceAnimation.value = false
+  // 骰子动画结束后，延迟一小段时间再显示卡片和操作框，让用户先看到棋子落点
+  setTimeout(() => {
+    suppressUI.value = false
+  }, 200)
 }
 
 // ========== 棋盘中心卡片显示相关 ==========
 const showBoardCard = computed(() => {
+  if (suppressUI.value) return false
   return (
     gameStore.pendingAction.type === 'opportunity' ||
     gameStore.pendingAction.type === 'market' ||
@@ -417,7 +425,9 @@ function onAcknowledge() {
 
 // 判断 pending action 浮层是否应该显示
 // 当有卡片在棋盘中心显示时，浮层仍然显示操作按钮
+// 骰子动画期间抑制显示，等动画结束后再弹出
 const showPendingPanel = computed(() => {
+  if (suppressUI.value) return false
   return gameStore.pendingAction.type || gameStore.pendingAction.message
 })
 </script>
