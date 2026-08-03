@@ -1457,12 +1457,12 @@ const showPendingPanel = computed(() => {
                   ].includes(gameStore.pendingAction.type || '') &&
                     gameStore.pendingAction.message)
                 "
-                class="mt-3"
+                class="mt-3 flex justify-end"
               >
                 <button
                   type="button"
                   :disabled="disableHumanActions"
-                  class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-40"
+                  class="rounded-full bg-secondary px-5 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-40"
                   @click="
                     gameStore.pendingAction.type === 'doodad'
                       ? gameStore.dismissDoodad()
