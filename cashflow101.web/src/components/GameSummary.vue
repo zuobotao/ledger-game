@@ -8,7 +8,7 @@ import {
   Wallet,
   TrendingUp,
   TrendingDown,
-  Target,
+  Rocket,
   PieChart,
   BarChart3,
   Clock,
@@ -74,13 +74,14 @@ const resultInfo = computed(() => {
       return {
         title: '进入资本游戏',
         subtitle: '成功完成原始资本积累',
-        icon: Target,
+        icon: Rocket,
         iconColor: 'text-primary',
         iconBg: 'bg-primary/15',
         gradientFrom: 'from-blue-500',
         gradientTo: 'to-cyan-400',
         primaryBtnText: '进入资本游戏',
         showClose: true,
+        showHomeBtn: false,
       }
     case 'victory':
       return {
@@ -93,6 +94,7 @@ const resultInfo = computed(() => {
         gradientTo: 'to-yellow-300',
         primaryBtnText: '再来一局',
         showClose: false,
+        showHomeBtn: true,
       }
     case 'game_over':
       return {
@@ -105,6 +107,7 @@ const resultInfo = computed(() => {
         gradientTo: 'to-orange-500',
         primaryBtnText: '再来一局',
         showClose: false,
+        showHomeBtn: true,
       }
     case 'retirement':
       return {
@@ -117,6 +120,7 @@ const resultInfo = computed(() => {
         gradientTo: 'to-orange-400',
         primaryBtnText: '再来一局',
         showClose: false,
+        showHomeBtn: true,
       }
   }
 })
@@ -1022,13 +1026,14 @@ const cashFlowSparkline = computed(() => {
       </div>
 
       <!-- 底部按钮 -->
-      <div class="summary-footer">
-        <button class="footer-btn secondary" @click="emit('home')">
+      <div class="summary-footer" :class="{ 'single-btn': !resultInfo.showHomeBtn }">
+        <button v-if="resultInfo.showHomeBtn" class="footer-btn secondary" @click="emit('home')">
           <Home class="h-4 w-4" />
           <span>返回首页</span>
         </button>
         <button class="footer-btn primary" @click="emit('restart')">
-          <RotateCcw class="h-4 w-4" />
+          <RotateCcw v-if="resultInfo.showHomeBtn" class="h-4 w-4" />
+          <Rocket v-else class="h-4 w-4" />
           <span>{{ resultInfo.primaryBtnText }}</span>
         </button>
       </div>
@@ -1666,6 +1671,17 @@ const cashFlowSparkline = computed(() => {
 
 .footer-btn.secondary:hover {
   background: var(--color-border);
+}
+
+.summary-footer.single-btn {
+  justify-content: center;
+}
+
+.summary-footer.single-btn .footer-btn.primary {
+  flex: none;
+  min-width: 200px;
+  height: 48px;
+  font-size: 15px;
 }
 
 /* Retirement ranking */

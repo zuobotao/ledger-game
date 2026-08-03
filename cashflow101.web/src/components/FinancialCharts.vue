@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { PieChart, BarChart3, TrendingUp } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
+import { START_AGE } from '@/types/game'
 import type { FinancialSnapshot } from '@/types/game'
 
 const props = defineProps<{
@@ -293,8 +294,12 @@ const hoveredLineData = computed(() => {
   const point = linePoints.value.points[hoveredLinePoint.value]
   const data = lineChartData.value[hoveredLinePoint.value]
   if (!point || !data) return null
+  const totalMonths = data.turn
+  const ageYears = START_AGE + Math.floor(totalMonths / 12)
+  const ageMonths = totalMonths % 12
   return {
     turn: data.turn,
+    ageDisplay: `${ageYears}岁${ageMonths}月`,
     netWorth: data.netWorth,
     totalAssets: data.totalAssets,
     monthlyCashFlow: data.monthlyCashFlow,
@@ -305,8 +310,12 @@ const hoveredBarData = computed(() => {
   if (hoveredBarGroup.value === null) return null
   const group = barGroups.value[hoveredBarGroup.value]
   if (!group) return null
+  const totalMonths = group.turn
+  const ageYears = START_AGE + Math.floor(totalMonths / 12)
+  const ageMonths = totalMonths % 12
   return {
     turn: group.turn,
+    ageDisplay: `${ageYears}岁${ageMonths}月`,
     income: group.income,
     expense: group.expense,
   }
@@ -510,7 +519,7 @@ const hoveredBarData = computed(() => {
 
           <!-- Bar chart tooltip -->
           <div v-if="hoveredBarData" class="chart-tooltip" :style="barTooltipStyle">
-            <div class="tooltip-title">第 {{ hoveredBarData.turn }} 回合</div>
+            <div class="tooltip-title">第 {{ hoveredBarData.turn }} 回合 · {{ hoveredBarData.ageDisplay }}</div>
             <div class="tooltip-row">
               <span class="tooltip-dot" :style="{ backgroundColor: COLORS.income }"></span>
               <span class="tooltip-name">收入</span>
@@ -670,7 +679,7 @@ const hoveredBarData = computed(() => {
 
           <!-- Line chart tooltip -->
           <div v-if="hoveredLineData" class="chart-tooltip" :style="lineTooltipStyle">
-            <div class="tooltip-title">第 {{ hoveredLineData.turn }} 回合</div>
+            <div class="tooltip-title">第 {{ hoveredLineData.turn }} 回合 · {{ hoveredLineData.ageDisplay }}</div>
             <div class="tooltip-row">
               <span class="tooltip-dot" :style="{ backgroundColor: COLORS.netWorth }"></span>
               <span class="tooltip-name">净资产</span>

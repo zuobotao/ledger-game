@@ -19,19 +19,20 @@ import {
   Receipt,
   CreditCard,
   BarChart2,
-  Bell,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
-import type { Asset, OpportunityCard } from '@/types/game'
+import type { Asset, MarketEventCard, OpportunityCard } from '@/types/game'
 import FastTrackBoard from '@/components/FastTrackBoard.vue'
 import BankModal from '@/components/BankModal.vue'
 import TransactionHistory from '@/components/TransactionHistory.vue'
 import CardHistory from '@/components/CardHistory.vue'
+import QuantitySelector from '@/components/QuantitySelector.vue'
 import FinancialCharts from '@/components/FinancialCharts.vue'
 import PlayerSwitcher from '@/components/PlayerSwitcher.vue'
 import GoalProgress from '@/components/GoalProgress.vue'
 import PhaseSwitcher from '@/components/PhaseSwitcher.vue'
 import AITutorAdvice from '@/components/AITutorAdvice.vue'
+import GameToast from '@/components/GameToast.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -143,8 +144,69 @@ const isCurrentPlayerAI = computed(() => {
 
 // 是否禁用人类操作
 const disableHumanActions = computed(() => {
-  return isSpectator.value || gameStore.isAIThinking || isCurrentPlayerAI.value
+  if (isSpectator.value) return true
+  if (gameStore.isAIThinking) return true
+  if (gameStore.pendingAction.type === 'market' && gameStore.marketEventState) {
+    const responder = gameStore.marketResponder
+    return responder?.isAI ?? false
+  }
+  return isCurrentPlayerAI.value
 })
+
+// ========== 市场事件相关 ==========
+const marketCard = computed<MarketEventCard | null>(() => {
+  if (gameStore.pendingAction.type === 'market') {
+    return gameStore.marketEvent ?? (gameStore.pendingAction.card as MarketEventCard)
+  }
+  return null
+})
+
+const sellableAssets = computed(() => {
+  const p = gameStore.marketResponder
+  const card = marketCard.value
+  if (!p || !card) return []
+  return p.assets.filter((a) => {
+    if (card.targetType === 'stock' && card.targetSymbol) {
+      return a.type === 'stock' && a.symbol === card.targetSymbol
+    }
+    if (card.targetType === 'all') return true
+    return a.type === card.targetType
+  })
+})
+
+const marketSellQuantities = ref<Record<string, number>>({})
+
+function getMarketSellQuantity(assetId: string, defaultQty: number = 1): number {
+  return marketSellQuantities.value[assetId] ?? defaultQty
+}
+
+function setMarketSellQuantity(assetId: string, val: number) {
+  marketSellQuantities.value[assetId] = val
+}
+
+function getMarketPrice(asset: Asset): number {
+  const card = marketCard.value
+  if (!card) return asset.cost
+  if (card.targetType === 'stock' && card.targetSymbol && asset.symbol === card.targetSymbol) {
+    return card.fixedPrice ?? asset.cost
+  }
+  return asset.cost * card.multiplier
+}
+
+function getUnitLabel(assetType: string): string {
+  switch (assetType) {
+    case 'stock': return '股'
+    case 'real_estate': return '套'
+    case 'business': return '家'
+    default: return '份'
+  }
+}
+
+function onSellMarketAsset(asset: Asset) {
+  const qty = getMarketSellQuantity(asset.id, asset.quantity)
+  gameStore.sellAssetToMarket(asset.id, qty)
+  delete marketSellQuantities.value[asset.id]
+}
 
 function onBuyFtOpportunity() {
   const card = ftOpportunityCard.value
@@ -194,12 +256,6 @@ const winner = computed(() => {
 const showActionPanel = computed(() => {
   if (suppressUI.value) return false
   return !!gameStore.pendingAction.type
-})
-
-// 纯消息型提示（棋盘上方，不需要点击确认，结束回合自动消失）
-const showMessageToast = computed(() => {
-  if (suppressUI.value) return false
-  return !gameStore.pendingAction.type && !!gameStore.pendingAction.message
 })
 
 // 获胜后自动跳转到胜利页面
@@ -624,15 +680,7 @@ watch(
       <!-- Board -->
       <section class="relative flex flex-1 flex-col overflow-hidden min-h-0">
         <!-- 消息提示（纯消息类，不需要确认） -->
-        <Transition name="fade-down">
-          <div
-            v-if="showMessageToast"
-            class="absolute top-3 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-primary text-primary-foreground shadow-2xl shadow-primary/30 text-sm font-semibold max-w-[85%] text-center"
-          >
-            <Bell class="h-5 w-5 shrink-0" />
-            <span>{{ gameStore.pendingAction.message }}</span>
-          </div>
-        </Transition>
+        <GameToast :suppress="suppressUI" />
 
         <div class="flex flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 lg:p-6 min-h-0">
           <div class="h-full w-full max-h-full max-w-[560px] min-h-0">
@@ -833,11 +881,110 @@ watch(
                     </div>
                   </div>
 
+                  <!-- ========== 市场事件操作区（多人模式） ========== -->
+                  <div v-if="marketCard && gameStore.pendingAction.type === 'market'" class="market-action-panel mt-3">
+                    <!-- 多玩家提示 -->
+                    <div
+                      v-if="gameStore.marketEventState"
+                      class="mb-3 flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs"
+                    >
+                      <div class="flex items-center gap-2">
+                        <span
+                          class="inline-block h-3 w-3 rounded-full"
+                          :style="{ backgroundColor: gameStore.marketResponder?.color }"
+                        />
+                        <span class="font-medium text-primary">
+                          {{ gameStore.marketResponder?.name }} 操作中
+                        </span>
+                      </div>
+                      <span class="text-muted-foreground">
+                        {{ gameStore.marketEventState.respondedIds.length }}/{{ gameStore.players.length }} 玩家
+                      </span>
+                    </div>
+
+                    <div v-if="sellableAssets.length" class="space-y-3">
+                      <p class="text-xs text-muted-foreground">可以选择卖出以下资产：</p>
+                      <div
+                        v-for="asset in sellableAssets"
+                        :key="asset.id"
+                        class="space-y-3 rounded-xl border border-border bg-background p-4 shadow-sm"
+                      >
+                        <!-- 资产信息头部 -->
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                              <span class="text-sm font-semibold text-foreground">{{ asset.name }}</span>
+                              <span
+                                v-if="asset.symbol"
+                                class="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-mono font-bold text-primary"
+                              >
+                                {{ asset.symbol }}
+                              </span>
+                            </div>
+                            <div class="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                              <div class="flex justify-between">
+                                <span class="text-muted-foreground">持有数量</span>
+                                <span class="font-medium text-foreground">{{ asset.quantity }} {{ getUnitLabel(asset.type) }}</span>
+                              </div>
+                              <div class="flex justify-between">
+                                <span class="text-muted-foreground">卖出单价</span>
+                                <span class="font-medium text-success">{{ formatMoney(getMarketPrice(asset)) }}</span>
+                              </div>
+                              <div class="flex justify-between">
+                                <span class="text-muted-foreground">成本价</span>
+                                <span class="font-medium text-foreground">{{ formatMoney(asset.cost) }}</span>
+                              </div>
+                              <div class="flex justify-between">
+                                <span class="text-muted-foreground">预计总收入</span>
+                                <span class="font-bold text-success">{{ formatMoney(getMarketPrice(asset) * getMarketSellQuantity(asset.id, asset.quantity)) }}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- 数量选择器（数量>1时显示） -->
+                        <QuantitySelector
+                          v-if="asset.quantity > 1"
+                          :model-value="getMarketSellQuantity(asset.id, asset.quantity)"
+                          @update:model-value="(v: number) => setMarketSellQuantity(asset.id, v)"
+                          :max-quantity="asset.quantity"
+                          :unit-price="getMarketPrice(asset)"
+                          mode="sell"
+                          :asset-type="asset.type as 'stock' | 'real_estate' | 'business' | 'other'"
+                          :unit-label="getUnitLabel(asset.type)"
+                          :show-quick-buttons="asset.quantity > 2"
+                        />
+
+                        <!-- 卖出按钮（醒目） -->
+                        <button
+                          type="button"
+                          :disabled="disableHumanActions"
+                          class="w-full rounded-full bg-success py-2.5 text-sm font-semibold text-success-foreground shadow-sm shadow-success/20 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                          @click="onSellMarketAsset(asset)"
+                        >
+                          卖出 {{ getMarketSellQuantity(asset.id, asset.quantity) }} {{ getUnitLabel(asset.type) }} · 可得 {{ formatMoney(getMarketPrice(asset) * getMarketSellQuantity(asset.id, asset.quantity)) }}
+                        </button>
+                      </div>
+                    </div>
+                    <div v-else class="text-xs text-muted-foreground">
+                      无可卖出的相关资产。
+                    </div>
+                    <button
+                      type="button"
+                      :disabled="disableHumanActions"
+                      class="mt-3 w-full rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-40"
+                      @click="gameStore.dismissMarketEvent()"
+                    >
+                      {{ gameStore.marketEventState && gameStore.marketEventState.respondedIds.length < gameStore.players.length - 1 ? '下一位玩家' : '结束' }}
+                    </button>
+                  </div>
+
                   <!-- Doodad / Generic -->
                   <div
                     v-if="
                       !ftOpportunityCard &&
                       !ftDreamPending &&
+                      !(marketCard && gameStore.marketEventState) &&
                       gameStore.pendingAction.message
                     "
                     class="mt-3 flex justify-end"
@@ -849,7 +996,9 @@ watch(
                       @click="
                         gameStore.pendingAction.type === 'bankrupt'
                           ? gameStore.resolveBankruptcy()
-                          : onAcknowledge()
+                          : gameStore.pendingAction.type === 'market'
+                            ? gameStore.dismissMarketEvent()
+                            : onAcknowledge()
                       "
                     >
                       {{ gameStore.pendingAction.type === 'bankrupt' ? '继续游戏' : '知道了' }}

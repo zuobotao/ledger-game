@@ -174,9 +174,79 @@ const opportunityAccentClass = computed(() => {
         </div>
       </div>
 
-      <!-- 中心信息区：grid-column 2 / span 5, grid-row 2 / span 5 -->
+      <!-- 装饰格：顶部玩家进度（第 2 行，列 2-6） -->
+      <div class="decor-row top-row" style="grid-row: 2; grid-column: 2 / span 5;">
+        <div
+          v-for="p in players"
+          :key="p.id"
+          class="player-badge"
+          :class="{ 'active': p.name === currentPlayerName }"
+          :style="{ '--player-color': p.color }"
+        >
+          <div class="player-dot" :style="{ backgroundColor: p.color }" />
+          <span class="player-pos">
+            {{ p.fastTrackPosition ?? 0 }}
+          </span>
+        </div>
+      </div>
+
+      <!-- 装饰格：底部资产类别（第 6 行，列 2-6） -->
+      <div class="decor-row bottom-row" style="grid-row: 6; grid-column: 2 / span 5;">
+        <div class="asset-chip">
+          <Banknote class="chip-icon text-success" />
+        </div>
+        <div class="asset-chip">
+          <ShoppingBag class="chip-icon text-teal-400" />
+        </div>
+        <div class="asset-chip">
+          <TrendingUp class="chip-icon text-purple-400" />
+        </div>
+        <div class="asset-chip">
+          <Gem class="chip-icon text-amber-400" />
+        </div>
+        <div class="asset-chip">
+          <Zap class="chip-icon text-indigo-400" />
+        </div>
+      </div>
+
+      <!-- 装饰格：左侧数据列（第 3-5 行，列 2） -->
+      <div class="decor-col left-col" style="grid-row: 3 / span 3; grid-column: 2;">
+        <div class="side-stat">
+          <div class="side-stat-label">现金</div>
+          <div class="side-stat-value text-foreground">{{ formatMoney(currentPlayerCash) }}</div>
+        </div>
+        <div class="side-stat">
+          <div class="side-stat-label">月现金流</div>
+          <div class="side-stat-value text-success">{{ formatMoney(currentPlayerCashFlow) }}</div>
+        </div>
+        <div class="side-stat">
+          <div class="side-stat-label">回合</div>
+          <div class="side-stat-value text-primary">{{ turnNumber }}</div>
+        </div>
+      </div>
+
+      <!-- 装饰格：右侧梦想进度（第 3-5 行，列 6） -->
+      <div class="decor-col right-col" style="grid-row: 3 / span 3; grid-column: 6;">
+        <template v-if="currentDream">
+          <div class="dream-side-card">
+            <div class="dream-side-icon">
+              <Target class="h-5 w-5 text-amber-400" />
+            </div>
+            <div class="dream-side-name text-amber-300">{{ currentDream.name }}</div>
+            <div class="dream-side-price text-amber-400 font-bold">{{ formatMoney(currentDream.price) }}</div>
+          </div>
+        </template>
+        <template v-else>
+          <div class="dream-side-card empty">
+            <Target class="h-6 w-6 text-muted-foreground/40" />
+            <span class="text-[10px] text-muted-foreground/50">梦想待选</span>
+          </div>
+        </template>
+      </div>
+
+      <!-- 中心信息区：grid-column 3 / span 3, grid-row 3 / span 3 -->
       <div
-        class="center-info flex items-center justify-center rounded-3xl border border-border bg-background/60 backdrop-blur-md shadow-inner"
+        class="center-info flex items-center justify-center rounded-2xl border border-border bg-background/60 backdrop-blur-md shadow-inner"
       >
         <!-- 骰子动画 -->
         <Transition name="center-fade" mode="out-in">
@@ -434,11 +504,217 @@ const opportunityAccentClass = computed(() => {
   }
 }
 
-/* 中心信息区：占据 2-4 行、2-4 列（共 3x3） */
+/* 中心信息区：占据 3-5 行、3-5 列（共 3x3） */
 .center-info {
-  grid-column: 2 / span 5;
-  grid-row: 2 / span 5;
+  grid-column: 3 / span 3;
+  grid-row: 3 / span 3;
   overflow: hidden;
+  border-radius: 1rem;
+}
+
+/* ===== 装饰格样式 ===== */
+
+/* 顶部/底部装饰行 */
+.decor-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 2px;
+  border-radius: 0.75rem;
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+}
+
+@media (min-width: 640px) {
+  .decor-row {
+    gap: 8px;
+    padding: 4px;
+    border-radius: 1rem;
+  }
+}
+
+/* 玩家徽章 */
+.player-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 6px;
+  border-radius: 9999px;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  transition: all 0.2s ease;
+}
+
+.player-badge.active {
+  border-color: var(--player-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--player-color) 30%, transparent);
+}
+
+.player-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+}
+
+.player-pos {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+}
+
+@media (min-width: 640px) {
+  .player-badge {
+    padding: 4px 10px;
+    gap: 3px;
+  }
+  .player-dot {
+    width: 10px;
+    height: 10px;
+  }
+  .player-pos {
+    font-size: 11px;
+  }
+}
+
+/* 资产图标芯片 */
+.asset-chip {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+}
+
+.chip-icon {
+  width: 14px;
+  height: 14px;
+}
+
+@media (min-width: 640px) {
+  .asset-chip {
+    width: 36px;
+    height: 36px;
+  }
+  .chip-icon {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* 左右装饰列 */
+.decor-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  padding: 4px 2px;
+  border-radius: 0.75rem;
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+}
+
+@media (min-width: 640px) {
+  .decor-col {
+    padding: 8px 4px;
+    border-radius: 1rem;
+  }
+}
+
+/* 侧边数据项 */
+.side-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  text-align: center;
+}
+
+.side-stat-label {
+  font-size: 8px;
+  color: var(--color-muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.side-stat-value {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+@media (min-width: 640px) {
+  .side-stat-label {
+    font-size: 10px;
+  }
+  .side-stat-value {
+    font-size: 13px;
+  }
+}
+
+/* 右侧梦想卡片 */
+.dream-side-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 4px;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.05));
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  text-align: center;
+  width: 100%;
+}
+
+.dream-side-card.empty {
+  background: var(--color-background);
+  border-color: var(--color-border);
+  gap: 4px;
+}
+
+.dream-side-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: rgba(251, 191, 36, 0.15);
+}
+
+.dream-side-name {
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dream-side-price {
+  font-size: 10px;
+}
+
+@media (min-width: 640px) {
+  .dream-side-card {
+    padding: 10px 6px;
+    gap: 5px;
+    border-radius: 1rem;
+  }
+  .dream-side-icon {
+    width: 32px;
+    height: 32px;
+  }
+  .dream-side-name {
+    font-size: 11px;
+  }
+  .dream-side-price {
+    font-size: 12px;
+  }
 }
 
 /* 中心区域淡入淡出过渡 */

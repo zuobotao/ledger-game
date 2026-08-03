@@ -192,10 +192,14 @@ export type PendingActionType =
   | 'bankrupt'
   | null
 
+/** 消息类型：用于区分 toast 的视觉样式 */
+export type MessageType = 'info' | 'gain' | 'loss' | 'major'
+
 export interface PendingAction {
   type: PendingActionType
   card: OpportunityCard | MarketEventCard | DoodadCard | StoryCard | null
   message: string
+  messageType?: MessageType
   meta?: Record<string, unknown>
 }
 

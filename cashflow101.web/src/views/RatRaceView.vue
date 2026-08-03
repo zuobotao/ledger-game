@@ -13,11 +13,9 @@ import {
   Landmark,
   Lightbulb,
   Shield,
-  TrendingUp,
   BriefcaseBusiness,
   PieChart,
   HeartHandshake,
-  Bell,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import type { Asset, Liability, MarketEventCard, OpportunityCard, StoryCard } from '@/types/game'
@@ -34,6 +32,7 @@ import PlayerSwitcher from '@/components/PlayerSwitcher.vue'
 import GoalProgress from '@/components/GoalProgress.vue'
 import PhaseSwitcher from '@/components/PhaseSwitcher.vue'
 import AITutorAdvice from '@/components/AITutorAdvice.vue'
+import GameToast from '@/components/GameToast.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -257,6 +256,7 @@ const stockSellHasMoreHolders = computed(() => {
 const opportunityQuantity = ref(1)
 const buyQuantity = ref(1)
 const sellQuantity = ref(1)
+const tradeMode = ref<'buy' | 'sell'>('buy')
 const showBankModal = ref(false)
 const repayInputs = ref<Record<string, number>>({})
 const sidePanelTab = ref<'balance' | 'history' | 'stats'>('balance')
@@ -326,6 +326,7 @@ function onDeclineOpportunity() {
   opportunityQuantity.value = 1
   buyQuantity.value = 1
   sellQuantity.value = 1
+  tradeMode.value = 'buy'
 }
 
 function onTradeBuy() {
@@ -429,13 +430,6 @@ function onAcknowledge() {
 const showActionPanel = computed(() => {
   if (suppressUI.value) return false
   return !!gameStore.pendingAction.type
-})
-
-// 纯消息型提示（棋盘上方，不需要点击确认，结束回合自动消失）
-const showMessageToast = computed(() => {
-  if (suppressUI.value) return false
-  // type 为空但有消息 → 纯消息提示
-  return !gameStore.pendingAction.type && !!gameStore.pendingAction.message
 })
 </script>
 
@@ -926,15 +920,7 @@ const showMessageToast = computed(() => {
       <!-- Board -->
       <section class="relative order-1 flex flex-1 flex-col overflow-hidden min-h-0">
         <!-- 消息提示（纯消息类，不需要确认） -->
-        <Transition name="fade-down">
-          <div
-            v-if="showMessageToast"
-            class="absolute top-3 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-primary text-primary-foreground shadow-2xl shadow-primary/30 text-sm font-semibold max-w-[85%] text-center"
-          >
-            <Bell class="h-5 w-5 shrink-0" />
-            <span>{{ gameStore.pendingAction.message }}</span>
-          </div>
-        </Transition>
+        <GameToast :suppress="suppressUI" />
 
         <div class="flex flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 lg:p-6 min-h-0">
           <div class="h-full w-full max-h-full max-w-[680px] min-h-0">
@@ -1040,7 +1026,7 @@ const showMessageToast = computed(() => {
                   </button>
                 </div>
 
-                <!-- 股票交易卡：同时显示买入和卖出（小机会股票卡，非拆分/合股） -->
+                <!-- 股票交易卡：Tab 切换买卖，一次只能执行一种操作 -->
                 <div v-else-if="isStockTradeCard" class="stock-trade-panel">
                   <!-- 当前持仓信息 -->
                   <div class="mb-3 rounded-xl border border-border bg-secondary/30 p-3">
@@ -1076,8 +1062,35 @@ const showMessageToast = computed(() => {
                     </div>
                   </div>
 
-                  <!-- 买入区域 -->
-                  <div class="mb-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                  <!-- 买卖 Tab 切换 -->
+                  <div class="mb-3 flex rounded-xl bg-secondary/50 p-1">
+                    <button
+                      type="button"
+                      class="flex-1 rounded-lg py-2 text-sm font-semibold transition-all"
+                      :class="tradeMode === 'buy'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'"
+                      @click="tradeMode = 'buy'"
+                    >
+                      买入
+                    </button>
+                    <button
+                      type="button"
+                      class="flex-1 rounded-lg py-2 text-sm font-semibold transition-all"
+                      :class="tradeMode === 'sell'
+                        ? 'bg-success text-success-foreground shadow-sm'
+                        : hasStockHolding
+                          ? 'text-muted-foreground hover:text-foreground'
+                          : 'text-muted-foreground/40 cursor-not-allowed'"
+                      :disabled="!hasStockHolding"
+                      @click="hasStockHolding && (tradeMode = 'sell')"
+                    >
+                      卖出
+                    </button>
+                  </div>
+
+                  <!-- 买入面板 -->
+                  <div v-if="tradeMode === 'buy'" class="rounded-xl border border-primary/30 bg-primary/5 p-3">
                     <div class="mb-2 flex items-center justify-between">
                       <span class="text-sm font-semibold text-primary">买入</span>
                       <span class="text-xs text-muted-foreground">
@@ -1101,53 +1114,48 @@ const showMessageToast = computed(() => {
                     <button
                       type="button"
                       :disabled="maxBuyQuantity === 0 || buyQuantity <= 0 || disableHumanActions"
-                      class="w-full rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                      class="w-full rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                       @click="onTradeBuy"
                     >
-                      买入 {{ buyQuantity }} 股 · {{ formatMoney(opportunityCard.cost * buyQuantity) }}
+                      确认买入 {{ buyQuantity }} 股 · {{ formatMoney(opportunityCard.cost * buyQuantity) }}
                     </button>
                   </div>
 
-                  <!-- 卖出区域 -->
-                  <div class="mb-3 rounded-xl border border-success/30 bg-success/5 p-3">
+                  <!-- 卖出面板 -->
+                  <div v-else class="rounded-xl border border-success/30 bg-success/5 p-3">
                     <div class="mb-2 flex items-center justify-between">
                       <span class="text-sm font-semibold text-success">卖出</span>
                       <span class="text-xs text-muted-foreground">
                         卖出价 {{ formatMoney(opportunityCard.cost) }}/股
                       </span>
                     </div>
-                    <template v-if="hasStockHolding">
-                      <QuantitySelector
-                        v-model="sellQuantity"
-                        :max-quantity="maxSellQuantity"
-                        :unit-price="opportunityCard.cost"
-                        mode="sell"
-                        asset-type="stock"
-                        unit-label="股"
-                        class="mb-2"
-                      />
-                      <button
-                        type="button"
-                        :disabled="maxSellQuantity === 0 || sellQuantity <= 0 || disableHumanActions"
-                        class="w-full rounded-full bg-success px-4 py-2 text-sm font-semibold text-success-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-                        @click="onTradeSell"
-                      >
-                        卖出 {{ sellQuantity }} 股 · {{ formatMoney(opportunityCard.cost * sellQuantity) }}
-                      </button>
-                    </template>
-                    <div v-else class="rounded-lg border border-muted/30 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                      未持有该股票，无法卖出
-                    </div>
+                    <QuantitySelector
+                      v-model="sellQuantity"
+                      :max-quantity="maxSellQuantity"
+                      :unit-price="opportunityCard.cost"
+                      mode="sell"
+                      asset-type="stock"
+                      unit-label="股"
+                      class="mb-2"
+                    />
+                    <button
+                      type="button"
+                      :disabled="maxSellQuantity === 0 || sellQuantity <= 0 || disableHumanActions"
+                      class="w-full rounded-full bg-success px-4 py-2.5 text-sm font-semibold text-success-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                      @click="onTradeSell"
+                    >
+                      确认卖出 {{ sellQuantity }} 股 · {{ formatMoney(opportunityCard.cost * sellQuantity) }}
+                    </button>
                   </div>
 
                   <!-- 放弃按钮 -->
                   <button
                     type="button"
                     :disabled="disableHumanActions"
-                    class="w-full rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                    class="mt-3 w-full rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
                     @click="onDeclineOpportunity"
                   >
-                    放弃 / 完成
+                    放弃
                   </button>
                 </div>
 
@@ -1568,6 +1576,7 @@ const showMessageToast = computed(() => {
   opacity: 0;
   transform: translate(-50%, -10px);
 }
+
 
 /* 卡片操作面板样式 */
 .card-action-panel {

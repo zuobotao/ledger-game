@@ -590,8 +590,22 @@ export const useGameStore = defineStore('game', () => {
     message: string,
     card: PendingAction['card'] = null,
     meta?: Record<string, unknown>,
+    messageType?: PendingAction['messageType'],
   ) {
-    pendingAction.value = { type, card, message, meta }
+    pendingAction.value = { type, card, message, meta, messageType }
+  }
+
+  /** 设置纯消息型 toast（type=null，带消息类型） */
+  function setMessageToast(message: string, messageType: PendingAction['messageType'] = 'info') {
+    pendingAction.value = { type: null, card: null, message, messageType }
+  }
+
+  function setPendingMessage(message: string, messageType?: PendingAction['messageType']) {
+    pendingAction.value = {
+      ...pendingAction.value,
+      message,
+      messageType,
+    }
   }
 
   function clearPending() {
@@ -1212,7 +1226,8 @@ export const useGameStore = defineStore('game', () => {
           saveState()
           return
         }
-        setPending('doodad', msg, card)
+        // 已成功支付 → 纯消息提示（顶部 toast，损失类型）
+        setMessageToast(msg, 'loss')
         break
       }
       case 'market': {
@@ -1228,7 +1243,7 @@ export const useGameStore = defineStore('game', () => {
         if (player.childrenCount < maxChildren) {
           player.childrenCount += 1
           recalcPlayerFinancials(player)
-          setPending(null, `孩子出生！你现在有 ${player.childrenCount} 个孩子，子女支出增加。`)
+          setMessageToast(`孩子出生！你现在有 ${player.childrenCount} 个孩子，子女支出增加。`, 'major')
         } else {
           setPending(null, '孩子数量已达上限。')
         }
@@ -1273,7 +1288,7 @@ export const useGameStore = defineStore('game', () => {
       }
       case 'payday':
         // Already handled while passing
-        setPending(null, messages[messages.length - 1] ?? '发工资')
+        setMessageToast(messages[messages.length - 1] ?? '发工资', 'gain')
         break
       default:
         setPending(null, `落在 ${landedCell.name}。`)
@@ -1292,7 +1307,7 @@ export const useGameStore = defineStore('game', () => {
       player.doubleDiceNextTurn = true
       player.charityProtection = true
       recordTransaction('charity', -donation, '慈善捐赠')
-      setPending(null, `你捐赠了 ${formatMoney(donation)}，下回合掷双骰，同时获得慈善保护（下次裁员免疫）。`)
+      setMessageToast(`你捐赠了 ${formatMoney(donation)}，下回合掷双骰，同时获得慈善保护（下次裁员免疫）。`, 'major')
       turnStatus.value = 'resolving'
       saveState()
     })
@@ -1340,7 +1355,7 @@ export const useGameStore = defineStore('game', () => {
     return true
   }
 
-  // 股票交易卡：买入（不关闭卡片，可继续操作）
+  // 股票交易卡：买入（执行后关闭卡片，显示结果消息）
   function tradeBuyStock(quantity: number): boolean {
     const player = currentPlayer.value
     const card = pendingAction.value.card as OpportunityCard | null
@@ -1380,17 +1395,14 @@ export const useGameStore = defineStore('game', () => {
     })
     recordCardDrawn('opportunity', card, player.id, 'accepted', cost)
 
-    // 不关闭卡片，保持 opportunity 状态，让玩家可以继续操作
-    // 更新消息以提示买入成功
-    pendingAction.value = {
-      ...pendingAction.value,
-      message: `已买入 ${card.symbol} ×${quantity}，支出 ${formatMoney(cost)}。可继续交易或放弃。`,
-    }
+    // 关闭卡片，显示结果 toast
+    setMessageToast(`已买入 ${card.symbol} ×${quantity}，支出 ${formatMoney(cost)}。`, 'loss')
+    turnStatus.value = 'resolving'
     saveState()
     return true
   }
 
-  // 股票交易卡：卖出（不关闭卡片，可继续操作）
+  // 股票交易卡：卖出（执行后关闭卡片，显示结果消息）
   function tradeSellStock(quantity: number): boolean {
     const player = currentPlayer.value
     const card = pendingAction.value.card as OpportunityCard | null
@@ -1424,11 +1436,9 @@ export const useGameStore = defineStore('game', () => {
     })
     recordCardDrawn('opportunity', card, player.id, 'sold', total)
 
-    // 不关闭卡片，保持 opportunity 状态，让玩家可以继续操作
-    pendingAction.value = {
-      ...pendingAction.value,
-      message: `已卖出 ${symbol} ×${quantity}，获得 ${formatMoney(total)}。可继续交易或放弃。`,
-    }
+    // 关闭卡片，显示结果 toast
+    setMessageToast(`已卖出 ${symbol} ×${quantity}，获得 ${formatMoney(total)}。`, 'gain')
+    turnStatus.value = 'resolving'
     saveState()
     return true
   }
@@ -1497,6 +1507,11 @@ export const useGameStore = defineStore('game', () => {
       return ok
     }
 
+    // 企业和房产类型一次只能购买 1 份（平衡性）
+    if ((card.type === 'real_estate' || card.type === 'business') && quantity > 1) {
+      quantity = 1
+    }
+
     const cost = card.cost * quantity
     if (player.cash < cost) return false
 
@@ -1558,6 +1573,7 @@ export const useGameStore = defineStore('game', () => {
     if (card) {
       recordCardDrawn('doodad', card, undefined, 'ignored', card.cost)
     }
+    clearPending()
     turnStatus.value = 'resolving'
     saveState()
   }
@@ -1573,6 +1589,7 @@ export const useGameStore = defineStore('game', () => {
         card.effect.amount,
       )
     }
+    clearPending()
     turnStatus.value = 'resolving'
     saveState()
   }
@@ -1953,16 +1970,17 @@ export const useGameStore = defineStore('game', () => {
       case 'stock': {
         const { card, remaining } = drawMarketCard(decks.value.market)
         decks.value.market = remaining
-        // Apply market effect to stock holdings
-        const result = applyMarketEventFastTrack(card, player)
-        setPending('market', `股票交易：${card.title} — ${result}`, card)
+        recordCardDrawn('market', card)
+        const result = applyMarketEvent(card, player)
+        setPending('market', `股票交易：${result}`, card)
         break
       }
       case 'market': {
         const { card, remaining } = drawMarketCard(decks.value.market)
         decks.value.market = remaining
-        const result = applyMarketEventFastTrack(card, player)
-        setPending('market', `市场风云：${card.title} — ${result}`, card)
+        recordCardDrawn('market', card)
+        const result = applyMarketEvent(card, player)
+        setPending('market', `市场风云：${result}`, card)
         break
       }
       case 'charity': {
