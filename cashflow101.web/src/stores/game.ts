@@ -1614,7 +1614,8 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function acknowledgeMessage() {
-    if (turnStatus.value === 'resolving') return
+    // 清除 pending message 和 type，让浮层消失，露出结束回合按钮
+    pendingAction.value = { type: null, card: null, message: '' }
     turnStatus.value = 'resolving'
     saveState()
   }
