@@ -17,6 +17,7 @@ import {
   BriefcaseBusiness,
   PieChart,
   HeartHandshake,
+  Bell,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import type { Asset, Liability, MarketEventCard, OpportunityCard, StoryCard } from '@/types/game'
@@ -928,9 +929,10 @@ const showMessageToast = computed(() => {
         <Transition name="fade-down">
           <div
             v-if="showMessageToast"
-            class="absolute top-2 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full border border-border bg-background/90 backdrop-blur-md shadow-lg text-sm font-medium text-foreground max-w-[90%] text-center"
+            class="absolute top-3 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-primary text-primary-foreground shadow-2xl shadow-primary/30 text-sm font-semibold max-w-[85%] text-center"
           >
-            {{ gameStore.pendingAction.message }}
+            <Bell class="h-5 w-5 shrink-0" />
+            <span>{{ gameStore.pendingAction.message }}</span>
           </div>
         </Transition>
 
