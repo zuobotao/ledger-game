@@ -261,7 +261,7 @@ export const useGameStore = defineStore('game', () => {
     ageLimit: true,
   })
   const winnerId = ref<string | null>(null)
-  const gameEndReason = ref<'victory' | 'retirement' | null>(null)
+  const gameEndReason = ref<'victory' | 'retirement' | 'bankrupt' | null>(null)
   const turnStatus = ref<TurnStatus>('idle')
   const lastRoll = ref(0)
   const lastDiceValues = ref<number[]>([])
@@ -279,8 +279,17 @@ export const useGameStore = defineStore('game', () => {
   const viewingPlayerId = ref<string | null>(null)
   const viewingPhase = ref<'rat_race' | 'fast_track' | null>(null)
   const learningMode = ref(false)
+  const gameStartTime = ref(0)
+  const ratRaceTurns = ref(0)
+  const fastTrackTurns = ref(0)
 
   const currentPlayer = computed<Player | null>(() => players.value[currentPlayerIndex.value] ?? null)
+
+  // 主玩家（第一个非AI玩家，如果全是AI则用第一个）
+  const mainPlayer = computed<Player | null>(() => {
+    const human = players.value.find((p) => !p.isAI)
+    return human ?? players.value[0] ?? null
+  })
   const isGameStarted = computed(() => phase.value === 'rat_race' || phase.value === 'fast_track')
 
   const currentPlayerAge = computed(() => {
@@ -463,6 +472,9 @@ export const useGameStore = defineStore('game', () => {
       decks: decks.value,
       transactions: transactions.value,
       cardHistory: cardHistory.value,
+      gameStartTime: gameStartTime.value,
+      ratRaceTurns: ratRaceTurns.value,
+      fastTrackTurns: fastTrackTurns.value,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }
@@ -503,6 +515,9 @@ export const useGameStore = defineStore('game', () => {
       decks.value = state.decks ?? createDecks()
       transactions.value = state.transactions ?? []
       cardHistory.value = state.cardHistory ?? []
+      gameStartTime.value = state.gameStartTime ?? 0
+      ratRaceTurns.value = state.ratRaceTurns ?? 0
+      fastTrackTurns.value = state.fastTrackTurns ?? 0
       players.value.forEach(recalcPlayerFinancials)
     } catch {
       localStorage.removeItem(STORAGE_KEY)
@@ -543,6 +558,9 @@ export const useGameStore = defineStore('game', () => {
     lastRoll.value = 0
     turnNumber.value = 1
     gameMonth.value = 0
+    gameStartTime.value = Date.now()
+    ratRaceTurns.value = 0
+    fastTrackTurns.value = 0
     pendingAction.value = { type: null, card: null, message: '' }
     marketEvent.value = null
     marketEventState.value = null
@@ -576,6 +594,9 @@ export const useGameStore = defineStore('game', () => {
     lastRoll.value = 0
     turnNumber.value = 1
     gameMonth.value = 0
+    gameStartTime.value = 0
+    ratRaceTurns.value = 0
+    fastTrackTurns.value = 0
     pendingAction.value = { type: null, card: null, message: '' }
     marketEvent.value = null
     marketEventState.value = null
@@ -666,6 +687,12 @@ export const useGameStore = defineStore('game', () => {
     currentPlayerIndex.value = nextIndex
     if (wasLastPlayer) {
       turnNumber.value += 1
+      // 按阶段累计回合数
+      if (phase.value === 'rat_race') {
+        ratRaceTurns.value += 1
+      } else if (phase.value === 'fast_track') {
+        fastTrackTurns.value += 1
+      }
     }
     const p = currentPlayer.value
     if (!p) return
@@ -689,6 +716,7 @@ export const useGameStore = defineStore('game', () => {
     // 如果下一个玩家是 AI，自动执行 AI 回合
     const nextPlayer = currentPlayer.value
     if (
+      autoAITrigger.value &&
       nextPlayer?.isAI &&
       !nextPlayer.isBankrupt &&
       (phase.value === 'rat_race' || phase.value === 'fast_track')
@@ -1017,7 +1045,7 @@ export const useGameStore = defineStore('game', () => {
       turnStatus.value = 'resolving'
 
       // 如果下一个回应玩家是 AI，自动处理
-      if (nextPlayer?.isAI) {
+      if (nextPlayer?.isAI && autoAITrigger.value) {
         setTimeout(() => {
           aiHandleMarketEvent()
         }, 300)
@@ -1130,7 +1158,7 @@ export const useGameStore = defineStore('game', () => {
       )
       turnStatus.value = 'resolving'
 
-      if (nextPlayer?.isAI) {
+      if (nextPlayer?.isAI && autoAITrigger.value) {
         setTimeout(() => {
           aiHandleStockSellOpportunity()
         }, 300)
@@ -1586,7 +1614,7 @@ export const useGameStore = defineStore('game', () => {
         { id: card.id, title: card.title, description: card.story },
         undefined,
         'ignored',
-        card.effect.amount,
+        card.effect?.amount ?? 0,
       )
     }
     clearPending()
@@ -1727,6 +1755,25 @@ export const useGameStore = defineStore('game', () => {
 
     recordTransaction('bankrupt', 0, '宣告破产', player.id)
 
+    // 检查是否所有玩家都破产了，或多人模式只剩一人
+    const remainingActive = players.value.filter((p) => !p.isBankrupt)
+    if (remainingActive.length === 0) {
+      gameEndReason.value = 'bankrupt'
+      phase.value = 'finished'
+      turnStatus.value = 'finished'
+      saveState()
+      return
+    }
+    if (remainingActive.length === 1 && players.value.length > 1) {
+      // 多人模式下只剩一名玩家，该玩家获胜
+      winnerId.value = remainingActive[0]!.id
+      gameEndReason.value = 'victory'
+      phase.value = 'finished'
+      turnStatus.value = 'finished'
+      saveState()
+      return
+    }
+
     setPending(
       'bankrupt',
       `${player.name} 已宣告破产，退出游戏。`,
@@ -1745,10 +1792,17 @@ export const useGameStore = defineStore('game', () => {
   // 获取活跃玩家（未破产）
   const activePlayers = computed(() => players.value.filter((p) => !p.isBankrupt))
 
-  // 检查游戏是否只剩一个玩家（多人模式下决定胜负）
+  // 检查游戏是否因破产而结束
   function checkBankruptcyVictory(): void {
     const active = activePlayers.value
-    if (active.length === 1 && players.value.length > 1) {
+    if (active.length === 0) {
+      // 所有玩家都破产了，游戏结束
+      gameEndReason.value = 'bankrupt'
+      phase.value = 'finished'
+      turnStatus.value = 'finished'
+      saveState()
+    } else if (active.length === 1 && players.value.length > 1) {
+      // 多人模式下只剩一名玩家，该玩家获胜
       winnerId.value = active[0]!.id
       gameEndReason.value = 'victory'
       phase.value = 'finished'
@@ -2036,8 +2090,19 @@ export const useGameStore = defineStore('game', () => {
 
   // ==================== AI 回合逻辑 ====================
 
+  const aiSpeedMultiplier = ref(1)
+  const autoAITrigger = ref(true) // 是否自动触发AI回合（测试时设为false）
+
   function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms))
+    return new Promise((resolve) => setTimeout(resolve, ms * aiSpeedMultiplier.value))
+  }
+
+  function setAISpeed(multiplier: number) {
+    aiSpeedMultiplier.value = Math.max(0.01, Math.min(10, multiplier))
+  }
+
+  function setAutoAITrigger(enabled: boolean) {
+    autoAITrigger.value = enabled
   }
 
   async function runAITurn(): Promise<void> {
@@ -2046,7 +2111,6 @@ export const useGameStore = defineStore('game', () => {
     if (phase.value !== 'rat_race' && phase.value !== 'fast_track') return
 
     isAIThinking.value = true
-
     try {
       // 1. 等待 500ms（让玩家看清）
       await sleep(500)
@@ -2091,6 +2155,34 @@ export const useGameStore = defineStore('game', () => {
           await sleep(300)
           repayAllBankLoans(repayAmount)
         }
+      }
+
+      // 7.5 老鼠圈阶段：检测是否满足进入资本游戏条件，满足则自动进入
+      if (phase.value === 'rat_race' && checkFinancialFreedom()) {
+        await sleep(500)
+        enterFastTrack()
+
+        // 进入资本游戏后，执行第一个快车道回合
+        await sleep(500)
+
+        // 掷骰子（快车道）
+        fastTrackRollDice()
+        await sleep(800)
+
+        // 处理快车道 pending action
+        await aiHandlePendingAction()
+
+        // 快车道阶段也考虑还款
+        if (turnStatus.value === 'resolving') {
+          const difficulty: AIDifficulty = (player.aiDifficulty as AIDifficulty) ?? 'medium'
+          const repayAmount = AIDecision.decideRepayLoan(player, difficulty)
+          if (repayAmount > 0) {
+            await sleep(300)
+            repayAllBankLoans(repayAmount)
+          }
+        }
+
+        await sleep(300)
       }
 
       // 8. 等待 300ms
@@ -2170,6 +2262,11 @@ export const useGameStore = defineStore('game', () => {
 
       case 'market': {
         await aiHandleMarketEvent()
+        break
+      }
+
+      case 'stock_sell_opportunity': {
+        await aiHandleStockSellOpportunity()
         break
       }
 
@@ -2471,10 +2568,16 @@ export const useGameStore = defineStore('game', () => {
     aiHandlePendingAction,
     aiHandleMarketEvent,
     aiHandleStockSellOpportunity,
+    setAISpeed,
+    setAutoAITrigger,
     declareBankruptcy,
     resolveBankruptcy,
     activePlayers,
     canPlayerAfford,
+    mainPlayer,
+    gameStartTime,
+    ratRaceTurns,
+    fastTrackTurns,
     // 测试用导出
     handlePayday,
     recalcPlayerFinancials,
@@ -2484,6 +2587,8 @@ export const useGameStore = defineStore('game', () => {
     declineOpportunity,
     endTurn: moveToNextPlayer,
     applyMarketEventFastTrack,
+    pendingAction,
+    turnStatus,
     calcPlayerNetWorth,
     drawFastTrackOpportunityCard: drawFastTrackOpportunity,
   }

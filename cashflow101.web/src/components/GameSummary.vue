@@ -21,9 +21,12 @@ import {
   Lightbulb,
   ChevronDown,
   ChevronUp,
+  Calendar,
+  Target,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import type { Player, TransactionRecord, CardHistoryRecord } from '@/types/game'
+import { START_AGE } from '@/types/game'
 
 interface Props {
   player: Player
@@ -169,6 +172,111 @@ const finalSnapshot = computed(() => {
 const cashFlowChange = computed(() => {
   if (!initialSnapshot.value || !finalSnapshot.value) return 0
   return finalSnapshot.value.monthlyCashFlow - initialSnapshot.value.monthlyCashFlow
+})
+
+// 年龄计算
+const finalAge = computed(() => {
+  const totalMonths = props.totalTurns
+  return {
+    years: START_AGE + Math.floor(totalMonths / 12),
+    months: totalMonths % 12,
+  }
+})
+
+// 阶段评价等级和评语
+interface GradeResult {
+  grade: 'S' | 'A' | 'B' | 'C' | 'D'
+  color: string
+  bgColor: string
+  comment: string
+}
+
+const phaseGrade = computed<GradeResult>(() => {
+  const turns = props.totalTurns
+  const age = finalAge.value.years
+  const netWorth = finalNetWorth.value
+  const cfChange = cashFlowChange.value
+  const assetCount = props.player.assets.length
+
+  let score = 100
+
+  // 用时评分（越年轻完成越好）
+  if (props.phase === 'rat_race_end') {
+    // 老鼠圈：30岁前S，35岁前A，40岁前B，50岁前C，50+ D
+    if (age <= 30) score += 20
+    else if (age <= 35) score += 15
+    else if (age <= 40) score += 10
+    else if (age <= 50) score += 5
+    else score -= 10
+  } else if (props.phase === 'victory') {
+    // 胜利：40岁前S，50岁前A，60岁前B，70岁前C，70+ D
+    if (age <= 40) score += 20
+    else if (age <= 50) score += 15
+    else if (age <= 60) score += 10
+    else if (age <= 70) score += 5
+    else score -= 10
+  }
+
+  // 资产增长评分
+  if (netWorth > 10000000) score += 20
+  else if (netWorth > 5000000) score += 15
+  else if (netWorth > 1000000) score += 10
+  else if (netWorth > 100000) score += 5
+  else score -= 10
+
+  // 被动收入增长评分
+  if (cfChange > 50000) score += 20
+  else if (cfChange > 20000) score += 15
+  else if (cfChange > 5000) score += 10
+  else if (cfChange > 1000) score += 5
+  else score -= 5
+
+  // 资产多样性评分
+  if (assetCount >= 8) score += 15
+  else if (assetCount >= 5) score += 10
+  else if (assetCount >= 3) score += 5
+  else if (assetCount >= 1) score += 0
+  else score -= 5
+
+  // 破产场景
+  if (props.phase === 'game_over') {
+    score = 30 + Math.floor(turns / 10) // 坚持越久分越高
+  }
+
+  // 转换为等级
+  let grade: 'S' | 'A' | 'B' | 'C' | 'D'
+  let color: string
+  let bgColor: string
+  let comment: string
+
+  if (score >= 130) {
+    grade = 'S'
+    color = 'text-amber-400'
+    bgColor = 'bg-amber-500/20 border-amber-400/40'
+    comment = '投资天才！年纪轻轻就取得了卓越的财务成就，你的决策力和眼光令人惊叹。'
+  } else if (score >= 110) {
+    grade = 'A'
+    color = 'text-purple-400'
+    bgColor = 'bg-purple-500/20 border-purple-400/40'
+    comment = '优秀的投资者！在合理的时间内完成了目标，财务决策稳健而高效。'
+  } else if (score >= 90) {
+    grade = 'B'
+    color = 'text-blue-400'
+    bgColor = 'bg-blue-500/20 border-blue-400/40'
+    comment = '不错的表现！通过努力积累了可观的财富，继续保持这种势头。'
+  } else if (score >= 70) {
+    grade = 'C'
+    color = 'text-green-400'
+    bgColor = 'bg-green-500/20 border-green-400/40'
+    comment = '勉强达标。虽然实现了目标，但过程中可以更高效地配置资产、把握机会。'
+  } else {
+    grade = 'D'
+    color = 'text-muted-foreground'
+    bgColor = 'bg-muted/50 border-border'
+    comment = '需要加油！财务之路充满挑战，建议学习更多投资知识，调整策略再出发。'
+  }
+
+  return { grade, color, bgColor, comment }
 })
 
 // ========== 财务分析 ==========
@@ -628,11 +736,25 @@ const cashFlowSparkline = computed(() => {
                 </div>
               </div>
             </div>
+            <!-- 年龄 + 评级 -->
+            <div class="age-grade-section">
+              <div class="age-display">
+                <Calendar class="h-4 w-4 text-muted-foreground" />
+                <span class="age-label">当前年龄</span>
+                <span class="age-value">{{ finalAge.years }} 岁 {{ finalAge.months }} 月</span>
+              </div>
+              <div :class="['grade-badge', phaseGrade.bgColor]">
+                <span :class="['grade-letter', phaseGrade.color]">{{ phaseGrade.grade }}</span>
+                <span class="grade-label">评级</span>
+              </div>
+            </div>
+            <p :class="['grade-comment', phaseGrade.color]">{{ phaseGrade.comment }}</p>
+
             <!-- 关键指标卡片 -->
             <div class="stats-grid">
               <div class="stat-card">
                 <Clock class="h-4 w-4 text-muted-foreground" />
-                <div class="stat-value">{{ totalTurns }}</div>
+                <div class="stat-value">{{ props.totalTurns }}</div>
                 <div class="stat-label">总回合数</div>
               </div>
               <div class="stat-card">
@@ -1070,9 +1192,10 @@ const cashFlowSparkline = computed(() => {
 /* Header */
 .summary-header {
   position: relative;
-  padding: 32px 24px 24px;
+  padding: 28px 24px 20px;
   text-align: center;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .header-glow {
@@ -1125,15 +1248,16 @@ const cashFlowSparkline = computed(() => {
 }
 
 .header-icon {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 16px;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 16px;
   position: relative;
   z-index: 1;
+  flex-shrink: 0;
 }
 
 .header-title {

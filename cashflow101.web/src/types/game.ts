@@ -279,7 +279,7 @@ export interface GameState {
   phase: GamePhase
   config: GameConfig
   winnerId: string | null
-  gameEndReason?: 'victory' | 'retirement' | null
+  gameEndReason?: 'victory' | 'retirement' | 'bankrupt' | null
   turnStatus: TurnStatus
   lastRoll: number
   turnNumber?: number
@@ -290,6 +290,9 @@ export interface GameState {
   decks?: CardDeck
   transactions?: TransactionRecord[]
   cardHistory?: CardHistoryRecord[]
+  gameStartTime?: number
+  ratRaceTurns?: number
+  fastTrackTurns?: number
 }
 
 export interface MarketEventState {
@@ -436,4 +439,47 @@ export interface FinancialTip {
   category: TipCategory
   title: string
   content: string
+}
+
+// ==================== 历史对局记录 ====================
+
+export type GameResult = 'victory' | 'bankrupt' | 'retirement'
+
+export interface GameHistoryPlayerSummary {
+  id: string
+  name: string
+  color: string
+  careerName: string
+  isAI: boolean
+  isWinner: boolean
+  isBankrupt: boolean
+  finalCash: number
+  finalNetWorth: number
+  passiveIncome: number
+  totalExpenses: number
+  assetCount: number
+}
+
+export interface GameHistoryRecord {
+  id: string
+  startTime: number
+  endTime: number
+  totalTurns: number
+  ratRaceTurns: number
+  fastTrackTurns: number
+  result: GameResult
+  config: GameConfig
+  playerCount: number
+  aiCount: number
+  mainPlayerId: string
+  players: GameHistoryPlayerSummary[]
+  dreamName?: string
+  grade?: 'S' | 'A' | 'B' | 'C' | 'D'
+  note?: string
+}
+
+export interface GameHistoryDetail extends GameHistoryRecord {
+  mainPlayerTransactions: TransactionRecord[]
+  mainPlayerCardHistory: CardHistoryRecord[]
+  mainPlayerSnapshots: FinancialSnapshot[]
 }

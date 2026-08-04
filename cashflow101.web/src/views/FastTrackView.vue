@@ -106,7 +106,7 @@ const ftDreamPending = computed(() => gameStore.pendingAction.type === 'fast_tra
 const ftQuantity = ref(1)
 const ftBuyError = ref('')
 const showBankModal = ref(false)
-const showFinancialPanel = ref(false)
+const showFinancialPanel = ref(true)
 const showPlayerSwitcher = ref(false)
 
 // 侧边栏显示的玩家（可以切换查看其他玩家）
@@ -683,7 +683,7 @@ watch(
         <GameToast :suppress="suppressUI" />
 
         <div class="flex flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 lg:p-6 min-h-0">
-          <div class="h-full w-full max-h-full max-w-[560px] min-h-0">
+          <div class="h-full w-full max-h-full min-h-0">
             <FastTrackBoard
               :players="gameStore.players"
               :current-position="gameStore.currentPlayer?.fastTrackPosition ?? 0"

@@ -1,17 +1,89 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch, onUnmounted, nextTick } from 'vue'
 import { Coins, TrendingDown, Star, Bell, Sparkles, TrendingUp, AlertTriangle, Zap } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 
 const props = defineProps<{
   suppress?: boolean
+  duration?: number // 自动消失时间（毫秒），默认 3000
 }>()
 
 const gameStore = useGameStore()
 
+// 控制 toast 显示的本地状态（用于自动消失动画）
+const visible = ref(false)
+let dismissTimer: ReturnType<typeof setTimeout> | null = null
+
+// 基础条件：有消息且不是操作型 pending
+const hasMessage = computed(() => {
+  return !gameStore.pendingAction.type && !!gameStore.pendingAction.message
+})
+
+// 最终显示条件：不被抑制 + 有消息 + visible 为 true
 const showMessageToast = computed(() => {
   if (props.suppress) return false
-  return !gameStore.pendingAction.type && !!gameStore.pendingAction.message
+  return hasMessage.value && visible.value
+})
+
+// 监听消息变化：新消息出现时显示并启动自动消失
+watch(
+  () => gameStore.pendingAction.message,
+  (newMsg) => {
+    if (newMsg && !gameStore.pendingAction.type) {
+      // 有新消息：重置后显示
+      visible.value = false
+      nextTick(() => {
+        visible.value = true
+        startDismissTimer()
+      })
+    } else {
+      // 消息被清除：立即隐藏
+      visible.value = false
+      if (dismissTimer) {
+        clearTimeout(dismissTimer)
+        dismissTimer = null
+      }
+    }
+  },
+  { immediate: true },
+)
+
+// 监听 suppress 变化：如果 suppress 期间有消息积累，解除后重新显示
+watch(
+  () => props.suppress,
+  (isSuppressed, wasSuppressed) => {
+    // 从抑制变为不抑制，且有消息时，重新显示动画
+    if (wasSuppressed && !isSuppressed && hasMessage.value) {
+      visible.value = false
+      nextTick(() => {
+        visible.value = true
+        startDismissTimer()
+      })
+    }
+    // 进入抑制状态：清除定时器
+    if (isSuppressed && dismissTimer) {
+      clearTimeout(dismissTimer)
+      dismissTimer = null
+    }
+  },
+)
+
+function startDismissTimer() {
+  if (dismissTimer) clearTimeout(dismissTimer)
+  const duration = props.duration ?? 3000
+  dismissTimer = setTimeout(() => {
+    visible.value = false
+    // 动画结束后清除 store 中的消息
+    setTimeout(() => {
+      if (!visible.value) {
+        gameStore.acknowledgeMessage()
+      }
+    }, 300)
+  }, duration)
+}
+
+onUnmounted(() => {
+  if (dismissTimer) clearTimeout(dismissTimer)
 })
 
 interface ToastConfig {
@@ -171,11 +243,17 @@ const messageToastConfig = computed<ToastConfig>(() => {
 <style scoped>
 /* 入场动画：从上方滑入 + 缩放弹入 */
 .game-toast-enter-active {
-  animation: toast-slide-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: toast-slide-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .game-toast-leave-active {
   animation: toast-slide-out 0.3s ease-in forwards;
+}
+
+/* 确保入场前就是居中状态，防止从左边闪入 */
+.game-toast-enter-from {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px) scale(0.9);
 }
 
 @keyframes toast-slide-in {

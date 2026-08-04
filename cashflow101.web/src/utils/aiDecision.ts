@@ -530,6 +530,7 @@ export const AIDecision = {
   decideBankLoan,
   decideRepayLoan,
   decideBuyInsurance,
+  decideUnemploymentInsurance,
   decideCharity,
   decideBuyFastTrackOpportunity,
   decideBuyDream,

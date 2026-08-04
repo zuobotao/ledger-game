@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Play, HelpCircle } from 'lucide-vue-next'
+import { Play, HelpCircle, History } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -10,6 +10,10 @@ function goToSetup() {
 
 function goToRules() {
   router.push({ name: 'rules' })
+}
+
+function goToHistory() {
+  router.push({ name: 'history' })
 }
 </script>
 
@@ -53,6 +57,17 @@ function goToRules() {
           >
             <HelpCircle class="h-5 w-5" />
             游戏规则
+          </button>
+        </div>
+
+        <div class="mt-6">
+          <button
+            type="button"
+            @click="goToHistory"
+            class="inline-flex h-10 items-center justify-center gap-2 rounded-full px-5 text-sm font-medium text-muted-foreground transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <History class="h-4 w-4" />
+            历史对局
           </button>
         </div>
       </div>

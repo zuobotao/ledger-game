@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Trophy, RotateCcw, Home, Sparkles, Calendar } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
+import { useGameHistoryStore } from '@/stores/gameHistory'
 import { START_AGE, RETIREMENT_AGE } from '@/types/game'
 import type { Player } from '@/types/game'
 import GameSummary from '@/components/GameSummary.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
+const historyStore = useGameHistoryStore()
 
 // 退休排名
 const ranking = computed(() => {
@@ -31,6 +33,27 @@ const winner = computed<Player | null>(() => {
 })
 
 const showSummary = ref(true)
+let historySaved = false
+
+function saveHistory() {
+  if (historySaved) return
+  historySaved = true
+  if (!gameStore.mainPlayer || !winner.value) return
+  // 异步保存，不阻塞页面交互
+  historyStore.saveGame({
+    result: 'retirement',
+    players: gameStore.players,
+    winnerId: winner.value.id,
+    mainPlayerId: gameStore.mainPlayer.id,
+    config: gameStore.config,
+    totalTurns: gameStore.turnNumber ?? 0,
+    ratRaceTurns: gameStore.ratRaceTurns,
+    fastTrackTurns: gameStore.fastTrackTurns,
+    startTime: gameStore.gameStartTime,
+    transactions: gameStore.transactions ?? [],
+    cardHistory: gameStore.cardHistory ?? [],
+  })
+}
 
 function formatMoney(n: number): string {
   return `$${Math.round(n).toLocaleString()}`
@@ -44,11 +67,13 @@ function formatMoneyCompact(n: number): string {
 }
 
 function goToSetup() {
+  saveHistory()
   gameStore.resetGame()
   router.push('/setup')
 }
 
 function goHome() {
+  saveHistory()
   gameStore.resetGame()
   router.push('/')
 }
@@ -58,6 +83,10 @@ function closeSummary() {
 }
 
 const yearsPlayed = computed(() => RETIREMENT_AGE - START_AGE)
+
+onMounted(() => {
+  saveHistory()
+})
 </script>
 
 <template>

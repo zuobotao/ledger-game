@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Trophy, RotateCcw, Home, Sparkles } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
+import { useGameHistoryStore } from '@/stores/gameHistory'
 import type { Player } from '@/types/game'
 import GameSummary from '@/components/GameSummary.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
+const historyStore = useGameHistoryStore()
 
 // 从 store 获取获胜玩家
 const winner = computed<Player | null>(() => {
@@ -16,17 +18,41 @@ const winner = computed<Player | null>(() => {
 })
 
 const showSummary = ref(true)
+let historySaved = false
 
 function formatMoney(n: number): string {
   return `$${Math.round(n).toLocaleString()}`
 }
 
+function saveHistory() {
+  if (historySaved) return
+  historySaved = true
+  if (!gameStore.mainPlayer) return
+  // 异步保存，不阻塞页面交互
+  historyStore.saveGame({
+    result: 'victory',
+    players: gameStore.players,
+    winnerId: gameStore.winnerId,
+    mainPlayerId: gameStore.mainPlayer.id,
+    config: gameStore.config,
+    totalTurns: gameStore.turnNumber ?? 0,
+    ratRaceTurns: gameStore.ratRaceTurns,
+    fastTrackTurns: gameStore.fastTrackTurns,
+    startTime: gameStore.gameStartTime,
+    transactions: gameStore.transactions ?? [],
+    cardHistory: gameStore.cardHistory ?? [],
+    dreamName: winner.value?.dream?.name,
+  })
+}
+
 function goToSetup() {
+  saveHistory()
   gameStore.resetGame()
   router.push('/setup')
 }
 
 function goHome() {
+  saveHistory()
   gameStore.resetGame()
   router.push('/')
 }
@@ -34,6 +60,10 @@ function goHome() {
 function closeSummary() {
   showSummary.value = false
 }
+
+onMounted(() => {
+  saveHistory()
+})
 </script>
 
 <template>
