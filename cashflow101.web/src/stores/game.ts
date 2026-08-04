@@ -995,6 +995,31 @@ export const useGameStore = defineStore('game', () => {
       return false
     }
 
+    // 卖出有贷款的资产时，先偿还贷款本金
+    let loanRepaid = 0
+    if (asset.loanAmount && asset.loanAmount > 0) {
+      const loanPerUnit = asset.loanAmount / asset.quantity
+      loanRepaid = loanPerUnit * sellQty
+      // 减少资产中的贷款记录
+      asset.loanAmount -= loanRepaid
+      if (asset.loanAmount <= 0) asset.loanAmount = undefined
+      // 移除对应的负债
+      const liabilityIndex = player.liabilities.findIndex(
+        (l) => l.name === `${asset.name} 贷款`,
+      )
+      if (liabilityIndex !== -1) {
+        const liability = player.liabilities[liabilityIndex]!
+        liability.amount -= loanRepaid
+        if (liability.amount <= 0) {
+          player.liabilities.splice(liabilityIndex, 1)
+        } else {
+          liability.monthlyPayment = Math.round(liability.amount * 0.005)
+        }
+      }
+      // 实际收到的现金 = 售价 - 偿还贷款
+      price = Math.max(0, price - loanRepaid)
+    }
+
     asset.quantity -= sellQty
     if (asset.quantity <= 0) {
       player.assets.splice(assetIndex, 1)
@@ -1004,16 +1029,18 @@ export const useGameStore = defineStore('game', () => {
 
     const txType: TransactionType =
       asset.type === 'stock' ? 'stock_sell' : asset.type === 'real_estate' ? 'real_estate_sell' : 'business_sell'
-    recordTransaction(txType, price, `卖出 ${asset.name}`, player.id, {
+    const loanMsg = loanRepaid > 0 ? `（偿还贷款 ${formatMoney(loanRepaid)}）` : ''
+    recordTransaction(txType, price, `卖出 ${asset.name}${loanMsg}`, player.id, {
       assetSymbol: asset.symbol,
       assetQuantity: sellQty,
       unitPrice: price / sellQty,
       costBasis: asset.cost * sellQty,
       assetName: asset.name,
       assetType: asset.type,
+      loanRepaid,
     })
 
-    const msg = `${player.name} 卖出 ${asset.name} ×${sellQty}，获得 ${formatMoney(price)}。可继续卖出其他资产，或点击结束。`
+    const msg = `${player.name} 卖出 ${asset.name} ×${sellQty}，获得 ${formatMoney(price)}${loanMsg}。可继续卖出其他资产，或点击结束。`
     setPending('market', msg, card)
     turnStatus.value = 'resolving'
     saveState()
@@ -1540,10 +1567,12 @@ export const useGameStore = defineStore('game', () => {
       quantity = 1
     }
 
-    const cost = card.cost * quantity
-    if (player.cash < cost) return false
+    // 计算实际需要支付的现金（有首付时用首付，否则用全额 cost）
+    const hasDownPayment = card.downPayment !== undefined && card.totalValue !== undefined
+    const cashCost = (hasDownPayment ? card.downPayment! : card.cost) * quantity
+    if (player.cash < cashCost) return false
 
-    player.cash -= cost
+    player.cash -= cashCost
     const existing = player.assets.find((a) => a.type === card.type && a.symbol && a.symbol === card.symbol)
     if (existing && card.type === 'stock') {
       // 计算加权平均成本
@@ -1551,6 +1580,7 @@ export const useGameStore = defineStore('game', () => {
       existing.quantity += quantity
       existing.cost = totalCost / existing.quantity
     } else {
+      const loanAmount = hasDownPayment ? (card.totalValue! - card.downPayment!) * quantity : 0
       const asset: Asset = {
         id: createId(),
         name: card.title,
@@ -1560,21 +1590,41 @@ export const useGameStore = defineStore('game', () => {
         quantity,
         symbol: card.symbol,
         marketPrice: card.type === 'stock' ? card.cost : undefined,
+        loanAmount: loanAmount > 0 ? loanAmount : undefined,
+        monthlyLoanPayment: loanAmount > 0 ? Math.round(loanAmount * 0.005) : undefined,
       }
       player.assets.push(asset)
+
+      // 添加贷款负债
+      if (loanAmount > 0) {
+        const liability: Liability = {
+          id: createId(),
+          name: `${card.title} 贷款`,
+          amount: loanAmount,
+          monthlyPayment: Math.round(loanAmount * 0.005),
+          category: card.type === 'real_estate' ? 'mortgage' : 'bank_loan',
+        }
+        player.liabilities.push(liability)
+      }
     }
     recalcPlayerFinancials(player)
     const txType: TransactionType =
       card.type === 'stock' ? 'stock_buy' : card.type === 'real_estate' ? 'real_estate_buy' : 'business_buy'
-    recordTransaction(txType, -cost, `买入 ${card.title}`, player.id, {
+    const loanInfo = hasDownPayment
+      ? `，贷款 ${formatMoney((card.totalValue! - card.downPayment!) * quantity)}`
+      : ''
+    recordTransaction(txType, -cashCost, `买入 ${card.title}`, player.id, {
       assetSymbol: card.symbol,
       assetQuantity: quantity,
-      unitPrice: card.cost,
+      unitPrice: hasDownPayment ? card.downPayment : card.cost,
       assetName: card.title,
       assetType: card.type,
     })
-    recordCardDrawn(cardTypeForRecord, card, player.id, 'accepted', cost)
-    setPending(null, `买入 ${card.title} ×${quantity}，支出 ${formatMoney(cost)}。`)
+    recordCardDrawn(cardTypeForRecord, card, player.id, 'accepted', cashCost)
+    setPending(
+      null,
+      `买入 ${card.title}，支付首付 ${formatMoney(cashCost)}${loanInfo}，月净现金流 +${formatMoney(card.cashFlow * quantity)}。`,
+    )
     turnStatus.value = 'resolving'
     saveState()
     return true
@@ -2234,17 +2284,18 @@ export const useGameStore = defineStore('game', () => {
         // 买入决策
         const decision = AIDecision.decideBuyOpportunity(player, card, difficulty)
         if (decision.buy && decision.quantity > 0) {
-          // 如果现金不够，考虑贷款
-          const totalCost = card.cost * decision.quantity
-          if (player.cash < totalCost) {
-            const needed = totalCost - player.cash
+          // 计算实际需要支付的现金（有首付用首付，否则用全额 cost）
+          const cashCost = (card.downPayment ?? card.cost) * decision.quantity
+          if (player.cash < cashCost) {
+            const needed = cashCost - player.cash
             const loanAmount = AIDecision.decideBankLoan(player, difficulty)
             if (loanAmount >= needed) {
               takeBankLoan(Math.ceil(needed / BANK_CONFIG.loanStep) * BANK_CONFIG.loanStep)
               await sleep(200)
             } else {
               // 能买多少买多少
-              const affordableQty = Math.floor(player.cash / card.cost)
+              const unitCost = card.downPayment ?? card.cost
+              const affordableQty = Math.floor(player.cash / unitCost)
               if (affordableQty > 0) {
                 buyOpportunity(affordableQty)
               } else {
@@ -2330,9 +2381,9 @@ export const useGameStore = defineStore('game', () => {
 
         const decision = AIDecision.decideBuyFastTrackOpportunity(player, card, difficulty)
         if (decision.buy && decision.quantity > 0) {
-          const totalCost = card.cost * decision.quantity
-          if (player.cash < totalCost) {
-            const needed = totalCost - player.cash
+          const cashCost = (card.downPayment ?? card.cost) * decision.quantity
+          if (player.cash < cashCost) {
+            const needed = cashCost - player.cash
             const loanAmount = AIDecision.decideBankLoan(player, difficulty)
             if (loanAmount >= needed) {
               takeBankLoan(Math.ceil(needed / BANK_CONFIG.loanStep) * BANK_CONFIG.loanStep)

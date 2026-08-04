@@ -212,9 +212,9 @@ function onBuyFtOpportunity() {
   const card = ftOpportunityCard.value
   const player = gameStore.currentPlayer
   if (!card || !player) return
-  const cost = card.cost * ftQuantity.value
-  if (player.cash < cost) {
-    ftBuyError.value = `现金不足，还差 ${formatMoney(cost - player.cash)}`
+  const cashCost = (card.downPayment ?? card.cost) * ftQuantity.value
+  if (player.cash < cashCost) {
+    ftBuyError.value = `现金不足，还差 ${formatMoney(cashCost - player.cash)}`
     return
   }
   ftBuyError.value = ''
@@ -790,12 +790,44 @@ watch(
                       </span>
                     </div>
 
-                    <!-- 总价显示 -->
-                    <div class="mb-3 flex items-center justify-between rounded-lg bg-muted px-3 py-2">
-                      <span class="text-sm text-muted-foreground">总价：</span>
-                      <span class="text-base font-bold text-foreground">
-                        {{ formatMoney(ftOpportunityCard.cost * ftQuantity) }}
-                      </span>
+                    <!-- 价格信息 -->
+                    <div class="mb-3 space-y-2 rounded-lg bg-muted px-3 py-2">
+                      <!-- 有首付模式 -->
+                      <template v-if="ftOpportunityCard.downPayment !== undefined && ftOpportunityCard.totalValue !== undefined">
+                        <div class="flex items-center justify-between">
+                          <span class="text-sm text-muted-foreground">总价：</span>
+                          <span class="text-sm font-medium text-foreground">
+                            {{ formatMoney(ftOpportunityCard.totalValue * ftQuantity) }}
+                          </span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                          <span class="text-sm text-muted-foreground">首付：</span>
+                          <span class="text-base font-bold text-primary">
+                            {{ formatMoney(ftOpportunityCard.downPayment * ftQuantity) }}
+                          </span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                          <span class="text-sm text-muted-foreground">贷款：</span>
+                          <span class="text-sm font-medium text-amber-500">
+                            {{ formatMoney((ftOpportunityCard.totalValue - ftOpportunityCard.downPayment) * ftQuantity) }}
+                          </span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                          <span class="text-sm text-muted-foreground">月现金流：</span>
+                          <span class="text-sm font-bold text-success">
+                            +{{ formatMoney(ftOpportunityCard.cashFlow * ftQuantity) }}
+                          </span>
+                        </div>
+                      </template>
+                      <!-- 全额支付模式 -->
+                      <template v-else>
+                        <div class="flex items-center justify-between">
+                          <span class="text-sm text-muted-foreground">总价：</span>
+                          <span class="text-base font-bold text-foreground">
+                            {{ formatMoney(ftOpportunityCard.cost * ftQuantity) }}
+                          </span>
+                        </div>
+                      </template>
                     </div>
 
                     <!-- 操作按钮 -->
@@ -805,13 +837,13 @@ watch(
                         :disabled="
                           (gameStore.currentPlayer
                             ? gameStore.currentPlayer.cash <
-                              ftOpportunityCard.cost * ftQuantity
+                              (ftOpportunityCard.downPayment ?? ftOpportunityCard.cost) * ftQuantity
                             : true) || disableHumanActions
                         "
                         class="flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
                         @click="onBuyFtOpportunity"
                       >
-                        买入
+                        {{ ftOpportunityCard.downPayment !== undefined ? '支付首付' : '买入' }}
                       </button>
                       <button
                         type="button"

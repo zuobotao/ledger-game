@@ -158,7 +158,7 @@ const opportunityCard = computed<OpportunityCard | null>(() => {
 const maxOpportunityQuantity = computed(() => {
   const card = opportunityCard.value
   const player = gameStore.currentPlayer
-  if (!card || !player || card.cost <= 0) return 1
+  if (!card || !player) return 1
 
   // 卖出卡：最大数量 = 持仓数量
   if (card.action === 'sell' && card.type === 'stock' && card.symbol) {
@@ -166,14 +166,18 @@ const maxOpportunityQuantity = computed(() => {
     return holding?.quantity ?? 0
   }
 
+  // 计算单位成本（有首付用首付，否则用 cost）
+  const unitCost = card.downPayment ?? card.cost
+  if (unitCost <= 0) return 1
+
   // 买入卡
   if (card.maxQuantity) {
     // 受现金限制
-    const maxByCash = Math.floor(player.cash / card.cost)
+    const maxByCash = Math.floor(player.cash / unitCost)
     return Math.max(1, Math.min(card.maxQuantity, maxByCash))
   }
   // 根据现金计算最大可购买数量
-  return Math.max(1, Math.floor(player.cash / card.cost))
+  return Math.max(1, Math.floor(player.cash / unitCost))
 })
 
 const isOpportunitySell = computed(() => {
@@ -1212,12 +1216,44 @@ const showActionPanel = computed(() => {
                   </span>
                 </div>
 
-                <!-- 总价显示（非股票类） -->
-                <div v-if="opportunityCard.type !== 'stock'" class="mb-3 flex items-center justify-between rounded-lg bg-muted px-3 py-2">
-                  <span class="text-sm text-muted-foreground">总价：</span>
-                  <span class="text-base font-bold text-foreground">
-                    {{ formatMoney(opportunityCard.cost * opportunityQuantity) }}
-                  </span>
+                <!-- 价格信息（非股票类） -->
+                <div v-if="opportunityCard.type !== 'stock'" class="mb-3 space-y-2 rounded-lg bg-muted px-3 py-2">
+                  <!-- 有首付模式（房地产/企业） -->
+                  <template v-if="opportunityCard.downPayment !== undefined && opportunityCard.totalValue !== undefined">
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm text-muted-foreground">总价：</span>
+                      <span class="text-sm font-medium text-foreground">
+                        {{ formatMoney(opportunityCard.totalValue * opportunityQuantity) }}
+                      </span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm text-muted-foreground">首付：</span>
+                      <span class="text-base font-bold text-primary">
+                        {{ formatMoney(opportunityCard.downPayment * opportunityQuantity) }}
+                      </span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm text-muted-foreground">贷款：</span>
+                      <span class="text-sm font-medium text-amber-500">
+                        {{ formatMoney((opportunityCard.totalValue - opportunityCard.downPayment) * opportunityQuantity) }}
+                      </span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm text-muted-foreground">月现金流：</span>
+                      <span class="text-sm font-bold text-success">
+                        +{{ formatMoney(opportunityCard.cashFlow * opportunityQuantity) }}
+                      </span>
+                    </div>
+                  </template>
+                  <!-- 全额支付模式（其他类） -->
+                  <template v-else>
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm text-muted-foreground">总价：</span>
+                      <span class="text-base font-bold text-foreground">
+                        {{ formatMoney(opportunityCard.cost * opportunityQuantity) }}
+                      </span>
+                    </div>
+                  </template>
                 </div>
 
                 <!-- 操作按钮（拆分/合股卡和交易卡除外） -->
@@ -1225,11 +1261,11 @@ const showActionPanel = computed(() => {
                   <button
                     v-if="!isOpportunitySell"
                     type="button"
-                    :disabled="(gameStore.currentPlayer ? gameStore.currentPlayer.cash < opportunityCard.cost * opportunityQuantity : true) || disableHumanActions"
+                    :disabled="(gameStore.currentPlayer ? gameStore.currentPlayer.cash < (opportunityCard.downPayment ?? opportunityCard.cost) * opportunityQuantity : true) || disableHumanActions"
                     class="flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
                     @click="onBuyOpportunity"
                   >
-                    买入
+                    {{ opportunityCard.downPayment !== undefined ? '支付首付' : '买入' }}
                   </button>
                   <button
                     v-else

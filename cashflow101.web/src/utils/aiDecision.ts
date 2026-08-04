@@ -27,8 +27,10 @@ function estimateROI(card: OpportunityCard): number {
   }
 
   // 房产 / 企业 / 其他：用现金流计算年化 ROI
-  if (card.cost <= 0) return 0
-  const monthlyROI = card.cashFlow / card.cost
+  // 有首付时，ROI 基于首付计算（杠杆效应）
+  const costBasis = card.downPayment ?? card.cost
+  if (costBasis <= 0) return 0
+  const monthlyROI = card.cashFlow / costBasis
   return monthlyROI * 12
 }
 
@@ -119,13 +121,16 @@ export function decideBuyOpportunity(
     investableFunds += additionalLoan * randomFactor(0.7, 0.2)
   }
 
+  // 计算单位成本（有首付用首付，否则用 cost）
+  const unitCost = card.downPayment ?? card.cost
+
   // 买不起一份
-  if (investableFunds < card.cost) {
+  if (investableFunds < unitCost) {
     return { buy: false, quantity: 0 }
   }
 
   // 计算可买数量
-  let quantity = Math.floor(investableFunds / card.cost)
+  let quantity = Math.floor(investableFunds / unitCost)
 
   // 股票受 maxQuantity 限制
   if (card.maxQuantity && card.type === 'stock') {
@@ -482,7 +487,8 @@ export function decideBuyFastTrackOpportunity(
   }
 
   // 买不起一份
-  if (investableFunds < card.cost) {
+  const unitCost = card.downPayment ?? card.cost
+  if (investableFunds < unitCost) {
     return { buy: false, quantity: 0 }
   }
 

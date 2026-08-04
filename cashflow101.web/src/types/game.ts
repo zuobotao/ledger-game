@@ -29,6 +29,10 @@ export interface Asset {
   quantity: number
   symbol?: string
   marketPrice?: number
+  /** 贷款金额（房地产/企业类） */
+  loanAmount?: number
+  /** 每月还款额（房地产/企业类） */
+  monthlyLoanPayment?: number
 }
 
 export interface Liability {
@@ -149,6 +153,10 @@ export interface OpportunityCard {
   maxQuantity?: number
   action?: 'buy' | 'sell'
   splitRatio?: number
+  /** 首付金额（房地产/企业类） */
+  downPayment?: number
+  /** 资产总价值（房地产/企业类），即首付 + 贷款 */
+  totalValue?: number
 }
 
 export interface MarketEventCard {
