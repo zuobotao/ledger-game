@@ -28,26 +28,34 @@ export const RAT_RACE_CELLS: RatRaceCell[] = [
 ]
 
 export const FAST_TRACK_CELLS: FastTrackCell[] = [
+  // 上边：0-5（6格）
   { index: 0, type: 'cashflow', name: '现金流日', color: 'green' },
   { index: 1, type: 'opportunity', name: '企业机会', color: 'gold' },
   { index: 2, type: 'market', name: '市场风云', color: 'blue' },
   { index: 3, type: 'stock', name: '股票交易', color: 'teal' },
-  { index: 4, type: 'cashflow', name: '现金流日', color: 'green' },
-  { index: 5, type: 'investment', name: '不动产投资', color: 'amber' },
-  { index: 6, type: 'doodad', name: '生活意外', color: 'red' },
-  { index: 7, type: 'deal', name: '大宗交易', color: 'purple' },
-  { index: 8, type: 'cashflow', name: '现金流日', color: 'green' },
+  { index: 4, type: 'investment', name: '不动产投资', color: 'amber' },
+  { index: 5, type: 'cashflow', name: '现金流日', color: 'green' },
+  // 右边：6-11（6格）
+  { index: 6, type: 'opportunity', name: '企业机会', color: 'gold' },
+  { index: 7, type: 'doodad', name: '生活意外', color: 'red' },
+  { index: 8, type: 'deal', name: '大宗交易', color: 'purple' },
   { index: 9, type: 'charity', name: '慈善捐赠', color: 'pink' },
-  { index: 10, type: 'opportunity', name: '企业机会', color: 'gold' },
-  { index: 11, type: 'market', name: '市场风云', color: 'blue' },
-  { index: 12, type: 'cashflow', name: '现金流日', color: 'green' },
-  { index: 13, type: 'investment', name: '不动产投资', color: 'amber' },
-  { index: 14, type: 'stock', name: '股票交易', color: 'teal' },
-  { index: 15, type: 'deal', name: '大宗交易', color: 'purple' },
-  { index: 16, type: 'cashflow', name: '现金流日', color: 'green' },
-  { index: 17, type: 'doodad', name: '生活意外', color: 'red' },
-  { index: 18, type: 'opportunity', name: '企业机会', color: 'gold' },
-  { index: 19, type: 'dream', name: '梦想', color: 'yellow' },
+  { index: 10, type: 'market', name: '市场风云', color: 'blue' },
+  { index: 11, type: 'cashflow', name: '现金流日', color: 'green' },
+  // 下边：12-17（6格）
+  { index: 12, type: 'investment', name: '不动产投资', color: 'amber' },
+  { index: 13, type: 'stock', name: '股票交易', color: 'teal' },
+  { index: 14, type: 'opportunity', name: '企业机会', color: 'gold' },
+  { index: 15, type: 'doodad', name: '生活意外', color: 'red' },
+  { index: 16, type: 'deal', name: '大宗交易', color: 'purple' },
+  { index: 17, type: 'cashflow', name: '现金流日', color: 'green' },
+  // 左边：18-23（6格）
+  { index: 18, type: 'dream', name: '梦想', color: 'yellow' },
+  { index: 19, type: 'investment', name: '不动产投资', color: 'amber' },
+  { index: 20, type: 'market', name: '市场风云', color: 'blue' },
+  { index: 21, type: 'stock', name: '股票交易', color: 'teal' },
+  { index: 22, type: 'opportunity', name: '企业机会', color: 'gold' },
+  { index: 23, type: 'cashflow', name: '现金流日', color: 'green' },
 ]
 
 export function getRatRaceCell(position: number): RatRaceCell {
