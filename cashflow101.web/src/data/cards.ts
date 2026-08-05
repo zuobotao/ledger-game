@@ -713,3 +713,17 @@ export function drawFastTrackOpportunity(decks: CardDeck): {
   return { card: deck[0]!, remaining: deck.slice(1) }
 }
 
+/** 快车道可交易股票列表 */
+export interface TradableStock {
+  symbol: string
+  name: string
+  basePrice: number
+  sector: string
+}
+
+export const TRADABLE_STOCKS: TradableStock[] = [
+  { symbol: 'ON2U', name: 'ON2U 科技', basePrice: 20, sector: '科技' },
+  { symbol: 'MYT4U', name: 'MYT4U 医疗', basePrice: 30, sector: '医疗' },
+  { symbol: 'GRO4US', name: 'GRO4US 增长', basePrice: 40, sector: '综合' },
+]
+

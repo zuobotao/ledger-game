@@ -195,6 +195,7 @@ export type PendingActionType =
   | 'need_loan'
   | 'fast_track_opportunity'
   | 'fast_track_dream'
+  | 'fast_track_stock_trading'
   | 'story'
   | 'stock_sell_opportunity'
   | 'bankrupt'

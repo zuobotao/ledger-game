@@ -46,6 +46,7 @@ import {
   drawSmallOpportunityCard,
   drawBigOpportunityCard,
   drawStoryCard,
+  TRADABLE_STOCKS,
 } from '@/data/cards'
 import { getDreamById, getRandomDream } from '@/data/dreams'
 import type { CardDeck } from '@/types/game'
@@ -273,6 +274,8 @@ export const useGameStore = defineStore('game', () => {
   const stockSellOpportunity = ref<OpportunityCard | null>(null)
   const stockSellOpportunityState = ref<StockSellOpportunityState | null>(null)
   const decks = ref<CardDeck>(createDecks())
+  // 快车道股票实时价格（symbol -> price）
+  const stockPrices = ref<Record<string, number>>({})
   const transactions = ref<TransactionRecord[]>([])
   const cardHistory = ref<CardHistoryRecord[]>([])
   const isAIThinking = ref(false)
@@ -565,6 +568,11 @@ export const useGameStore = defineStore('game', () => {
     marketEvent.value = null
     marketEventState.value = null
     decks.value = createDecks()
+    // 初始化股票价格
+    stockPrices.value = {}
+    TRADABLE_STOCKS.forEach((s) => {
+      stockPrices.value[s.symbol] = s.basePrice
+    })
     transactions.value = []
     cardHistory.value = []
     // 记录初始财务快照
@@ -865,6 +873,26 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function applyMarketEvent(card: MarketEventCard, _player: Player): string {
+    // 更新全局股票价格（快车道交易用）
+    if (card.targetType === 'stock' && card.targetSymbol) {
+      const currentPrice = stockPrices.value[card.targetSymbol]
+      if (currentPrice) {
+        stockPrices.value[card.targetSymbol] = Math.max(1,
+          Math.round(currentPrice * card.multiplier)
+        )
+      }
+    } else if (card.targetType === 'all' || card.targetType === 'stock') {
+      // 影响所有股票
+      for (const sym of Object.keys(stockPrices.value)) {
+        const currentPrice = stockPrices.value[sym]
+        if (currentPrice) {
+          stockPrices.value[sym] = Math.max(1,
+            Math.round(currentPrice * card.multiplier)
+          )
+        }
+      }
+    }
+
     // 先对所有玩家应用价格变动（贬值/升值都更新市价）
     for (const p of players.value) {
       p.assets
@@ -2072,11 +2100,7 @@ export const useGameStore = defineStore('game', () => {
         break
       }
       case 'stock': {
-        const { card, remaining } = drawMarketCard(decks.value.market)
-        decks.value.market = remaining
-        recordCardDrawn('market', card)
-        const result = applyMarketEvent(card, player)
-        setPending('market', `股票交易：${result}`, card)
+        setPending('fast_track_stock_trading', '股票交易：自由买卖股票，把握市场机会。')
         break
       }
       case 'market': {
@@ -2136,6 +2160,95 @@ export const useGameStore = defineStore('game', () => {
     turnStatus.value = 'finished'
     saveState()
     return true
+  }
+
+  // ==================== 快车道股票交易 ====================
+
+  function fastTrackBuyStock(symbol: string, quantity: number): boolean {
+    const player = currentPlayer.value
+    if (!player || pendingAction.value.type !== 'fast_track_stock_trading') return false
+    if (quantity <= 0) return false
+
+    const price = stockPrices.value[symbol]
+    if (!price || price <= 0) return false
+
+    const cost = price * quantity
+    if (player.cash < cost) return false
+
+    player.cash -= cost
+    const existing = player.assets.find((a) => a.type === 'stock' && a.symbol === symbol)
+    if (existing) {
+      const totalCost = existing.cost * existing.quantity + price * quantity
+      existing.quantity += quantity
+      existing.cost = totalCost / existing.quantity
+      existing.marketPrice = price
+    } else {
+      const stockInfo = TRADABLE_STOCKS.find((s) => s.symbol === symbol)
+      const asset: Asset = {
+        id: createId(),
+        name: stockInfo?.name ?? `${symbol} 股票`,
+        type: 'stock',
+        cost: price,
+        cashFlow: 0,
+        quantity,
+        symbol,
+        marketPrice: price,
+      }
+      player.assets.push(asset)
+    }
+    recalcPlayerFinancials(player)
+    recordTransaction('stock_buy', -cost, `买入 ${symbol} 股票`, player.id, {
+      assetSymbol: symbol,
+      assetQuantity: quantity,
+      unitPrice: price,
+      assetName: `${symbol} 股票`,
+      assetType: 'stock',
+    })
+    saveState()
+    return true
+  }
+
+  function fastTrackSellStock(symbol: string, quantity: number): boolean {
+    const player = currentPlayer.value
+    if (!player || pendingAction.value.type !== 'fast_track_stock_trading') return false
+    if (quantity <= 0) return false
+
+    const price = stockPrices.value[symbol]
+    if (!price || price <= 0) return false
+
+    const assetIndex = player.assets.findIndex((a) => a.type === 'stock' && a.symbol === symbol)
+    if (assetIndex === -1) return false
+
+    const asset = player.assets[assetIndex]!
+    if (asset.quantity < quantity) return false
+
+    const proceeds = price * quantity
+    player.cash += proceeds
+
+    if (asset.quantity === quantity) {
+      player.assets.splice(assetIndex, 1)
+    } else {
+      asset.quantity -= quantity
+      asset.marketPrice = price
+    }
+
+    recalcPlayerFinancials(player)
+    recordTransaction('stock_sell', proceeds, `卖出 ${symbol} 股票`, player.id, {
+      assetSymbol: symbol,
+      assetQuantity: quantity,
+      unitPrice: price,
+      assetName: asset.name,
+      assetType: 'stock',
+    })
+    saveState()
+    return true
+  }
+
+  function closeStockTrading() {
+    if (pendingAction.value.type !== 'fast_track_stock_trading') return
+    pendingAction.value = { type: null, card: null, message: '' }
+    turnStatus.value = 'resolving'
+    saveState()
   }
 
   // ==================== AI 回合逻辑 ====================
@@ -2413,6 +2526,55 @@ export const useGameStore = defineStore('game', () => {
         break
       }
 
+      case 'fast_track_stock_trading': {
+        await sleep(400)
+        // 简单 AI 策略：
+        // 1. 现金充裕时（>月现金流*10），买入价格最低的股票
+        // 2. 持有股票且涨幅超过 50% 时，卖出一半
+        const cash = player.cash
+        const cashFlow = player.cashFlow
+        const prices = stockPrices.value
+
+        // 找出当前价格最低的股票
+        let cheapestSymbol = ''
+        let cheapestPrice = Infinity
+        for (const sym of Object.keys(prices)) {
+          if (prices[sym]! < cheapestPrice) {
+            cheapestPrice = prices[sym]!
+            cheapestSymbol = sym
+          }
+        }
+
+        // 检查是否有盈利超过 50% 的股票需要卖出
+        let soldSomething = false
+        for (const asset of player.assets.filter((a) => a.type === 'stock')) {
+          const currentPrice = prices[asset.symbol!] ?? asset.cost
+          const gainPercent = ((currentPrice - asset.cost) / asset.cost) * 100
+          if (gainPercent >= 50 && asset.quantity >= 2) {
+            const sellQty = Math.floor(asset.quantity / 2)
+            if (sellQty > 0) {
+              fastTrackSellStock(asset.symbol!, sellQty)
+              soldSomething = true
+              await sleep(200)
+            }
+          }
+        }
+
+        // 如果现金充裕，买入最便宜的股票
+        if (cheapestSymbol && cash > cashFlow * 10 && cheapestPrice > 0) {
+          const investAmount = Math.min(cash * 0.3, cashFlow * 5)
+          const buyQty = Math.floor(investAmount / cheapestPrice)
+          if (buyQty > 0) {
+            fastTrackBuyStock(cheapestSymbol, buyQty)
+            await sleep(200)
+          }
+        }
+
+        // 关闭交易面板
+        closeStockTrading()
+        break
+      }
+
       case 'bankrupt': {
         // AI 破产，自动确认并进入下一位玩家
         await sleep(800)
@@ -2610,6 +2772,10 @@ export const useGameStore = defineStore('game', () => {
     checkFinancialFreedom,
     enterFastTrack,
     buyDream,
+    fastTrackBuyStock,
+    fastTrackSellStock,
+    closeStockTrading,
+    stockPrices,
     buyInsurance,
     toggleUnemploymentInsurance,
     acknowledgeMessage,

@@ -475,13 +475,19 @@ const opportunityAccentClass = computed(() => {
 /* 格子名称 */
 .cell-name {
   margin-top: 2px;
-  font-size: 9px;
+  font-size: 8px;
+  white-space: nowrap;
+  line-height: 1.1;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: clip;
 }
 
 @media (min-width: 640px) {
   .cell-name {
     margin-top: 2px;
-    font-size: 12px;
+    font-size: 11px;
   }
 }
 

@@ -103,6 +103,81 @@ const ftOpportunityCard = computed<OpportunityCard | null>(() => {
 
 const ftDreamPending = computed(() => gameStore.pendingAction.type === 'fast_track_dream')
 
+// ========== 快车道股票交易 ==========
+import { TRADABLE_STOCKS } from '@/data/cards'
+
+const ftStockTradingPending = computed(() =>
+  gameStore.pendingAction.type === 'fast_track_stock_trading'
+)
+const stockTradeMode = ref<'buy' | 'sell'>('buy')
+const stockTradeSymbol = ref<string>('')
+const stockTradeQuantity = ref(1)
+
+const currentPlayerStockHoldings = computed(() => {
+  const p = gameStore.currentPlayer
+  if (!p) return []
+  return p.assets.filter((a) => a.type === 'stock')
+})
+
+function getStockHolding(symbol: string): Asset | undefined {
+  return currentPlayerStockHoldings.value.find((a) => a.symbol === symbol)
+}
+
+function getStockPrice(symbol: string): number {
+  return gameStore.stockPrices[symbol] ?? 0
+}
+
+function getMaxBuyQuantity(symbol: string): number {
+  const price = getStockPrice(symbol)
+  const cash = gameStore.currentPlayer?.cash ?? 0
+  if (price <= 0) return 0
+  return Math.floor(cash / price)
+}
+
+function getMaxSellQuantity(symbol: string): number {
+  const holding = getStockHolding(symbol)
+  return holding?.quantity ?? 0
+}
+
+function onBuyStock() {
+  const sym = stockTradeSymbol.value
+  if (!sym) return
+  const qty = stockTradeQuantity.value
+  if (qty <= 0) return
+  const ok = gameStore.fastTrackBuyStock(sym, qty)
+  if (!ok) {
+    console.warn('买入失败')
+  }
+  // 重置数量
+  stockTradeQuantity.value = 1
+}
+
+function onSellStock() {
+  const sym = stockTradeSymbol.value
+  if (!sym) return
+  const qty = stockTradeQuantity.value
+  if (qty <= 0) return
+  const ok = gameStore.fastTrackSellStock(sym, qty)
+  if (!ok) {
+    console.warn('卖出失败')
+  }
+  stockTradeQuantity.value = 1
+}
+
+function onCloseStockTrading() {
+  gameStore.closeStockTrading()
+}
+
+// 股票交易面板打开时默认选中第一只股票
+watch(ftStockTradingPending, (val) => {
+  if (val && TRADABLE_STOCKS.length > 0 && !stockTradeSymbol.value) {
+    stockTradeSymbol.value = TRADABLE_STOCKS[0]!.symbol
+  }
+  if (!val) {
+    stockTradeQuantity.value = 1
+  }
+})
+
 const ftQuantity = ref(1)
 const ftBuyError = ref('')
 const showBankModal = ref(false)
@@ -907,6 +982,161 @@ watch(
                         @click="onAcknowledge"
                       >
                         暂不购买
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- ========== 快车道股票交易操作区 ========== -->
+                  <div v-if="ftStockTradingPending" class="stock-trading-panel mt-3">
+                    <!-- 买/卖切换 -->
+                    <div class="mb-3 flex rounded-full bg-secondary p-1">
+                      <button
+                        type="button"
+                        class="flex-1 rounded-full py-1.5 text-sm font-medium transition"
+                        :class="stockTradeMode === 'buy' ? 'bg-background text-success shadow-sm' : 'text-muted-foreground'"
+                        @click="stockTradeMode = 'buy'"
+                      >
+                        买入
+                      </button>
+                      <button
+                        type="button"
+                        class="flex-1 rounded-full py-1.5 text-sm font-medium transition"
+                        :class="stockTradeMode === 'sell' ? 'bg-background text-destructive shadow-sm' : 'text-muted-foreground'"
+                        @click="stockTradeMode = 'sell'"
+                      >
+                        卖出
+                      </button>
+                    </div>
+
+                    <!-- 股票列表 -->
+                    <div class="mb-3 space-y-2">
+                      <button
+                        v-for="stock in TRADABLE_STOCKS"
+                        :key="stock.symbol"
+                        type="button"
+                        class="w-full rounded-xl border p-3 text-left transition"
+                        :class="stockTradeSymbol === stock.symbol
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border bg-background hover:bg-muted/50'"
+                        @click="stockTradeSymbol = stock.symbol; stockTradeQuantity = 1"
+                      >
+                        <div class="flex items-center justify-between">
+                          <div>
+                            <div class="font-semibold text-foreground">{{ stock.symbol }}</div>
+                            <div class="text-xs text-muted-foreground">{{ stock.name }} · {{ stock.sector }}</div>
+                          </div>
+                          <div class="text-right">
+                            <div class="text-base font-bold text-primary">${{ getStockPrice(stock.symbol) }}</div>
+                            <div v-if="getStockHolding(stock.symbol)" class="text-xs text-muted-foreground">
+                              持有 {{ getStockHolding(stock.symbol)?.quantity }} 股
+                            </div>
+                            <div v-else class="text-xs text-muted-foreground">未持有</div>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+
+                    <!-- 数量选择 -->
+                    <div v-if="stockTradeSymbol" class="mb-3 flex items-center gap-3">
+                      <label class="text-sm font-medium text-foreground">数量：</label>
+                      <div class="flex items-center gap-1">
+                        <button
+                          type="button"
+                          :disabled="stockTradeQuantity <= 1"
+                          class="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-foreground transition hover:bg-muted disabled:opacity-40"
+                          @click="stockTradeQuantity = Math.max(1, stockTradeQuantity - 1)"
+                        >
+                          <span class="text-lg font-bold">−</span>
+                        </button>
+                        <input
+                          v-model.number="stockTradeQuantity"
+                          type="number"
+                          min="1"
+                          class="h-9 w-20 rounded-md border border-border bg-background text-center text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                        <button
+                          type="button"
+                          :disabled="stockTradeMode === 'buy'
+                            ? stockTradeQuantity >= getMaxBuyQuantity(stockTradeSymbol)
+                            : stockTradeQuantity >= getMaxSellQuantity(stockTradeSymbol)"
+                          class="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-foreground transition hover:bg-muted disabled:opacity-40"
+                          @click="
+                            stockTradeQuantity = Math.min(
+                              stockTradeMode === 'buy'
+                                ? getMaxBuyQuantity(stockTradeSymbol)
+                                : getMaxSellQuantity(stockTradeSymbol),
+                              stockTradeQuantity + 10
+                            )
+                          "
+                        >
+                          <span class="text-sm font-bold">+10</span>
+                        </button>
+                      </div>
+                      <span class="text-xs text-muted-foreground">
+                        最多 {{ stockTradeMode === 'buy'
+                          ? getMaxBuyQuantity(stockTradeSymbol)
+                          : getMaxSellQuantity(stockTradeSymbol) }} 股
+                      </span>
+                    </div>
+
+                    <!-- 交易金额 -->
+                    <div v-if="stockTradeSymbol" class="mb-3 rounded-lg bg-muted px-3 py-2">
+                      <div class="flex items-center justify-between">
+                        <span class="text-sm text-muted-foreground">
+                          {{ stockTradeMode === 'buy' ? '总支出' : '总收入' }}：
+                        </span>
+                        <span
+                          class="text-base font-bold"
+                          :class="stockTradeMode === 'buy' ? 'text-destructive' : 'text-success'"
+                        >
+                          {{ formatMoney(getStockPrice(stockTradeSymbol) * stockTradeQuantity) }}
+                        </span>
+                      </div>
+                      <div class="flex items-center justify-between mt-1">
+                        <span class="text-xs text-muted-foreground">当前现金：</span>
+                        <span class="text-xs font-medium text-foreground">
+                          {{ formatMoney(gameStore.currentPlayer?.cash ?? 0) }}
+                        </span>
+                      </div>
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div class="flex gap-2">
+                      <button
+                        v-if="stockTradeMode === 'buy'"
+                        type="button"
+                        :disabled="
+                          !stockTradeSymbol ||
+                          stockTradeQuantity <= 0 ||
+                          stockTradeQuantity > getMaxBuyQuantity(stockTradeSymbol) ||
+                          disableHumanActions
+                        "
+                        class="flex-1 rounded-full bg-success px-4 py-2.5 text-sm font-semibold text-success-foreground hover:opacity-90 disabled:opacity-40"
+                        @click="onBuyStock"
+                      >
+                        确认买入
+                      </button>
+                      <button
+                        v-else
+                        type="button"
+                        :disabled="
+                          !stockTradeSymbol ||
+                          stockTradeQuantity <= 0 ||
+                          stockTradeQuantity > getMaxSellQuantity(stockTradeSymbol) ||
+                          disableHumanActions
+                        "
+                        class="flex-1 rounded-full bg-destructive px-4 py-2.5 text-sm font-semibold text-destructive-foreground hover:opacity-90 disabled:opacity-40"
+                        @click="onSellStock"
+                      >
+                        确认卖出
+                      </button>
+                      <button
+                        type="button"
+                        :disabled="disableHumanActions"
+                        class="rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-40"
+                        @click="onCloseStockTrading"
+                      >
+                        完成
                       </button>
                     </div>
                   </div>
