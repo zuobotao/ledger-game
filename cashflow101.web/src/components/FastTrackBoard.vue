@@ -405,14 +405,14 @@ const opportunityAccentClass = computed(() => {
   gap: 3px;
   aspect-ratio: 1;
   width: 100%;
-  max-width: min(75vh, 100%);
+  max-width: min(80vh, 100%);
   max-height: 100%;
 }
 
 @media (min-width: 640px) {
   .board-grid {
-    gap: 5px;
-    max-width: min(75vh, 720px);
+    gap: 6px;
+    max-width: min(85vh, 100%);
   }
 }
 

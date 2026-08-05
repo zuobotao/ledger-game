@@ -357,14 +357,14 @@ const cardTypeAccentClass = computed(() => {
   gap: 4px;
   aspect-ratio: 1;
   width: 100%;
-  max-width: min(75vh, 100%);
+  max-width: min(80vh, 100%);
   max-height: 100%;
 }
 
 @media (min-width: 640px) {
   .board-grid {
     gap: 6px;
-    max-width: min(70vh, 640px);
+    max-width: min(85vh, 100%);
   }
 }
 
