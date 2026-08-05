@@ -452,12 +452,12 @@ onMounted(() => {
                 :class="['grade-bar-fill', `grade-${grade.toLowerCase()}`]"
                 :style="{
                   width: historyStore.stats.totalGames > 0
-                    ? `${(historyStore.stats.gradeCount[grade] / historyStore.stats.totalGames) * 100}%`
+                    ? `${((historyStore.stats.gradeCount[grade] ?? 0) / historyStore.stats.totalGames) * 100}%`
                     : '0%',
                 }"
               />
             </div>
-            <span class="grade-count">{{ historyStore.stats.gradeCount[grade] }}</span>
+            <span class="grade-count">{{ historyStore.stats.gradeCount[grade] ?? 0 }}</span>
           </div>
         </div>
       </section>

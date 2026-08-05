@@ -8,6 +8,13 @@ import router from './router'
 import { useGameStore } from '@/stores/game'
 import { useGameHistoryStore } from '@/stores/gameHistory'
 
+declare global {
+  interface Window {
+    gameStore: ReturnType<typeof useGameStore>
+    gameHistoryStore: ReturnType<typeof useGameHistoryStore>
+  }
+}
+
 const app = createApp(App)
 const pinia = createPinia()
 

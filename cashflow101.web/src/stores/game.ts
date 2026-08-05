@@ -1247,7 +1247,7 @@ export const useGameStore = defineStore('game', () => {
       if (cell.type === 'payday') {
         messages.push(handlePayday(player))
         // 退休后停止处理
-        if (phase.value === 'finished') {
+        if ((phase.value as string) === 'finished') {
           turnStatus.value = 'finished'
           saveState()
           return
@@ -2029,7 +2029,7 @@ export const useGameStore = defineStore('game', () => {
       const netB = calcPlayerNetWorth(b)
       return netB - netA
     })
-    winnerId.value = sorted[0].id
+    winnerId.value = sorted[0]?.id ?? null
     gameEndReason.value = 'retirement'
     phase.value = 'finished'
     turnStatus.value = 'finished'
@@ -2801,11 +2801,8 @@ export const useGameStore = defineStore('game', () => {
     getFastTrackCell,
     setPending,
     checkBankruptcyVictory,
-    declineOpportunity,
     endTurn: moveToNextPlayer,
     applyMarketEventFastTrack,
-    pendingAction,
-    turnStatus,
     calcPlayerNetWorth,
     drawFastTrackOpportunityCard: drawFastTrackOpportunity,
   }

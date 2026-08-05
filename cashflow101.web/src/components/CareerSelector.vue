@@ -85,6 +85,10 @@ function formatMoney(n: number): string {
   return `$${n.toLocaleString()}`
 }
 
+function calcTotalExpenses(expenses: Career['expenses']): number {
+  return expenses.taxes + expenses.mortgage + expenses.schoolLoan + expenses.carLoan + expenses.creditCard + expenses.other + expenses.child
+}
+
 function selectCareer(career: Career) {
   emit('update:modelValue', career.id)
   emit('select', career)
@@ -174,7 +178,7 @@ function isSelected(careerId: string): boolean {
     <!-- 职业卡片网格 -->
     <div class="space-y-4 max-h-[400px] overflow-y-auto pr-1">
       <template v-for="diff in ['easy', 'medium', 'hard', 'expert']" :key="diff">
-        <div v-if="groupedCareers[diff]?.length > 0" class="space-y-2">
+        <div v-if="(groupedCareers[diff]?.length ?? 0) > 0" class="space-y-2">
           <div class="flex items-center gap-2">
             <span
               class="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full border"
@@ -183,7 +187,7 @@ function isSelected(careerId: string): boolean {
               {{ difficultyNames[diff] }}
             </span>
             <span class="text-[10px] text-muted-foreground">
-              {{ groupedCareers[diff].length }} 个职业
+              {{ groupedCareers[diff]?.length ?? 0 }} 个职业
             </span>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -231,7 +235,7 @@ function isSelected(careerId: string): boolean {
                     <span class="text-border">|</span>
                     <span class="inline-flex items-center gap-0.5 text-orange-400">
                       <TrendingDown class="w-3 h-3" />
-                      {{ formatMoney(career.expenses.total ?? 0) }}
+                      {{ formatMoney(calcTotalExpenses(career.expenses)) }}
                     </span>
                   </div>
                   <div class="flex flex-wrap gap-1 mt-1.5">

@@ -264,6 +264,7 @@ export interface TransactionRecord {
   costBasis?: number
   assetName?: string
   assetType?: 'stock' | 'real_estate' | 'business' | 'other'
+  loanRepaid?: number
   timestamp: number
 }
 

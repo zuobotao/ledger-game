@@ -42,6 +42,7 @@ const config = reactive<GameConfig>({
   bigFamily: false,
   mortgage: false,
   fastStart: false,
+  ageLimit: true,
 })
 
 interface PlayerSetup {

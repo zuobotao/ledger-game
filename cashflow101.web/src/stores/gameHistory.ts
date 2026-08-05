@@ -232,7 +232,10 @@ export const useGameHistoryStore = defineStore('gameHistory', () => {
     // 评级分布
     const gradeCount: Record<string, number> = { S: 0, A: 0, B: 0, C: 0, D: 0 }
     for (const r of records.value) {
-      if (r.grade) gradeCount[r.grade]++
+      const g = r.grade
+      if (g) {
+        gradeCount[g] = (gradeCount[g] ?? 0) + 1
+      }
     }
 
     return {

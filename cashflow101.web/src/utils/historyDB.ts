@@ -1,4 +1,5 @@
-import initSqlJs, { Database, SqlJsStatic } from 'sql.js'
+import initSqlJs, { Database } from 'sql.js'
+import type { SqlJsStatic } from 'sql.js'
 import sqlWasmUrl from 'sql.js/dist/sql-wasm.wasm?url'
 import type {
   GameHistoryRecord,
@@ -245,7 +246,7 @@ export async function getAllRecords(): Promise<GameHistoryRecord[]> {
   )
 
   if (result.length === 0) return []
-  return result[0].values.map(rowToRecord)
+  return result[0]!.values.map(rowToRecord)
 }
 
 /**
@@ -261,7 +262,7 @@ export async function getRecordDetail(id: string): Promise<GameHistoryDetail | n
   )
 
   if (recordResult.length === 0) return null
-  const record = rowToRecord(recordResult[0].values[0])
+  const record = rowToRecord(recordResult[0]!.values[0]!)
 
   // 主玩家交易记录
   const txResult = db.exec(
@@ -270,7 +271,7 @@ export async function getRecordDetail(id: string): Promise<GameHistoryDetail | n
   )
   const transactions: TransactionRecord[] =
     txResult.length > 0
-      ? txResult[0].values.map((row) => ({
+      ? txResult[0]!.values.map((row) => ({
           id: row[0] as string,
           playerId: row[1] as string,
           turnNumber: row[2] as number,
@@ -294,7 +295,7 @@ export async function getRecordDetail(id: string): Promise<GameHistoryDetail | n
   )
   const cardHistory: CardHistoryRecord[] =
     cardResult.length > 0
-      ? cardResult[0].values.map((row) => ({
+      ? cardResult[0]!.values.map((row) => ({
           id: row[0] as string,
           playerId: row[1] as string,
           turnNumber: row[2] as number,
@@ -315,7 +316,7 @@ export async function getRecordDetail(id: string): Promise<GameHistoryDetail | n
   )
   const snapshots: FinancialSnapshot[] =
     snapResult.length > 0
-      ? snapResult[0].values.map((row) => ({
+      ? snapResult[0]!.values.map((row) => ({
           turn: row[0] as number,
           cash: row[1] as number,
           totalAssets: row[2] as number,
@@ -511,7 +512,7 @@ export async function saveGameRecord(params: {
       [count - MAX_RECORDS],
     )
     if (oldIds.length > 0) {
-      for (const row of oldIds[0].values) {
+      for (const row of oldIds[0]!.values) {
         const oldId = row[0] as string
         db.run('DELETE FROM game_transactions WHERE gameId = ?', [oldId])
         db.run('DELETE FROM game_card_history WHERE gameId = ?', [oldId])

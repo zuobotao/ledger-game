@@ -74,17 +74,19 @@ async function runSingleTest(playerCount: number) {
     gameStore.setAutoAITrigger(false)
 
     // 创建AI玩家配置
-    const colors: PlayerColorId[] = ['blue', 'green', 'red', 'orange', 'purple', 'pink']
+    const colors: PlayerColorId[] = ['blue', 'green', 'red', 'orange', 'purple', 'pink', 'black']
     const careers = ['engineer', 'teacher', 'doctor', 'lawyer', 'pilot', 'nurse']
-    const playerSetups = []
+    const playerSetups: { name: string; colorId: PlayerColorId; careerId: string; isAI: boolean; aiDifficulty: 'medium' }[] = []
 
     for (let i = 0; i < playerCount; i++) {
+      const colorIdx = i % colors.length
+      const careerIdx = i % careers.length
       playerSetups.push({
         name: `AI ${i + 1}`,
-        colorId: colors[i],
-        careerId: careers[i % careers.length],
+        colorId: colors[colorIdx]!,
+        careerId: careers[careerIdx]!,
         isAI: true,
-        aiDifficulty: 'medium' as const,
+        aiDifficulty: 'medium',
       })
     }
 
@@ -127,8 +129,7 @@ async function runSingleTest(playerCount: number) {
         cp &&
         cp.isAI &&
         !cp.isBankrupt &&
-        gameStore.turnStatus === 'idle' &&
-        gameStore.phase !== 'finished'
+        gameStore.turnStatus === 'idle'
       ) {
         try {
           await gameStore.runAITurn()
