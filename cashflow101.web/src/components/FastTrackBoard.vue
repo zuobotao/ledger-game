@@ -151,8 +151,7 @@ const opportunityAccentClass = computed(() => {
         :class="[
           cellBgClassMap[cell.type],
           {
-            'ring-2 ring-primary ring-offset-2 ring-offset-background z-10 scale-105':
-              currentPosition === cell.index,
+            'cell-active z-10': currentPosition === cell.index,
           },
         ]"
         :style="getCellStyle(cell.index)"
@@ -423,6 +422,20 @@ const opportunityAccentClass = computed(() => {
   min-width: 0;
   min-height: 0;
   padding: 2px;
+  position: relative;
+}
+
+/* 当前位置高亮：用伪元素实现，不影响布局 */
+.cell-active::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  box-shadow:
+    0 0 0 2px hsl(var(--primary)),
+    0 0 12px 2px hsl(var(--primary) / 0.5);
+  pointer-events: none;
+  z-index: 1;
 }
 
 @media (min-width: 640px) {
