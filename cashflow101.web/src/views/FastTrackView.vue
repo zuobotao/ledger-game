@@ -682,8 +682,7 @@ watch(
         <!-- 消息提示（纯消息类，不需要确认） -->
         <GameToast :suppress="suppressUI" />
 
-        <div class="flex flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 lg:p-6 min-h-0">
-          <div class="h-full w-full max-h-full min-h-0">
+        <div class="grid h-full w-full place-items-center overflow-hidden p-2 sm:p-4 lg:p-6">
             <FastTrackBoard
               :players="gameStore.players"
               :current-position="gameStore.currentPlayer?.fastTrackPosition ?? 0"
@@ -697,7 +696,6 @@ watch(
               :opportunity-card="boardOpportunityCard"
               @dice-done="onDiceAnimationDone"
             />
-          </div>
         </div>
 
         <!-- AI 导师建议 -->

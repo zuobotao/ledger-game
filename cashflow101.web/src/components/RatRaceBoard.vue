@@ -344,9 +344,12 @@ const cardTypeAccentClass = computed(() => {
 
 <style scoped>
 .rat-race-board {
-  width: 100%;
-  display: flex;
-  justify-content: center;
+  aspect-ratio: 1;
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 
 /* 7x7 CSS Grid 棋盘容器 */
@@ -355,16 +358,13 @@ const cardTypeAccentClass = computed(() => {
   grid-template-columns: repeat(7, 1fr);
   grid-template-rows: repeat(7, 1fr);
   gap: 4px;
-  aspect-ratio: 1;
   width: 100%;
-  max-width: min(80vh, 100%);
-  max-height: 100%;
+  height: 100%;
 }
 
 @media (min-width: 640px) {
   .board-grid {
     gap: 6px;
-    max-width: min(85vh, 100%);
   }
 }
 

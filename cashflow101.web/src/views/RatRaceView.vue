@@ -926,8 +926,7 @@ const showActionPanel = computed(() => {
         <!-- 消息提示（纯消息类，不需要确认） -->
         <GameToast :suppress="suppressUI" />
 
-        <div class="flex flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 lg:p-6 min-h-0">
-          <div class="h-full w-full max-h-full max-w-[680px] min-h-0">
+        <div class="grid h-full w-full place-items-center overflow-hidden p-2 sm:p-4 lg:p-6">
             <RatRaceBoard
               :players="gameStore.players"
               :current-position="gameStore.currentPlayer?.ratRacePosition ?? 0"
@@ -941,7 +940,6 @@ const showActionPanel = computed(() => {
               :card-data="boardCardData"
               @dice-done="onDiceAnimationDone"
             />
-          </div>
         </div>
 
         <!-- AI 导师建议 -->
