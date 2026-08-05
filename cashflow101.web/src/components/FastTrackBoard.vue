@@ -73,25 +73,25 @@ const cellColorBarClass: Record<FastTrackCellType, string> = {
 /**
  * 获取格子在 7x7 Grid 中的行列位置（1-based，与 CSS grid 一致）
  *
- * Grid 布局（24 个格子，每条边 6 个，含角）：
- * - 上边（第1行）：格子 0-5，grid-column 1 到 7，从左到右
- * - 右边（第7列）：格子 6-11，grid-row 2 到 7，从上到下
- * - 下边（第7行）：格子 12-17，grid-column 6 到 1，从右到左
- * - 左边（第1列）：格子 18-23，grid-row 6 到 2，从下到上
+ * Grid 布局（24 格，与原始资本积累棋盘一致）：
+ * - 上边（第1行）：格子 0-6，grid-column 1 到 7，从左到右
+ * - 右边（第7列）：格子 7-11，grid-row 2 到 6，从上到下（不含角）
+ * - 下边（第7行）：格子 12-18，grid-column 7 到 1，从右到左
+ * - 左边（第1列）：格子 19-23，grid-row 6 到 2，从下到上（不含角）
  */
 function getCellGridArea(index: number): { row: number; col: number } {
-  if (index >= 0 && index <= 5) {
+  if (index >= 0 && index <= 6) {
     // 上边：row=1, col=index+1 (1~7)
     return { row: 1, col: index + 1 }
-  } else if (index >= 6 && index <= 11) {
-    // 右边：row=index-4 (2~7), col=7
-    return { row: index - 4, col: 7 }
-  } else if (index >= 12 && index <= 17) {
-    // 下边：row=7, col=18-index (12→6, 13→5, 14→4, 15→3, 16→2, 17→1)
-    return { row: 7, col: 18 - index }
+  } else if (index >= 7 && index <= 11) {
+    // 右边：row=index-5 (2~6), col=7
+    return { row: index - 5, col: 7 }
+  } else if (index >= 12 && index <= 18) {
+    // 下边：row=7, col=19-index (12→7, 13→6, ..., 18→1)
+    return { row: 7, col: 19 - index }
   } else {
-    // 左边：row=24-index (18→6, 19→5, 20→4, 21→3, 22→2, 23→1), col=1
-    return { row: 24 - index, col: 1 }
+    // 左边：row=25-index (19→6, 20→5, ..., 23→2), col=1
+    return { row: 25 - index, col: 1 }
   }
 }
 
