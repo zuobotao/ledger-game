@@ -235,6 +235,7 @@ function createPlayer(
     isBankrupt: false,
     financialStatement: createFinancialStatement(),
     financialSnapshots: [],
+    phase: 'rat_race',
   }
 
   recalcPlayerFinancials(player)
@@ -313,7 +314,7 @@ export const useGameStore = defineStore('game', () => {
 
   const canCurrentPlayerEnterFastTrack = computed(() => {
     const p = currentPlayer.value
-    if (!p || phase.value !== 'rat_race') return false
+    if (!p || p.phase !== 'rat_race') return false
     return p.passiveIncome >= p.totalExpenses
   })
 
@@ -583,7 +584,7 @@ export const useGameStore = defineStore('game', () => {
 
     // 如果第一个玩家是 AI，自动开始 AI 回合
     const firstPlayer = players.value[0]
-    if (firstPlayer?.isAI && phase.value === 'rat_race') {
+    if (firstPlayer?.isAI && firstPlayer.phase === 'rat_race') {
       setTimeout(() => {
         runAITurn()
       }, 500)
@@ -661,10 +662,20 @@ export const useGameStore = defineStore('game', () => {
   }
 
   // 当前显示的阶段（用于跨阶段观战）
-  const displayPhase = computed(() => viewingPhase.value ?? phase.value)
+  // 优先级：手动设置的viewingPhase > 当前查看玩家的phase > 全局phase
+  const displayPhase = computed(() => {
+    if (viewingPhase.value) return viewingPhase.value
+    const vp = viewingPlayer.value
+    if (vp && vp.phase) return vp.phase
+    return phase.value as 'rat_race' | 'fast_track'
+  })
 
   // 是否处于跨阶段观战模式
-  const isSpectatingOtherPhase = computed(() => viewingPhase.value !== null && viewingPhase.value !== phase.value)
+  const isSpectatingOtherPhase = computed(() => {
+    const mp = mainPlayer.value
+    if (!mp) return false
+    return displayPhase.value !== mp.phase
+  })
 
   function moveToNextPlayer() {
     const count = players.value.length
@@ -695,10 +706,10 @@ export const useGameStore = defineStore('game', () => {
     currentPlayerIndex.value = nextIndex
     if (wasLastPlayer) {
       turnNumber.value += 1
-      // 按阶段累计回合数
-      if (phase.value === 'rat_race') {
+      // 按阶段累计回合数（基于刚完成回合的玩家所在阶段）
+      if (currentP?.phase === 'rat_race') {
         ratRaceTurns.value += 1
-      } else if (phase.value === 'fast_track') {
+      } else if (currentP?.phase === 'fast_track') {
         fastTrackTurns.value += 1
       }
     }
@@ -727,7 +738,7 @@ export const useGameStore = defineStore('game', () => {
       autoAITrigger.value &&
       nextPlayer?.isAI &&
       !nextPlayer.isBankrupt &&
-      (phase.value === 'rat_race' || phase.value === 'fast_track')
+      (nextPlayer.phase === 'rat_race' || nextPlayer.phase === 'fast_track')
     ) {
       // 用 setTimeout 避免在 moveToNextPlayer 中嵌套调用
       setTimeout(() => {
@@ -1224,7 +1235,7 @@ export const useGameStore = defineStore('game', () => {
 
   function ratRaceRollDice() {
     const player = currentPlayer.value
-    if (!player || phase.value !== 'rat_race' || turnStatus.value !== 'idle') return
+    if (!player || player.phase !== 'rat_race' || turnStatus.value !== 'idle') return
 
     const diceCount = player.doubleDiceNextTurn ? 2 : 1
     player.doubleDiceNextTurn = false
@@ -1989,13 +2000,13 @@ export const useGameStore = defineStore('game', () => {
 
   function checkFinancialFreedom(): boolean {
     const player = currentPlayer.value
-    if (!player || phase.value !== 'rat_race') return false
+    if (!player || player.phase !== 'rat_race') return false
     return player.passiveIncome >= player.totalExpenses
   }
 
   function buyInsurance(): boolean {
     const player = currentPlayer.value
-    if (!player || phase.value !== 'rat_race' || player.hasInsurance) return false
+    if (!player || player.phase !== 'rat_race' || player.hasInsurance) return false
     const cost = player.totalExpenses * 6
     if (player.cash < cost) return false
     player.cash -= cost
@@ -2007,7 +2018,7 @@ export const useGameStore = defineStore('game', () => {
 
   function toggleUnemploymentInsurance(): boolean {
     const player = currentPlayer.value
-    if (!player || phase.value !== 'rat_race') return false
+    if (!player || player.phase !== 'rat_race') return false
     player.hasUnemploymentInsurance = !player.hasUnemploymentInsurance
     const action = player.hasUnemploymentInsurance ? '参保' : '停保'
     recordTransaction('other', 0, `失业保险${action}`, player.id)
@@ -2041,7 +2052,7 @@ export const useGameStore = defineStore('game', () => {
     const player = currentPlayer.value
     if (!player || !checkFinancialFreedom()) return false
 
-    phase.value = 'fast_track'
+    player.phase = 'fast_track'
     player.fastTrackPosition = 0
     player.cash += player.cashFlow * 100
     player.dream = getRandomDream()
@@ -2053,13 +2064,20 @@ export const useGameStore = defineStore('game', () => {
     turnStatus.value = 'idle'
     lastRoll.value = 0
     clearPending()
+
+    // 如果所有玩家都进入了快车道，全局phase切换为fast_track
+    const allInFastTrack = players.value.every((p) => p.isBankrupt || p.phase === 'fast_track')
+    if (allInFastTrack) {
+      phase.value = 'fast_track'
+    }
+
     saveState()
     return true
   }
 
   function fastTrackRollDice() {
     const player = currentPlayer.value
-    if (!player || phase.value !== 'fast_track' || turnStatus.value !== 'idle') return
+    if (!player || player.phase !== 'fast_track' || turnStatus.value !== 'idle') return
 
     const diceValues = rollDiceValues(2)
     lastDiceValues.value = diceValues
@@ -2146,7 +2164,7 @@ export const useGameStore = defineStore('game', () => {
 
   function buyDream(): boolean {
     const player = currentPlayer.value
-    if (!player || phase.value !== 'fast_track' || pendingAction.value.type !== 'fast_track_dream') {
+    if (!player || player.phase !== 'fast_track' || pendingAction.value.type !== 'fast_track_dream') {
       return false
     }
     const dream = player.dream
@@ -2271,7 +2289,7 @@ export const useGameStore = defineStore('game', () => {
   async function runAITurn(): Promise<void> {
     const player = currentPlayer.value
     if (!player || !player.isAI) return
-    if (phase.value !== 'rat_race' && phase.value !== 'fast_track') return
+    if (player.phase !== 'rat_race' && player.phase !== 'fast_track') return
 
     isAIThinking.value = true
     try {
@@ -2279,7 +2297,7 @@ export const useGameStore = defineStore('game', () => {
       await sleep(500)
 
       // 2. 掷骰子
-      if (phase.value === 'rat_race') {
+      if (player.phase === 'rat_race') {
         ratRaceRollDice()
       } else {
         fastTrackRollDice()
@@ -2292,7 +2310,7 @@ export const useGameStore = defineStore('game', () => {
       await aiHandlePendingAction()
 
       // 6. AI 买保险（仅老鼠圈）
-      if (phase.value === 'rat_race' && !player.hasInsurance && turnStatus.value === 'resolving') {
+      if (player.phase === 'rat_race' && !player.hasInsurance && turnStatus.value === 'resolving') {
         const difficulty: AIDifficulty = (player.aiDifficulty as AIDifficulty) ?? 'medium'
         if (AIDecision.decideBuyInsurance(player, difficulty)) {
           await sleep(300)
@@ -2301,7 +2319,7 @@ export const useGameStore = defineStore('game', () => {
       }
 
       // 6.5 AI 失业保险决策（仅老鼠圈）
-      if (phase.value === 'rat_race' && turnStatus.value === 'resolving') {
+      if (player.phase === 'rat_race' && turnStatus.value === 'resolving') {
         const difficulty: AIDifficulty = (player.aiDifficulty as AIDifficulty) ?? 'medium'
         const shouldInsure = AIDecision.decideUnemploymentInsurance(player, difficulty)
         if (shouldInsure !== player.hasUnemploymentInsurance) {
@@ -2321,7 +2339,7 @@ export const useGameStore = defineStore('game', () => {
       }
 
       // 7.5 老鼠圈阶段：检测是否满足进入资本游戏条件，满足则自动进入
-      if (phase.value === 'rat_race' && checkFinancialFreedom()) {
+      if (player.phase === 'rat_race' && checkFinancialFreedom()) {
         await sleep(500)
         enterFastTrack()
 

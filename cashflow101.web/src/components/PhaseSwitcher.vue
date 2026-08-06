@@ -13,13 +13,13 @@ const isSpectator = computed(() => route.query.spectator === 'true')
 // 统计各阶段玩家数量
 const ratRacePlayers = computed(() =>
   gameStore.players.filter(
-    (p) => !p.isBankrupt && (p.fastTrackPosition === undefined || p.fastTrackPosition === null),
+    (p) => !p.isBankrupt && p.phase === 'rat_race',
   ),
 )
 
 const fastTrackPlayers = computed(() =>
   gameStore.players.filter(
-    (p) => !p.isBankrupt && p.fastTrackPosition !== undefined && p.fastTrackPosition !== null,
+    (p) => !p.isBankrupt && p.phase === 'fast_track',
   ),
 )
 
@@ -27,7 +27,7 @@ const hasPlayersInBothPhases = computed(() =>
   ratRacePlayers.value.length > 0 && fastTrackPlayers.value.length > 0,
 )
 
-const currentPhaseIsRatRace = computed(() => gameStore.phase === 'rat_race')
+const currentPhaseIsRatRace = computed(() => gameStore.displayPhase === 'rat_race')
 
 function goToRatRace() {
   if (currentPhaseIsRatRace.value && !isSpectator.value) return

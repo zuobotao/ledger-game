@@ -74,6 +74,7 @@ export interface Player {
   isBankrupt: boolean
   financialStatement: FinancialStatementState
   financialSnapshots: FinancialSnapshot[]
+  phase: 'rat_race' | 'fast_track'
 }
 
 export interface FinancialSnapshot {

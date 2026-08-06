@@ -272,7 +272,7 @@ const displayPlayer = computed(() => gameStore.viewingPlayer)
 
 const canBuyInsurance = computed(() => {
   const p = gameStore.currentPlayer
-  if (!p || gameStore.phase !== 'rat_race' || p.hasInsurance) return false
+  if (!p || p.phase !== 'rat_race' || p.hasInsurance) return false
   const cost = p.totalExpenses * 6
   return p.cash >= cost && gameStore.turnStatus === 'idle' && !p.isAI
 })
@@ -284,7 +284,7 @@ const hasAnyInsurance = computed(() => {
 
 const showInsuranceButton = computed(() => {
   const p = gameStore.currentPlayer
-  if (!p || gameStore.phase !== 'rat_race' || p.isAI) return false
+  if (!p || p.phase !== 'rat_race' || p.isAI) return false
   // 至少有一个保险可操作（未买的可买，已买的可管理）
   return true
 })
