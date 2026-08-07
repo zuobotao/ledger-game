@@ -1557,10 +1557,26 @@ export const useGameStore = defineStore('game', () => {
       if (holding) {
         oldQuantity = holding.quantity
         oldMarketPrice = holding.marketPrice ?? holding.cost
+      }
 
-        holding.quantity = Math.floor(holding.quantity * ratio)
+      // 更新全局股票价格
+      if (stockPrices.value[symbol] !== undefined) {
+        stockPrices.value[symbol] = Math.max(1,
+          Math.round(stockPrices.value[symbol] / ratio)
+        )
+      }
+      // 同时更新所有玩家持有的该股票市价
+      for (const p of players.value) {
+        p.assets
+          .filter((a) => a.type === 'stock' && a.symbol === symbol)
+          .forEach((a) => {
+            a.marketPrice = Math.round((a.marketPrice ?? a.cost) / ratio)
+          })
+      }
+
+      if (holding) {
+        holding.quantity = Math.floor(oldQuantity * ratio)
         holding.cost = Math.round(holding.cost / ratio)
-        holding.marketPrice = Math.round(oldMarketPrice * ratio)
 
         // 记录交易
         recordTransaction(
