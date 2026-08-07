@@ -1657,7 +1657,7 @@ export const useGameStore = defineStore('game', () => {
           name: `${card.title} 贷款`,
           amount: loanAmount,
           monthlyPayment: Math.round(loanAmount * 0.005),
-          category: card.type === 'real_estate' ? 'mortgage' : 'bank_loan',
+          category: card.type === 'real_estate' ? 'real_estate_loan' : card.type === 'business' ? 'business_loan' : 'bank_loan',
         }
         player.liabilities.push(liability)
       }

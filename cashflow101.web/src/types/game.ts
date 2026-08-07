@@ -40,7 +40,7 @@ export interface Liability {
   name: string
   amount: number
   monthlyPayment: number
-  category?: 'mortgage' | 'school_loan' | 'car_loan' | 'credit_card' | 'bank_loan'
+  category?: 'mortgage' | 'school_loan' | 'car_loan' | 'credit_card' | 'bank_loan' | 'business_loan' | 'real_estate_loan'
 }
 
 export interface Player {
@@ -390,7 +390,7 @@ export const BANK_CONFIG = {
 
 export const RAT_RACE_BOARD_SIZE = 24
 
-export const FAST_TRACK_BOARD_SIZE = 20
+export const FAST_TRACK_BOARD_SIZE = 24
 
 export const MAX_CHILDREN = {
   normal: 3,
