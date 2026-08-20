@@ -223,7 +223,7 @@ function getCareerDisplayName(careerId: string): string {
           创建新游戏
         </h1>
         <p class="text-sm text-muted-foreground">
-          配置玩家、职业与可选规则，开始你的现金流之旅。
+          配置玩家、职业与可选规则，开始你的财务自由之旅。
         </p>
       </div>
 

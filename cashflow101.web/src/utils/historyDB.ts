@@ -12,7 +12,7 @@ import type {
   GameResult,
 } from '@/types/game'
 
-const DB_NAME = 'cashflow101-history.db'
+const DB_NAME = 'ledger101-history.db'
 const MAX_RECORDS = 50
 
 let SQL: SqlJsStatic | null = null
@@ -53,7 +53,7 @@ async function initDB(): Promise<void> {
 function loadDBFromIndexedDB(): Promise<Uint8Array | null> {
   return new Promise((resolve) => {
     try {
-      const req = indexedDB.open('cashflow101-db', 1)
+      const req = indexedDB.open('ledger101-db', 1)
       req.onupgradeneeded = () => {
         const idb = req.result
         if (!idb.objectStoreNames.contains('databases')) {
@@ -93,7 +93,7 @@ function saveDBToIndexedDB(): void {
   if (!db) return
   const data = db.export()
   try {
-    const req = indexedDB.open('cashflow101-db', 1)
+    const req = indexedDB.open('ledger101-db', 1)
     req.onupgradeneeded = () => {
       const idb = req.result
       if (!idb.objectStoreNames.contains('databases')) {
@@ -562,7 +562,7 @@ export async function clearAllRecords(): Promise<void> {
  * 从 localStorage 迁移数据到 SQLite（首次使用时自动迁移）
  */
 export async function migrateFromLocalStorage(): Promise<number> {
-  const STORAGE_KEY = 'cashflow101-history'
+  const STORAGE_KEY = 'ledger101-history'
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return 0

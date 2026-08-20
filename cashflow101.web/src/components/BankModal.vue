@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { Landmark, X, PieChart, Shield, AlertCircle } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import { UNEMPLOYMENT_INSURANCE_RATE } from '@/types/game'
-import type { Asset } from '@/types/game'
+import type { Asset, Liability } from '@/types/game'
 import FinancialStatement from './FinancialStatement.vue'
 
 const props = defineProps<{
@@ -85,6 +85,22 @@ function handleLoan() {
 }
 
 // --- Repay tab ---
+// 非银行类负债（房贷、车贷、学生贷款、信用卡）
+const otherLiabilities = computed<Liability[]>(() => {
+  const p = store.currentPlayer
+  if (!p) return []
+  return p.liabilities.filter(
+    (l) => l.category === 'mortgage' || l.category === 'car_loan' || l.category === 'school_loan' || l.category === 'credit_card',
+  )
+})
+
+function handlePayoffLiability(loan: Liability) {
+  const ok = store.payoffLiability(loan.id)
+  if (ok) {
+    showSuccess(`已还清 ${loan.name}`)
+  }
+}
+
 const remainingLoanAfterRepay = computed(() => Math.max(0, totalLoan.value - repayAmount.value))
 
 const repayProgress = computed(() => {
@@ -455,9 +471,10 @@ function handleOverlayClick(e: MouseEvent) {
 
               <!-- ====== Repay Tab ====== -->
               <template v-else-if="activeTab === 'repay'">
+                <!-- 银行贷款还款 -->
                 <div class="bg-background rounded-[var(--radius-sm)] p-3 border border-border">
                   <div class="flex justify-between items-center mb-2">
-                    <span class="text-xs text-muted-foreground">未还贷款总额</span>
+                    <span class="text-xs text-muted-foreground">银行贷款余额</span>
                     <span class="text-lg font-semibold text-destructive">
                       ${{ totalLoan.toLocaleString() }}
                     </span>
@@ -527,8 +544,45 @@ function handleOverlayClick(e: MouseEvent) {
                   :disabled="repayAmount <= 0 || repayAmount > totalLoan || repayAmount > currentCash"
                   @click="handleRepay"
                 >
-                  还款
+                  偿还银行贷款
                 </button>
+
+                <!-- 其他负债一次性还清 -->
+                <div v-if="otherLiabilities.length > 0" class="pt-2 border-t border-border">
+                  <h4 class="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">一次性还清</h4>
+                  <div class="space-y-2">
+                    <div
+                      v-for="loan in otherLiabilities"
+                      :key="loan.id"
+                      class="flex items-center justify-between rounded-xl border border-border bg-secondary/30 p-3"
+                    >
+                      <div>
+                        <div class="text-sm font-medium text-foreground">{{ loan.name }}</div>
+                        <div class="text-xs text-muted-foreground">
+                          月供 {{ formatMoney(loan.monthlyPayment) }}
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-3">
+                        <div class="text-right">
+                          <div class="text-sm font-semibold text-destructive">
+                            {{ formatMoney(loan.amount) }}
+                          </div>
+                          <div class="text-xs text-muted-foreground">欠款</div>
+                        </div>
+                        <button
+                          class="h-9 px-4 rounded-full text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          :class="currentCash >= loan.amount
+                            ? 'bg-destructive text-destructive-foreground hover:brightness-110'
+                            : 'bg-secondary text-muted-foreground cursor-not-allowed'"
+                          :disabled="currentCash < loan.amount"
+                          @click="handlePayoffLiability(loan)"
+                        >
+                          还清
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </template>
 
               <!-- ====== Assets Tab ====== -->

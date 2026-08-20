@@ -30,14 +30,14 @@ function goToHistory() {
         <h1
           class="mb-4 text-5xl font-semibold tracking-tight text-foreground sm:text-6xl md:text-7xl"
         >
-          Cashflow 101
+          Ledger
         </h1>
-        <p class="mb-6 text-xl font-medium text-foreground sm:text-2xl">《穷爸爸富爸爸》经典财商桌游</p>
+        <p class="mb-6 text-xl font-medium text-foreground sm:text-2xl">财商教育模拟游戏</p>
         <p
           class="mx-auto mb-10 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg"
         >
-          源自罗伯特·清崎畅销理财书《穷爸爸富爸爸》，在游戏中学习富人思维，
-          完成原始资本积累，进入资本游戏，练习投资、管理资产负债、实现财务自由。
+          通过模拟真实的个人财务与投资场景，学习资产负债管理，
+          完成原始资本积累，练习投资决策、建立被动收入，走向财务自由。
         </p>
 
         <div class="flex flex-col items-center justify-center gap-4 sm:flex-row">
@@ -70,6 +70,11 @@ function goToHistory() {
             历史对局
           </button>
         </div>
+
+        <p class="mt-12 max-w-md text-xs text-muted-foreground/60">
+          本游戏为财商教育模拟工具，仅供学习交流使用。
+          所有场景、人物、数据均为虚构，不构成任何投资建议。
+        </p>
       </div>
     </div>
   </main>

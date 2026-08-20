@@ -53,7 +53,7 @@ import type { CardDeck } from '@/types/game'
 import { AIDecision } from '@/utils/aiDecision'
 import type { AIDifficulty } from '@/utils/aiDecision'
 
-const STORAGE_KEY = 'cashflow101-game-state'
+const STORAGE_KEY = 'ledger101-game-state'
 
 function createId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
