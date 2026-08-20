@@ -1,6 +1,16 @@
-# cashflow101.web
+# Ledger - 财商教育模拟游戏
 
-This template should help get you started developing with Vue 3 in Vite.
+一款基于 Vue 3 + Vite 的财商教育模拟游戏，通过模拟真实的个人财务与投资场景，
+帮助玩家学习资产管理、投资决策和财务自由理念。
+
+## 功能特性
+
+- 多职业选择，不同收入起点
+- 股票、房地产、企业等多种投资类型
+- 原始资本积累 + 资本游戏双阶段
+- AI 对战支持
+- 学习模式：手动填写财务报表，巩固财商知识
+- 历史对局记录与数据分析
 
 ## Recommended IDE Setup
 
