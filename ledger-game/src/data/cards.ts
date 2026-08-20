@@ -86,9 +86,9 @@ export function drawStoryCard(deck: StoryCard[]): { card: StoryCard; remaining: 
 
 export const OPPORTUNITY_CARDS: OpportunityCard[] = [
   // 小机会 - 股票（每种股票4个价位，共20张）
-  // ON2U
+  // NOVA
   {
-    id: 'stock-on2u-5',
+    id: 'stock-nova-5',
     size: 'small',
     type: 'stock',
     title: 'NOVA 股票 · $5 买入机会',
@@ -100,7 +100,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     action: 'buy',
   },
   {
-    id: 'stock-on2u-10',
+    id: 'stock-nova-10',
     size: 'small',
     type: 'stock',
     title: 'NOVA 股票 · $10 买入机会',
@@ -112,7 +112,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     action: 'buy',
   },
   {
-    id: 'stock-on2u-20',
+    id: 'stock-nova-20',
     size: 'small',
     type: 'stock',
     title: 'NOVA 股票 · $20 卖出机会',
@@ -123,7 +123,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     action: 'sell',
   },
   {
-    id: 'stock-on2u-30',
+    id: 'stock-nova-30',
     size: 'small',
     type: 'stock',
     title: 'NOVA 股票 · $30 卖出机会',
@@ -133,9 +133,9 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     symbol: 'NOVA',
     action: 'sell',
   },
-  // MYT4U
+  // MEDX
   {
-    id: 'stock-myt4u-10',
+    id: 'stock-medx-10',
     size: 'small',
     type: 'stock',
     title: 'MEDX 股票 · $10 买入机会',
@@ -147,7 +147,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     action: 'buy',
   },
   {
-    id: 'stock-myt4u-20',
+    id: 'stock-medx-20',
     size: 'small',
     type: 'stock',
     title: 'MEDX 股票 · $20 买入机会',
@@ -159,7 +159,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     action: 'buy',
   },
   {
-    id: 'stock-myt4u-30',
+    id: 'stock-medx-30',
     size: 'small',
     type: 'stock',
     title: 'MEDX 股票 · $30 卖出机会',
@@ -170,7 +170,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     action: 'sell',
   },
   {
-    id: 'stock-myt4u-40',
+    id: 'stock-medx-40',
     size: 'small',
     type: 'stock',
     title: 'MEDX 股票 · $40 卖出机会',
@@ -180,9 +180,9 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     symbol: 'MEDX',
     action: 'sell',
   },
-  // GRO4US
+  // GRW
   {
-    id: 'stock-gro4us-5',
+    id: 'stock-grw-5',
     size: 'small',
     type: 'stock',
     title: 'GRW 股票 · $5 买入机会',
@@ -194,7 +194,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     action: 'buy',
   },
   {
-    id: 'stock-gro4us-12',
+    id: 'stock-grw-12',
     size: 'small',
     type: 'stock',
     title: 'GRW 股票 · $12 买入机会',
@@ -206,7 +206,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     action: 'buy',
   },
   {
-    id: 'stock-gro4us-25',
+    id: 'stock-grw-25',
     size: 'small',
     type: 'stock',
     title: 'GRW 股票 · $25 卖出机会',
@@ -217,7 +217,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     action: 'sell',
   },
   {
-    id: 'stock-gro4us-40',
+    id: 'stock-grw-40',
     size: 'small',
     type: 'stock',
     title: 'GRW 股票 · $40 卖出机会',
@@ -227,9 +227,9 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     symbol: 'GRW',
     action: 'sell',
   },
-  // OK4U
+  // BLUE
   {
-    id: 'stock-ok4u-15',
+    id: 'stock-blue-15',
     size: 'small',
     type: 'stock',
     title: 'BLUE 股票 · $15 买入机会',
@@ -241,7 +241,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     action: 'buy',
   },
   {
-    id: 'stock-ok4u-20',
+    id: 'stock-blue-20',
     size: 'small',
     type: 'stock',
     title: 'BLUE 股票 · $20 买入机会',
@@ -253,7 +253,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     action: 'buy',
   },
   {
-    id: 'stock-ok4u-30',
+    id: 'stock-blue-30',
     size: 'small',
     type: 'stock',
     title: 'BLUE 股票 · $30 卖出机会',
@@ -264,7 +264,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     action: 'sell',
   },
   {
-    id: 'stock-ok4u-50',
+    id: 'stock-blue-50',
     size: 'small',
     type: 'stock',
     title: 'BLUE 股票 · $50 卖出机会',
@@ -274,9 +274,9 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     symbol: 'BLUE',
     action: 'sell',
   },
-  // 2BIG
+  // TITAN
   {
-    id: 'stock-2big-20',
+    id: 'stock-titan-20',
     size: 'small',
     type: 'stock',
     title: 'TITAN 股票 · $20 买入机会',
@@ -288,7 +288,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     action: 'buy',
   },
   {
-    id: 'stock-2big-30',
+    id: 'stock-titan-30',
     size: 'small',
     type: 'stock',
     title: 'TITAN 股票 · $30 买入机会',
@@ -300,7 +300,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     action: 'buy',
   },
   {
-    id: 'stock-2big-50',
+    id: 'stock-titan-50',
     size: 'small',
     type: 'stock',
     title: 'TITAN 股票 · $50 卖出机会',
@@ -311,7 +311,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     action: 'sell',
   },
   {
-    id: 'stock-2big-80',
+    id: 'stock-titan-80',
     size: 'small',
     type: 'stock',
     title: 'TITAN 股票 · $80 卖出机会',
@@ -324,11 +324,11 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
   // 小机会 - 股票拆分/合股（每只股票各一张拆分、一张合股）
   // 拆分类（1 拆 2）
   {
-    id: 'stock-split-on2u-2',
+    id: 'stock-split-nova-2',
     size: 'small',
     type: 'stock',
-    title: 'ON2U 宣布 1 拆 2',
-    description: 'ON2U公司股价过高，董事会宣布股票拆分。你持有的ON2U股票数量将翻倍，价格减半。',
+    title: '新星科技宣布 1 拆 2',
+    description: '新星科技股价过高，董事会宣布股票拆分。你持有的NOVA股票数量将翻倍，价格减半。',
     cost: 0,
     cashFlow: 0,
     symbol: 'NOVA',
@@ -336,11 +336,11 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     splitRatio: 2,
   },
   {
-    id: 'stock-split-myt4u-2',
+    id: 'stock-split-medx-2',
     size: 'small',
     type: 'stock',
-    title: 'MYT4U 宣布 1 拆 2',
-    description: 'MYT4U公司股价过高，董事会宣布股票拆分。你持有的MYT4U股票数量将翻倍，价格减半。',
+    title: '麦迪医疗宣布 1 拆 2',
+    description: '麦迪医疗股价过高，董事会宣布股票拆分。你持有的MEDX股票数量将翻倍，价格减半。',
     cost: 0,
     cashFlow: 0,
     symbol: 'MEDX',
@@ -348,11 +348,11 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     splitRatio: 2,
   },
   {
-    id: 'stock-split-gro4us-2',
+    id: 'stock-split-grw-2',
     size: 'small',
     type: 'stock',
-    title: 'GRO4US 宣布 1 拆 2',
-    description: 'GRO4US公司股价过高，董事会宣布股票拆分。你持有的GRO4US股票数量将翻倍，价格减半。',
+    title: '长盛综合宣布 1 拆 2',
+    description: '长盛综合股价过高，董事会宣布股票拆分。你持有的GRW股票数量将翻倍，价格减半。',
     cost: 0,
     cashFlow: 0,
     symbol: 'GRW',
@@ -360,11 +360,11 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     splitRatio: 2,
   },
   {
-    id: 'stock-split-ok4u-2',
+    id: 'stock-split-blue-2',
     size: 'small',
     type: 'stock',
-    title: 'OK4U 宣布 1 拆 2',
-    description: 'OK4U公司股价过高，董事会宣布股票拆分。你持有的OK4U股票数量将翻倍，价格减半。',
+    title: '蓝海股份宣布 1 拆 2',
+    description: '蓝海股份股价过高，董事会宣布股票拆分。你持有的BLUE股票数量将翻倍，价格减半。',
     cost: 0,
     cashFlow: 0,
     symbol: 'BLUE',
@@ -372,11 +372,11 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     splitRatio: 2,
   },
   {
-    id: 'stock-split-2big-2',
+    id: 'stock-split-titan-2',
     size: 'small',
     type: 'stock',
-    title: '2BIG 宣布 1 拆 2',
-    description: '2BIG公司股价过高，董事会宣布股票拆分。你持有的2BIG股票数量将翻倍，价格减半。',
+    title: '泰坦重工宣布 1 拆 2',
+    description: '泰坦重工股价过高，董事会宣布股票拆分。你持有的TITAN股票数量将翻倍，价格减半。',
     cost: 0,
     cashFlow: 0,
     symbol: 'TITAN',
@@ -385,11 +385,11 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
   },
   // 合股类（2 合 1）
   {
-    id: 'stock-merge-on2u-2',
+    id: 'stock-merge-nova-2',
     size: 'small',
     type: 'stock',
-    title: 'ON2U 进行 2 合 1',
-    description: 'ON2U公司股价持续低迷，为维持上市地位进行合股。你持有的ON2U股票数量将减半，价格翻倍。',
+    title: '新星科技进行 2 合 1',
+    description: '新星科技股价持续低迷，为维持上市地位进行合股。你持有的NOVA股票数量将减半，价格翻倍。',
     cost: 0,
     cashFlow: 0,
     symbol: 'NOVA',
@@ -397,11 +397,11 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     splitRatio: 0.5,
   },
   {
-    id: 'stock-merge-myt4u-2',
+    id: 'stock-merge-medx-2',
     size: 'small',
     type: 'stock',
-    title: 'MYT4U 进行 2 合 1',
-    description: 'MYT4U公司股价持续低迷，为维持上市地位进行合股。你持有的MYT4U股票数量将减半，价格翻倍。',
+    title: '麦迪医疗进行 2 合 1',
+    description: '麦迪医疗股价持续低迷，为维持上市地位进行合股。你持有的MEDX股票数量将减半，价格翻倍。',
     cost: 0,
     cashFlow: 0,
     symbol: 'MEDX',
@@ -409,11 +409,11 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     splitRatio: 0.5,
   },
   {
-    id: 'stock-merge-gro4us-2',
+    id: 'stock-merge-grw-2',
     size: 'small',
     type: 'stock',
-    title: 'GRO4US 进行 2 合 1',
-    description: 'GRO4US公司股价持续低迷，为维持上市地位进行合股。你持有的GRO4US股票数量将减半，价格翻倍。',
+    title: '长盛综合进行 2 合 1',
+    description: '长盛综合股价持续低迷，为维持上市地位进行合股。你持有的GRW股票数量将减半，价格翻倍。',
     cost: 0,
     cashFlow: 0,
     symbol: 'GRW',
@@ -421,11 +421,11 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     splitRatio: 0.5,
   },
   {
-    id: 'stock-merge-ok4u-2',
+    id: 'stock-merge-blue-2',
     size: 'small',
     type: 'stock',
-    title: 'OK4U 进行 2 合 1',
-    description: 'OK4U公司股价持续低迷，为维持上市地位进行合股。你持有的OK4U股票数量将减半，价格翻倍。',
+    title: '蓝海股份进行 2 合 1',
+    description: '蓝海股份股价持续低迷，为维持上市地位进行合股。你持有的BLUE股票数量将减半，价格翻倍。',
     cost: 0,
     cashFlow: 0,
     symbol: 'BLUE',
@@ -433,11 +433,11 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
     splitRatio: 0.5,
   },
   {
-    id: 'stock-merge-2big-2',
+    id: 'stock-merge-titan-2',
     size: 'small',
     type: 'stock',
-    title: '2BIG 进行 2 合 1',
-    description: '2BIG公司股价持续低迷，为维持上市地位进行合股。你持有的2BIG股票数量将减半，价格翻倍。',
+    title: '泰坦重工进行 2 合 1',
+    description: '泰坦重工股价持续低迷，为维持上市地位进行合股。你持有的TITAN股票数量将减半，价格翻倍。',
     cost: 0,
     cashFlow: 0,
     symbol: 'TITAN',
@@ -571,7 +571,7 @@ export const OPPORTUNITY_CARDS: OpportunityCard[] = [
 
 export const MARKET_CARDS: MarketEventCard[] = [
   {
-    id: 'market-on2u-boom',
+    id: 'market-nova-boom',
     title: 'NOVA 股票大涨',
     description: 'NOVA 股价飙升，持有者可以每股 $40 卖出。',
     targetType: 'stock',
@@ -580,7 +580,7 @@ export const MARKET_CARDS: MarketEventCard[] = [
     fixedPrice: 40,
   },
   {
-    id: 'market-myt4u-boom',
+    id: 'market-medx-boom',
     title: 'MEDX 股票大涨',
     description: 'MEDX 股价飙升，持有者可以每股 $50 卖出。',
     targetType: 'stock',
@@ -589,7 +589,7 @@ export const MARKET_CARDS: MarketEventCard[] = [
     fixedPrice: 50,
   },
   {
-    id: 'market-gro4us-boom',
+    id: 'market-grw-boom',
     title: 'GRW 股票大涨',
     description: 'GRW 股价飙升，持有者可以每股 $45 卖出。',
     targetType: 'stock',
@@ -598,7 +598,7 @@ export const MARKET_CARDS: MarketEventCard[] = [
     fixedPrice: 45,
   },
   {
-    id: 'market-ok4u-boom',
+    id: 'market-blue-boom',
     title: 'BLUE 股票大涨',
     description: 'BLUE 股价飙升，持有者可以每股 $80 卖出。',
     targetType: 'stock',
@@ -607,7 +607,7 @@ export const MARKET_CARDS: MarketEventCard[] = [
     fixedPrice: 80,
   },
   {
-    id: 'market-2big-boom',
+    id: 'market-titan-boom',
     title: 'TITAN 股票大涨',
     description: 'TITAN 股价飙升，持有者可以每股 $120 卖出。',
     targetType: 'stock',

@@ -2108,8 +2108,8 @@ export const useGameStore = defineStore('game', () => {
       case 'cashflow': {
         const payout = player.cashFlow * 100
         player.cash += payout
-        recordTransaction('salary', payout, '现金流日', player.id)
-        // FastTrack 现金流日也推进年龄（全局游戏时间）
+        recordTransaction('salary', payout, '被动收入日', player.id)
+        // FastTrack 被动收入日也推进年龄（全局游戏时间）
         gameMonth.value += 1
         if (config.value.ageLimit && gameMonth.value >= MAX_AGE_MONTHS) {
           triggerRetirement()
@@ -2117,7 +2117,7 @@ export const useGameStore = defineStore('game', () => {
           saveState()
           return
         }
-        setPending(null, `现金流日：获得 ${formatMoney(payout)}。`)
+        setPending(null, `被动收入日：获得 ${formatMoney(payout)}。`)
         break
       }
       case 'opportunity':

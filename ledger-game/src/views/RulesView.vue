@@ -251,10 +251,10 @@ function goHome() {
                 <div class="flex h-10 w-10 items-center justify-center rounded-md bg-success/20 text-success">
                   <Coins class="h-5 w-5" />
                 </div>
-                <h2 class="text-lg font-semibold">现金流日</h2>
+                <h2 class="text-lg font-semibold">被动收入日</h2>
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
-                落在现金流日格子时，你将获得<strong class="text-foreground">月现金流 × 100</strong>的巨额现金收入。
+                落在被动收入日格子时，你将获得<strong class="text-foreground">月现金流 × 100</strong>的巨额现金收入。
                 这是资本游戏中最有价值的格子之一，代表着财务自由带来的被动财富增长。
               </p>
             </div>
