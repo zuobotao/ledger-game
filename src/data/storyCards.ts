@@ -1,4 +1,5 @@
 import type { StoryCard } from '@/types/game'
+import { defaultRandom } from '@/engine/randomSource'
 
 /**
  * 24 张历史故事卡，按 6 大商帮/文化分类，每类 4 张。
@@ -323,12 +324,7 @@ export const STORY_CATEGORY_COLORS: Record<string, { gradient: string; label: st
  * 洗牌辅助函数
  */
 function shuffle<T>(arr: T[]): T[] {
-  const copy = [...arr]
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[copy[i], copy[j]] = [copy[j]!, copy[i]!]
-  }
-  return copy
+  return defaultRandom.shuffle(arr)
 }
 
 /**

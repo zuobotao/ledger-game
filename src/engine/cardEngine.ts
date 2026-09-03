@@ -8,16 +8,17 @@
  */
 
 import type { OpportunityCard } from '@/types/game'
+import { RandomSource, defaultRandom } from './randomSource'
 
 // ==================== 通用卡组操作 ====================
 
 /**
  * Fisher-Yates 洗牌
  */
-function shuffle<T>(arr: T[]): T[] {
+function shuffle<T>(arr: T[], random: RandomSource): T[] {
   const copy = [...arr]
   for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
+    const j = random.nextInt(0, i + 1)
     ;[copy[i], copy[j]] = [copy[j]!, copy[i]!]
   }
   return copy
@@ -26,10 +27,11 @@ function shuffle<T>(arr: T[]): T[] {
 /**
  * 创建一副洗好的牌组
  * @param cards 原始牌列表
+ * @param random 随机源，默认使用 defaultRandom
  * @returns 乱序后的新牌组
  */
-export function createDeck<T>(cards: T[]): T[] {
-  return shuffle(cards)
+export function createDeck<T>(cards: T[], random: RandomSource = defaultRandom): T[] {
+  return shuffle(cards, random)
 }
 
 /**
@@ -70,8 +72,8 @@ export function drawCards<T>(deck: T[], count: number): { cards: T[]; remaining:
  * @param deck 当前牌组
  * @returns 乱序后的新牌组
  */
-export function reshuffleDeck<T>(deck: T[]): T[] {
-  return shuffle(deck)
+export function reshuffleDeck<T>(deck: T[], random: RandomSource = defaultRandom): T[] {
+  return shuffle(deck, random)
 }
 
 // ==================== 机会卡（OpportunityCard）查询 ====================

@@ -4,6 +4,7 @@ import {
   MAX_AGE_MONTHS,
   RETIREMENT_AGE,
 } from '@/types/game'
+import { RandomSource, defaultRandom } from './randomSource'
 
 /**
  * 计算下一个玩家索引（纯模运算，不跳过破产玩家）
@@ -22,10 +23,10 @@ export function calcPlayerAge(ageMonths: number): number {
 /**
  * 掷骰子，返回每个骰子的点数
  */
-export function rollDice(count: number): number[] {
+export function rollDice(count: number, random: RandomSource = defaultRandom): number[] {
   const values: number[] = []
   for (let i = 0; i < count; i++) {
-    values.push(Math.floor(Math.random() * 6) + 1)
+    values.push(random.nextInt(1, 7))
   }
   return values
 }

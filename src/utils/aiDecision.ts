@@ -1,5 +1,6 @@
 import type { Player, OpportunityCard, Asset, Dream } from '@/types/game'
 import { BANK_CONFIG } from '@/types/game'
+import { RandomSource, defaultRandom } from '@/engine/randomSource'
 
 // AI 难度
 export type AIDifficulty = 'easy' | 'medium' | 'hard'
@@ -11,18 +12,18 @@ export type AIDifficulty = 'easy' | 'medium' | 'hard'
  * - 股票：基于当前价格与历史波动的估算（简化模型：低价买入预期盈利 50%-200%）
  * - 房产/企业：cashFlow / cost = 月 ROI，年化 ROI = 月 ROI × 12
  */
-function estimateROI(card: OpportunityCard): number {
+function estimateROI(card: OpportunityCard, random: RandomSource = defaultRandom): number {
   if (card.type === 'stock') {
     // 股票简化模型：价格越低，预期 ROI 越高
     // 参考：低价股 < $15 预期盈利 100%-200%；中价 $15-$40 预期 50%-100%；高价 > $40 预期 20%-50%
     const price = card.cost
     if (price <= 0) return 0
     if (price < 15) {
-      return 1.5 + Math.random() * 1.0 // 150% - 250%
+      return 1.5 + random.next() * 1.0 // 150% - 250%
     } else if (price < 40) {
-      return 0.5 + Math.random() * 0.5 // 50% - 100%
+      return 0.5 + random.next() * 0.5 // 50% - 100%
     } else {
-      return 0.2 + Math.random() * 0.3 // 20% - 50%
+      return 0.2 + random.next() * 0.3 // 20% - 50%
     }
   }
 
@@ -55,8 +56,8 @@ function getMaxAdditionalLoan(player: Player): number {
 /**
  * 在给定范围内加入随机扰动，使决策不完全确定
  */
-function randomFactor(base: number, variance: number): number {
-  const factor = 1 - variance + Math.random() * variance * 2
+function randomFactor(base: number, variance: number, random: RandomSource = defaultRandom): number {
+  const factor = 1 - variance + random.next() * variance * 2
   return Math.max(0, base * factor)
 }
 
@@ -411,22 +412,18 @@ export function decideCharity(
   player: Player,
   donationAmount: number,
   difficulty: AIDifficulty,
+  random: RandomSource = defaultRandom,
 ): boolean {
-  // 现金不够就不参与
   if (player.cash < donationAmount) {
     return false
   }
 
   switch (difficulty) {
     case 'easy':
-      // 不参与
       return false
     case 'medium':
-      // 50% 概率参与
-      return Math.random() < 0.5
+      return random.next() < 0.5
     case 'hard':
-      // 积极参与（双骰 = 更多机会）
-      // 只要现金足够就参与
       return true
     default:
       return false

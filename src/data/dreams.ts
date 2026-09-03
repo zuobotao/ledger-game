@@ -1,4 +1,5 @@
 import type { Dream } from '@/types/game'
+import { defaultRandom } from '@/engine/randomSource'
 
 export const DREAMS: Dream[] = [
   // 生活类 lifestyle
@@ -152,7 +153,7 @@ export const DREAMS: Dream[] = [
 ]
 
 export function getRandomDream(): Dream {
-  return DREAMS[Math.floor(Math.random() * DREAMS.length)] as Dream
+  return defaultRandom.pick(DREAMS)
 }
 
 export function getDreamById(id: string): Dream | undefined {

@@ -1,4 +1,5 @@
 import type { Career } from '@/types/game'
+import { defaultRandom } from '@/engine/randomSource'
 
 export const CAREERS: Career[] = [
   // ===== 简单难度 (Easy) =====
@@ -965,5 +966,5 @@ export function getCareerById(id: string): Career | undefined {
 }
 
 export function getRandomCareer(): Career {
-  return CAREERS[Math.floor(Math.random() * CAREERS.length)] as Career
+  return defaultRandom.pick(CAREERS)
 }
