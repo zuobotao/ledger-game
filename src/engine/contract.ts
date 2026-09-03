@@ -549,6 +549,39 @@ export interface GameEventLog {
   events: GameEvent[]
 }
 
+// ==================== Game Replay ====================
+
+/**
+ * 完整的游戏回放数据。
+ *
+ * 包含重建游戏所需的所有信息：
+ * - version：回放格式版本号
+ * - seed：随机种子
+ * - initialState：初始游戏状态
+ * - actions：所有执行的 GameAction 序列
+ * - events：所有产生的 GameEvent 序列
+ * - finalStateHash：最终状态哈希（用于校验）
+ *
+ * 原则：
+ * - 可序列化（JSON），用于持久化和传输
+ * - 自我校验：通过 finalStateHash 验证完整性
+ * - 相同 initialState + seed + actions → 相同 events + finalStateHash
+ */
+export interface GameReplay {
+  /** 回放格式版本号 */
+  version: string
+  /** 随机种子 */
+  seed: number
+  /** 初始游戏状态 */
+  initialState: GameState
+  /** 所有执行的 GameAction 序列 */
+  actions: GameAction[]
+  /** 所有产生的 GameEvent 序列 */
+  events: GameEvent[]
+  /** 最终状态哈希（用于校验） */
+  finalStateHash?: string
+}
+
 // ==================== Action Type Constants ====================
 
 export const GAME_ACTION_TYPES = [

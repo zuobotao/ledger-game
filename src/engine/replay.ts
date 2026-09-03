@@ -2,22 +2,26 @@
  * ReplayEngine — 回放引擎
  *
  * 职责：
- * - 从 GameEventLog 重建游戏状态
+ * - 从 GameEventLog 或 GameReplay 重建游戏状态
  * - 支持逐步回放（step forward / backward）
  * - 支持跳转到指定事件索引
  * - 支持获取任意时刻的游戏状态快照
+ * - 支持导出/导入 GameReplay 数据结构
+ * - 支持回放完整性校验（State Hash 验证）
  *
  * 原则：
  * - 回放过程不修改原始事件日志
  * - 使用 GameEngine 的 dispatch 方法重建状态
  * - 支持快进/跳转以快速定位关键事件
+ * - 相同 seed + actions → 相同 events + finalState
  */
 
 import type { GameState, Player } from '@/types/game'
-import type { GameEvent, GameEventLog, GameResult } from './contract'
+import type { GameEvent, GameEventLog, GameReplay, GameAction, GameResult } from './contract'
 import { GameEngine } from './gameEngine'
 import { EventLogManager } from './eventLog'
 import { recalcPlayerFinancials } from './financialEngine'
+import { calculateStateHash, calculateReplayHash } from './stateHash'
 
 // ==================== ReplayState ====================
 
@@ -413,6 +417,73 @@ export class ReplayEngine {
   }
 }
 
+// ==================== Replay Verification ====================
+
+  /**
+   * 验证回放完整性：将回放重建的最终状态与预期最终状态哈希比较。
+   *
+   * @returns 验证结果，包含是否一致、两个哈希值
+   */
+  verifyReplay(expectedFinalStateHash: string): ReplayVerification {
+    // 快进到结尾
+    this.skipToEnd()
+    const finalState = this.getCurrentState()
+
+    if (!finalState) {
+      return {
+        passed: false,
+        expectedHash: expectedFinalStateHash,
+        actualHash: '',
+        error: 'No final state after replay',
+      }
+    }
+
+    const actualHash = calculateStateHash(finalState)
+    return {
+      passed: actualHash === expectedFinalStateHash,
+      expectedHash: expectedFinalStateHash,
+      actualHash,
+    }
+  }
+
+  /**
+   * 导出为 GameReplay 数据结构。
+   *
+   * 包含所有回放所需的完整信息，可用于持久化或传输。
+   */
+  toGameReplay(seed: number, actions: GameAction[]): GameReplay {
+    // 快进到结尾获取最终状态
+    this.skipToEnd()
+    const finalState = this.getCurrentState()
+
+    return {
+      version: '2.0.1',
+      seed,
+      initialState: deepCloneState(this.initialState),
+      actions: [...actions],
+      events: [...this.eventLog.getAll()],
+      finalStateHash: finalState ? calculateStateHash(finalState) : undefined,
+    }
+  }
+
+  /**
+   * 获取当前状态的哈希值。
+   */
+  getCurrentStateHash(): string | null {
+    if (!this.currentState) return null
+    return calculateStateHash(this.currentState)
+  }
+}
+
+// ==================== ReplayVerification ====================
+
+export interface ReplayVerification {
+  passed: boolean
+  expectedHash: string
+  actualHash: string
+  error?: string
+}
+
 // ==================== Helpers ====================
 
 /** 深拷贝游戏状态 */
@@ -428,4 +499,19 @@ export function createReplayEngine(
   engine?: GameEngine,
 ): ReplayEngine {
   return new ReplayEngine(eventLog, initialState, engine)
+}
+
+/**
+ * 从 GameReplay 数据创建 ReplayEngine。
+ *
+ * 用于从持久化的回放数据重建游戏。
+ */
+export function createReplayFromGameReplay(replay: GameReplay, engine?: GameEngine): ReplayEngine {
+  const eventLog = new EventLogManager('replay', replay.events[0]?.timestamp ?? 0)
+  eventLog.recordBatch([...replay.events])
+
+  // 使用 replay 中的 seed 创建引擎
+  const replayEngine = engine ?? new GameEngine(replay.seed)
+
+  return new ReplayEngine(eventLog, replay.initialState, replayEngine)
 }
