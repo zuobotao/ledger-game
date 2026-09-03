@@ -10,10 +10,54 @@
  * - Card Shuffle（洗牌）
  * - AI Random Decision（AI 随机决策）
  * - Market Randomness（市场随机性）
+ * - ID 生成（loanId, transactionId, playerId）
  */
+
+// ==================== GameClock ====================
+
+/**
+ * 游戏时钟接口，用于抽象时间源。
+ * 测试使用 FixedGameClock，生产使用 SystemGameClock。
+ */
+export interface GameClock {
+  now(): number
+}
+
+/** 系统时钟实现 */
+export class SystemGameClock implements GameClock {
+  now(): number {
+    return Date.now()
+  }
+}
+
+/** 固定时钟实现（用于测试和 replay） */
+export class FixedGameClock implements GameClock {
+  private time: number
+
+  constructor(startTime: number = 0) {
+    this.time = startTime
+  }
+
+  now(): number {
+    return this.time
+  }
+
+  /** 推进时钟 */
+  advance(ms: number): void {
+    this.time += ms
+  }
+
+  /** 设置时钟 */
+  setTime(time: number): void {
+    this.time = time
+  }
+}
+
+// ==================== RandomSource ====================
 
 export class RandomSource {
   private state: number
+  private idCounter: number = 0
 
   /**
    * @param seed 整数种子，默认使用 Date.now()
@@ -62,6 +106,16 @@ export class RandomSource {
   }
 
   /**
+   * 生成确定性唯一 ID（替代 Math.random() + Date.now() 的 ID 生成）
+   * 基于 seed 序列 + 计数器，保证相同 seed 产生相同 ID 序列。
+   */
+  generateId(prefix: string = ''): string {
+    this.idCounter++
+    const randomPart = this.nextInt(0, 0xffffffff).toString(36)
+    return `${prefix}${this.idCounter}-${randomPart}`
+  }
+
+  /**
    * 获取当前状态（用于序列化/恢复）
    */
   getState(): number {
@@ -80,6 +134,7 @@ export class RandomSource {
    */
   reset(seed: number): void {
     this.state = seed
+    this.idCounter = 0
   }
 }
 

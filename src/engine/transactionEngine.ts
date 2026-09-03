@@ -16,15 +16,17 @@ import type {
   CardHistoryRecord,
   CardHistoryType,
 } from '@/types/game'
+import { defaultRandom, RandomSource, GameClock, SystemGameClock } from './randomSource'
 
 // ==================== ID 生成 ====================
 
 /**
  * 生成唯一的交易 ID。
- * 与 store 中的 createId 实现相同。
+ * 使用 RandomSource 保证确定性，测试中可复现。
  */
-export function createTransactionId(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+export function createTransactionId(random?: RandomSource): string {
+  if (random) return random.generateId('t-')
+  return defaultRandom.generateId('t-')
 }
 
 // ==================== 交易记录 ====================
@@ -45,16 +47,20 @@ export interface RecordTransactionParams {
  * @param params - 交易记录参数
  * @returns 完整的 TransactionRecord 对象
  */
-export function recordTransaction(params: RecordTransactionParams): TransactionRecord {
+export function recordTransaction(
+  params: RecordTransactionParams,
+  random?: RandomSource,
+  clock?: GameClock,
+): TransactionRecord {
   const { type, amount, description, turnNumber, playerId, extra } = params
   return {
-    id: createTransactionId(),
+    id: createTransactionId(random),
     turnNumber,
     playerId,
     type,
     amount,
     description,
-    timestamp: Date.now(),
+    timestamp: clock?.now() ?? Date.now(),
     ...extra,
   }
 }
@@ -77,10 +83,14 @@ export interface RecordCardDrawnParams {
  * @param params - 卡牌历史记录参数
  * @returns 完整的 CardHistoryRecord 对象
  */
-export function recordCardDrawn(params: RecordCardDrawnParams): CardHistoryRecord {
+export function recordCardDrawn(
+  params: RecordCardDrawnParams,
+  random?: RandomSource,
+  clock?: GameClock,
+): CardHistoryRecord {
   const { type, card, turnNumber, playerId, action, amount } = params
   return {
-    id: createTransactionId(),
+    id: createTransactionId(random),
     turnNumber,
     playerId,
     type,
@@ -89,7 +99,7 @@ export function recordCardDrawn(params: RecordCardDrawnParams): CardHistoryRecor
     cardDescription: card.description,
     action,
     amount,
-    timestamp: Date.now(),
+    timestamp: clock?.now() ?? Date.now(),
   }
 }
 

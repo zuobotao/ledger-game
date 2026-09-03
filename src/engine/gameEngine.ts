@@ -50,7 +50,7 @@ export class GameEngine {
 
   constructor(seed?: number) {
     this.random = new RandomSource(seed)
-    this._gameId = `game-${Date.now().toString(36)}`
+    this._gameId = this.random.generateId('game-')
   }
 
   get gameId(): string {
@@ -98,7 +98,7 @@ export class GameEngine {
     const startingCash = config.fastStart ? career.salary : career.startingCash
 
     const player: Player = {
-      id: `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      id: this.random.generateId('p-'),
       name,
       color: '#007aff',
       career,

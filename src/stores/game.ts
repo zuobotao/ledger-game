@@ -94,10 +94,12 @@ import {
   advanceMonth,
 } from '@/engine/turnEngine'
 
+import { defaultRandom } from '@/engine/randomSource'
+
 const STORAGE_KEY = 'ledger101-game-state'
 
 function createId(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  return defaultRandom.generateId('s-')
 }
 
 function createFinancialStatement(): FinancialStatementState {

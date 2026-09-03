@@ -7,11 +7,13 @@
 
 import type { Liability, Player } from '@/types/game'
 import { BANK_CONFIG } from '@/types/game'
+import { defaultRandom, RandomSource } from './randomSource'
 
 // ---- 内部工具 ----
 
-function createId(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+function createId(random?: RandomSource): string {
+  if (random) return random.generateId('l-')
+  return defaultRandom.generateId('l-')
 }
 
 // ---- 导出函数 ----
@@ -19,11 +21,11 @@ function createId(): string {
 /**
  * 根据职业数据创建职业相关负债（房贷、学贷、车贷、信用卡）
  */
-export function createCareerLiabilities(career: Player['career']): Liability[] {
+export function createCareerLiabilities(career: Player['career'], random?: RandomSource): Liability[] {
   const liabilities: Liability[] = []
   if (career.expenses.mortgage > 0) {
     liabilities.push({
-      id: createId(),
+      id: createId(random),
       name: '房屋抵押贷款',
       amount: career.expenses.mortgage * 120,
       monthlyPayment: career.expenses.mortgage,
@@ -32,7 +34,7 @@ export function createCareerLiabilities(career: Player['career']): Liability[] {
   }
   if (career.expenses.schoolLoan > 0) {
     liabilities.push({
-      id: createId(),
+      id: createId(random),
       name: '学生贷款',
       amount: career.expenses.schoolLoan * 60,
       monthlyPayment: career.expenses.schoolLoan,
@@ -41,7 +43,7 @@ export function createCareerLiabilities(career: Player['career']): Liability[] {
   }
   if (career.expenses.carLoan > 0) {
     liabilities.push({
-      id: createId(),
+      id: createId(random),
       name: '汽车贷款',
       amount: career.expenses.carLoan * 60,
       monthlyPayment: career.expenses.carLoan,
@@ -50,7 +52,7 @@ export function createCareerLiabilities(career: Player['career']): Liability[] {
   }
   if (career.expenses.creditCard > 0) {
     liabilities.push({
-      id: createId(),
+      id: createId(random),
       name: '信用卡欠款',
       amount: career.expenses.creditCard * 24,
       monthlyPayment: career.expenses.creditCard,
@@ -79,9 +81,9 @@ export function calcMonthlyLoanPayments(liabilities: Liability[]): number {
  * @param amount 贷款金额
  * @returns 新的 Liability 对象
  */
-export function createBankLoan(amount: number): Liability {
+export function createBankLoan(amount: number, random?: RandomSource): Liability {
   return {
-    id: createId(),
+    id: createId(random),
     name: `银行贷款 $${Math.round(amount).toLocaleString()}`,
     amount,
     monthlyPayment: Math.round(amount * BANK_CONFIG.interestRate),
