@@ -7,7 +7,8 @@
 
 import type { Liability, Player } from '@/types/game'
 import { BANK_CONFIG } from '@/types/game'
-import { defaultRandom, RandomSource } from './randomSource'
+import { defaultRandom } from './randomSource'
+import type { RandomSource } from './randomSource'
 
 // ---- 内部工具 ----
 

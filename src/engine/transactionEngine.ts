@@ -16,7 +16,8 @@ import type {
   CardHistoryRecord,
   CardHistoryType,
 } from '@/types/game'
-import { defaultRandom, RandomSource, GameClock, SystemGameClock } from './randomSource'
+import { defaultRandom, RandomSource } from './randomSource'
+import type { GameClock } from './randomSource'
 
 // ==================== ID 生成 ====================
 
