@@ -1,16 +1,3 @@
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
-
-# Package manager cache
-.npm-cache/
-
-# Build outputs
-dist/
-build/
-*.tsbuildinfo
-
 # Logs
 logs
 *.log
@@ -20,26 +7,34 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+node_modules
+.npm-cache
+.DS_Store
+dist
+dist-ssr
+coverage
+*.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea/
+.idea
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-# OS files
-.DS_Store
-Thumbs.db
+*.tsbuildinfo
 
-# Cache
-.cache/
 .eslintcache
-.prettiercache
 
-# Env files
-.env
-.env.local
-.env.*.local
+# Cypress
+/cypress/videos/
+/cypress/screenshots/
+
+# Vitest
+__screenshots__/
+
+# Vite
+*.timestamp-*-*.mjs

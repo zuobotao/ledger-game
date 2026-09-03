@@ -5,6 +5,9 @@ const createJiti = require('jiti').default || require('jiti')
 const jiti = createJiti(__filename, {
   debug: false,
   cache: false,
+  alias: {
+    '@': path.resolve(__dirname, '../src'),
+  },
 })
 
 // 加载测试文件
