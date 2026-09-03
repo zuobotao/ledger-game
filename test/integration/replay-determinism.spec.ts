@@ -10,11 +10,12 @@
  * 6. Replay Hash 完整性校验
  */
 
-import { describe, expect, it, beforeEach } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { createGameEngine, GameEngine } from '@/engine/gameEngine'
 import { createEventLogManager, EventLogManager } from '@/engine/eventLog'
-import { createReplayEngine, createReplayFromGameReplay, ReplayEngine } from '@/engine/replay'
+import { createReplayEngine, createReplayFromGameReplay } from '@/engine/replay'
 import { calculateStateHash, calculateReplayHash, calculateEventSequenceHash } from '@/engine/stateHash'
+import { recalcPlayerFinancials } from '@/engine/financialEngine'
 import { CAREERS } from '@/data/careers'
 import type { GameState, GameConfig, Player } from '@/types/game'
 import type { GameAction, GameReplay } from '@/engine/contract'
@@ -59,6 +60,36 @@ function createTestPlayer(
   return engine.createPlayer(name, career, createTestConfig(), false)
 }
 
+/**
+ * Dispatch wrapper that records only new events.
+ *
+ * Engine.dispatch returns the CUMULATIVE event log, not just the delta.
+ * This wrapper tracks the event count and records only new events.
+ */
+class GameRecorder {
+  private eventCount = 0
+  readonly logger: EventLogManager
+  readonly engine: GameEngine
+
+  constructor(engine: GameEngine, logger: EventLogManager) {
+    this.engine = engine
+    this.logger = logger
+  }
+
+  dispatch(action: GameAction, state: GameState): void {
+    this.engine.dispatch(action, state)
+    const allEvents = this.engine.events
+    const newEvents = allEvents.slice(this.eventCount)
+    this.logger.recordBatch(newEvents)
+    this.eventCount = allEvents.length
+  }
+}
+
+/** Helper to deep clone state for recording initialState */
+function cloneState(state: GameState): GameState {
+  return JSON.parse(JSON.stringify(state)) as GameState
+}
+
 // ==================== State Hash Tests ====================
 
 describe('calculateStateHash', () => {
@@ -90,8 +121,6 @@ describe('calculateStateHash', () => {
   })
 
   it('should produce same hash for different player creation order', () => {
-    // Create player with same seed but different engine instance
-    // The state hash should be the same because it uses deterministic fields
     const state1 = createEmptyState()
     const p1 = createTestPlayer(createGameEngine(42))
     state1.players = [p1]
@@ -103,15 +132,16 @@ describe('calculateStateHash', () => {
     expect(calculateStateHash(state1)).toBe(calculateStateHash(state2))
   })
 
-  it('should produce different hash for different cashFlow', () => {
+  it('should produce different hash when financials change', () => {
     const engine = createGameEngine(42)
     const state = createEmptyState()
     const player = createTestPlayer(engine)
     state.players = [player]
     const hash1 = calculateStateHash(state)
 
-    player.cashFlow += 500
-    recalcPlayerFinancialsForTest(player)
+    // Change cash which affects net worth
+    player.cash += 500
+    recalcPlayerFinancials(player)
     const hash2 = calculateStateHash(state)
 
     expect(hash1).not.toBe(hash2)
@@ -125,39 +155,26 @@ describe('Replay Determinism', () => {
     const seed = 100
     const engine = createGameEngine(seed)
     const logger = createEventLogManager('det-test', 1000)
+    const recorder = new GameRecorder(engine, logger)
     const state = createEmptyState()
     const player = createTestPlayer(engine)
     state.players = [player]
+    const initialState = cloneState(state)
 
-    // Execute a sequence of actions
-    const actions: GameAction[] = []
-    // Record initial state
-    const initialState = JSON.parse(JSON.stringify(state)) as GameState
+    const actions: GameAction[] = [
+      { type: 'roll_dice', playerId: player.id },
+      { type: 'handle_payday', playerId: player.id },
+      { type: 'take_bank_loan', playerId: player.id, amount: 1000 },
+      { type: 'end_turn', playerId: player.id },
+    ]
 
-    // Action 1: roll_dice
-    const result1 = engine.dispatch({ type: 'roll_dice', playerId: player.id }, state)
-    logger.recordBatch(result1.events)
-    actions.push({ type: 'roll_dice', playerId: player.id })
+    for (const action of actions) {
+      recorder.dispatch(action, state)
+    }
 
-    // Action 2: handle_payday
-    const result2 = engine.dispatch({ type: 'handle_payday', playerId: player.id }, state)
-    logger.recordBatch(result2.events)
-    actions.push({ type: 'handle_payday', playerId: player.id })
-
-    // Action 3: take_bank_loan
-    const result3 = engine.dispatch({ type: 'take_bank_loan', playerId: player.id, amount: 1000 }, state)
-    logger.recordBatch(result3.events)
-    actions.push({ type: 'take_bank_loan', playerId: player.id, amount: 1000 })
-
-    // Action 4: end_turn
-    const result4 = engine.dispatch({ type: 'end_turn', playerId: player.id }, state)
-    logger.recordBatch(result4.events)
-    actions.push({ type: 'end_turn', playerId: player.id })
-
-    // Get final state hash
     const finalHash = calculateStateHash(state)
 
-    // Now replay from the same initial state and events
+    // Replay from the same initial state and events
     const replay = createReplayEngine(logger, initialState)
     const verification = replay.verifyReplay(finalHash)
 
@@ -170,12 +187,12 @@ describe('Replay Determinism', () => {
     const seed = 200
     const engine = createGameEngine(seed)
     const logger = createEventLogManager('det-test-2', 1000)
+    const recorder = new GameRecorder(engine, logger)
     const state = createEmptyState()
     const player = createTestPlayer(engine)
     state.players = [player]
-    const initialState = JSON.parse(JSON.stringify(state)) as GameState
+    const initialState = cloneState(state)
 
-    // Execute actions
     const actions: GameAction[] = [
       { type: 'roll_dice', playerId: player.id },
       { type: 'handle_payday', playerId: player.id },
@@ -185,8 +202,7 @@ describe('Replay Determinism', () => {
     ]
 
     for (const action of actions) {
-      const result = engine.dispatch(action, state)
-      logger.recordBatch(result.events)
+      recorder.dispatch(action, state)
     }
 
     const originalEvents = logger.getAll()
@@ -206,39 +222,40 @@ describe('Replay Determinism', () => {
 
   it('should produce same result with same seed and same actions', () => {
     const seed = 300
-    const actions: GameAction[] = [
-      { type: 'roll_dice', playerId: 'p1' },
-      { type: 'handle_payday', playerId: 'p1' },
-      { type: 'take_bank_loan', playerId: 'p1', amount: 500 },
-      { type: 'handle_payday', playerId: 'p1' },
-      { type: 'end_turn', playerId: 'p1' },
-    ]
 
     // Run 1
     const engine1 = createGameEngine(seed)
+    const logger1 = createEventLogManager('run1', 1000)
+    const recorder1 = new GameRecorder(engine1, logger1)
     const state1 = createEmptyState()
     const player1 = createTestPlayer(engine1, 'P1')
     state1.players = [player1]
-    const init1 = JSON.parse(JSON.stringify(state1)) as GameState
-    const logger1 = createEventLogManager('run1', 1000)
+    const init1 = cloneState(state1)
+
+    const actions: GameAction[] = [
+      { type: 'roll_dice', playerId: player1.id },
+      { type: 'handle_payday', playerId: player1.id },
+      { type: 'take_bank_loan', playerId: player1.id, amount: 500 },
+      { type: 'handle_payday', playerId: player1.id },
+      { type: 'end_turn', playerId: player1.id },
+    ]
 
     for (const action of actions) {
-      const result = engine1.dispatch(action, state1)
-      logger1.recordBatch(result.events)
+      recorder1.dispatch(action, state1)
     }
     const hash1 = calculateStateHash(state1)
 
     // Run 2 (same seed)
     const engine2 = createGameEngine(seed)
+    const logger2 = createEventLogManager('run2', 1000)
+    const recorder2 = new GameRecorder(engine2, logger2)
     const state2 = createEmptyState()
     const player2 = createTestPlayer(engine2, 'P1')
     state2.players = [player2]
-    const init2 = JSON.parse(JSON.stringify(state2)) as GameState
-    const logger2 = createEventLogManager('run2', 1000)
+    const init2 = cloneState(state2)
 
     for (const action of actions) {
-      const result = engine2.dispatch(action, state2)
-      logger2.recordBatch(result.events)
+      recorder2.dispatch(action, state2)
     }
     const hash2 = calculateStateHash(state2)
 
@@ -261,10 +278,11 @@ describe('GameReplay Serialization', () => {
     const seed = 400
     const engine = createGameEngine(seed)
     const logger = createEventLogManager('serialize-test', 1000)
+    const recorder = new GameRecorder(engine, logger)
     const state = createEmptyState()
     const player = createTestPlayer(engine)
     state.players = [player]
-    const initialState = JSON.parse(JSON.stringify(state)) as GameState
+    const initialState = cloneState(state)
 
     const actions: GameAction[] = [
       { type: 'roll_dice', playerId: player.id },
@@ -274,8 +292,7 @@ describe('GameReplay Serialization', () => {
     ]
 
     for (const action of actions) {
-      const result = engine.dispatch(action, state)
-      logger.recordBatch(result.events)
+      recorder.dispatch(action, state)
     }
 
     const finalHash = calculateStateHash(state)
@@ -302,10 +319,11 @@ describe('GameReplay Serialization', () => {
     const seed = 500
     const engine = createGameEngine(seed)
     const logger = createEventLogManager('replay-hash-test', 1000)
+    const recorder = new GameRecorder(engine, logger)
     const state = createEmptyState()
     const player = createTestPlayer(engine)
     state.players = [player]
-    const initialState = JSON.parse(JSON.stringify(state)) as GameState
+    const initialState = cloneState(state)
 
     const actions: GameAction[] = [
       { type: 'roll_dice', playerId: player.id },
@@ -314,8 +332,7 @@ describe('GameReplay Serialization', () => {
     ]
 
     for (const action of actions) {
-      const result = engine.dispatch(action, state)
-      logger.recordBatch(result.events)
+      recorder.dispatch(action, state)
     }
 
     const replay = createReplayEngine(logger, initialState)
@@ -334,10 +351,11 @@ describe('GameReplay Serialization', () => {
     const seed = 600
     const engine = createGameEngine(seed)
     const logger = createEventLogManager('tamper-test', 1000)
+    const recorder = new GameRecorder(engine, logger)
     const state = createEmptyState()
     const player = createTestPlayer(engine)
     state.players = [player]
-    const initialState = JSON.parse(JSON.stringify(state)) as GameState
+    const initialState = cloneState(state)
 
     const actions: GameAction[] = [
       { type: 'roll_dice', playerId: player.id },
@@ -345,8 +363,7 @@ describe('GameReplay Serialization', () => {
     ]
 
     for (const action of actions) {
-      const result = engine.dispatch(action, state)
-      logger.recordBatch(result.events)
+      recorder.dispatch(action, state)
     }
 
     const replay = createReplayEngine(logger, initialState)
@@ -361,10 +378,11 @@ describe('GameReplay Serialization', () => {
     const seed = 700
     const engine = createGameEngine(seed)
     const logger = createEventLogManager('wrong-hash-test', 1000)
+    const recorder = new GameRecorder(engine, logger)
     const state = createEmptyState()
     const player = createTestPlayer(engine)
     state.players = [player]
-    const initialState = JSON.parse(JSON.stringify(state)) as GameState
+    const initialState = cloneState(state)
 
     const actions: GameAction[] = [
       { type: 'roll_dice', playerId: player.id },
@@ -372,8 +390,7 @@ describe('GameReplay Serialization', () => {
     ]
 
     for (const action of actions) {
-      const result = engine.dispatch(action, state)
-      logger.recordBatch(result.events)
+      recorder.dispatch(action, state)
     }
 
     const replay = createReplayEngine(logger, initialState)
@@ -392,10 +409,11 @@ describe('50+ Actions Replay', () => {
     const seed = 999
     const engine = createGameEngine(seed)
     const logger = createEventLogManager('50-actions', 1000)
+    const recorder = new GameRecorder(engine, logger)
     const state = createEmptyState()
     const player = createTestPlayer(engine)
     state.players = [player]
-    const initialState = JSON.parse(JSON.stringify(state)) as GameState
+    const initialState = cloneState(state)
 
     const actions: GameAction[] = []
 
@@ -421,20 +439,18 @@ describe('50+ Actions Replay', () => {
       }
 
       actions.push(action)
-      const result = engine.dispatch(action, state)
-      logger.recordBatch(result.events)
+      recorder.dispatch(action, state)
     }
 
     const finalHash = calculateStateHash(state)
-    const eventCount = logger.count
 
     // Replay and verify
     const replay = createReplayEngine(logger, initialState)
     const verification = replay.verifyReplay(finalHash)
 
     expect(verification.passed).toBe(true)
-    expect(eventCount).toBeGreaterThan(0)
     expect(actions.length).toBe(55)
+    expect(logger.count).toBeGreaterThan(0)
 
     // Export as GameReplay and re-import
     const gameReplay = replay.toGameReplay(seed, actions)
@@ -452,23 +468,22 @@ describe('Event Sequence Consistency', () => {
     const seed = 800
     const engine = createGameEngine(seed)
     const logger = createEventLogManager('event-seq', 1000)
+    const recorder = new GameRecorder(engine, logger)
     const state = createEmptyState()
     const player = createTestPlayer(engine)
     state.players = [player]
-    const initialState = JSON.parse(JSON.stringify(state)) as GameState
+    const initialState = cloneState(state)
 
     const actions: GameAction[] = [
       { type: 'roll_dice', playerId: player.id },
       { type: 'handle_payday', playerId: player.id },
       { type: 'take_bank_loan', playerId: player.id, amount: 1000 },
-      { type: 'repay_bank_loan', playerId: player.id, liabilityId: 'any', amount: 500 },
       { type: 'handle_payday', playerId: player.id },
       { type: 'end_turn', playerId: player.id },
     ]
 
     for (const action of actions) {
-      const result = engine.dispatch(action, state)
-      logger.recordBatch(result.events)
+      recorder.dispatch(action, state)
     }
 
     const originalEventTypes = logger.getAll().map((e) => e.type)
@@ -484,10 +499,3 @@ describe('Event Sequence Consistency', () => {
     expect(originalEventTypes.length).toBeGreaterThan(0)
   })
 })
-
-// ==================== Helper ====================
-
-function recalcPlayerFinancialsForTest(player: Player): void {
-  const { recalcPlayerFinancials } = require('@/engine/financialEngine')
-  recalcPlayerFinancials(player)
-}

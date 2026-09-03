@@ -89,10 +89,10 @@ function canonicalizePlayer(player: Player): Record<string, unknown> {
     ageMonths: player.ageMonths,
     isBankrupt: player.isBankrupt,
     phase: player.phase,
-    // 财务报表关键字段
-    fsStockCount: player.financialStatement?.stockCount ?? 0,
-    fsRealEstateCount: player.financialStatement?.realEstateCount ?? 0,
-    fsBusinessCount: player.financialStatement?.businessCount ?? 0,
+    // 财务报表关键字段：从资产列表统计
+    fsStockCount: player.assets.filter(a => a.type === 'stock').length,
+    fsRealEstateCount: player.assets.filter(a => a.type === 'real_estate').length,
+    fsBusinessCount: player.assets.filter(a => a.type === 'business').length,
   }
 }
 

@@ -111,7 +111,7 @@ export class GameEngine {
       cash: startingCash,
       savings: 0,
       assets: [],
-      liabilities: [],
+      liabilities: createCareerLiabilities(career, this.random),
       ratRacePosition: 0,
       fastTrackPosition: 0,
       isUnemployed: false,
@@ -160,6 +160,7 @@ export class GameEngine {
       case 'roll_dice': {
         const values = this.diceRoll(action.playerId)
         const total = values.reduce((s, v) => s + v, 0)
+        state.lastRoll = total
         this.log({
           type: 'dice_rolled',
           timestamp: this.now(),
@@ -207,6 +208,8 @@ export class GameEngine {
           playerId: action.playerId,
           amount: action.amount,
           newTotalLoan: getTotalBankLoanAmount(player.liabilities),
+          loanId: loan.id,
+          monthlyPayment: loan.monthlyPayment,
         })
         messages.push({ type: 'info', text: `借入银行贷款 $${action.amount}` })
         return { success: true, state, events: [...this.eventLog], messages }

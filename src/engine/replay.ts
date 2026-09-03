@@ -268,6 +268,8 @@ export class ReplayEngine {
       case 'payday_received':
         if (player) {
           player.cash = event.cashAfter
+          // Advance age (engine advances ageMonths during payday)
+          player.ageMonths++
         }
         break
 
@@ -296,6 +298,14 @@ export class ReplayEngine {
       case 'bank_loan_taken':
         if (player) {
           player.cash += event.amount
+          // Recreate the loan from event data for deterministic replay
+          player.liabilities.push({
+            id: event.loanId,
+            name: `银行贷款 $${Math.round(event.amount).toLocaleString()}`,
+            amount: event.amount,
+            monthlyPayment: event.monthlyPayment,
+            category: 'bank_loan',
+          })
           recalcPlayerFinancials(player)
         }
         break
@@ -303,6 +313,22 @@ export class ReplayEngine {
       case 'bank_loan_repaid':
         if (player) {
           player.cash -= event.amount
+          // Remove the repaid loan from liabilities
+          if (event.remainingLoan <= 0) {
+            // Find and remove any bank loan with matching amount
+            const loanIdx = player.liabilities.findIndex(
+              (l) => l.category === 'bank_loan' && l.amount <= event.amount + event.remainingLoan
+            )
+            if (loanIdx >= 0) {
+              player.liabilities.splice(loanIdx, 1)
+            }
+          } else {
+            // Reduce the loan amount
+            const loan = player.liabilities.find((l) => l.category === 'bank_loan')
+            if (loan) {
+              loan.amount = event.remainingLoan
+            }
+          }
           recalcPlayerFinancials(player)
         }
         break

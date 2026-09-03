@@ -399,6 +399,10 @@ export interface BankLoanTakenEvent {
   playerId: string
   amount: number
   newTotalLoan: number
+  /** 贷款 ID，用于回放重建 */
+  loanId: string
+  /** 月还款额，用于回放重建 */
+  monthlyPayment: number
 }
 
 export interface BankLoanRepaidEvent {
