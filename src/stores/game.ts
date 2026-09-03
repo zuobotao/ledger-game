@@ -32,7 +32,6 @@ import {
   MAX_CHILDREN,
   PLAYER_COLORS,
   RAT_RACE_BOARD_SIZE,
-  START_AGE,
   UNEMPLOYMENT_INSURANCE_RATE,
 } from '@/types/game'
 import { getCareerById, getRandomCareer } from '@/data/careers'
@@ -69,11 +68,31 @@ import {
   hasStockHolding as hasStockHoldingEngine,
 } from '@/engine/assetEngine'
 import {
+  getCardCost,
+  getCardCashFlow,
+  isCardAffordable,
+} from '@/engine/cardEngine'
+import {
   totalExpenses,
   recalcPlayerFinancials,
   calcPlayerNetWorth,
   createFinancialSnapshot,
 } from '@/engine/financialEngine'
+import {
+  createTransactionId,
+  recordTransaction as createTransactionRecord,
+  recordCardDrawn as createCardHistoryRecord,
+  TransactionRecordBuilder,
+} from '@/engine/transactionEngine'
+import {
+  calcNextPlayerIndex,
+  calcPlayerAge,
+  rollDice,
+  calcNewPosition,
+  canEnterFastTrack,
+  isRetirementAge,
+  advanceMonth,
+} from '@/engine/turnEngine'
 
 const STORAGE_KEY = 'ledger101-game-state'
 
@@ -159,13 +178,7 @@ function createPlayer(
   return player
 }
 
-function rollDiceValues(count = 1): number[] {
-  const values: number[] = []
-  for (let i = 0; i < count; i++) {
-    values.push(Math.floor(Math.random() * 6) + 1)
-  }
-  return values
-}
+const rollDiceValues = rollDice
 
 export const useGameStore = defineStore('game', () => {
   const players = ref<Player[]>([])
@@ -215,7 +228,7 @@ export const useGameStore = defineStore('game', () => {
 
   const currentPlayerAge = computed(() => {
     const totalMonths = gameMonth.value
-    const years = START_AGE + Math.floor(totalMonths / 12)
+    const years = calcPlayerAge(totalMonths)
     const months = totalMonths % 12
     const percent = Math.min(100, (totalMonths / MAX_AGE_MONTHS) * 100)
     return { years, months, percent, totalMonths }
@@ -231,8 +244,8 @@ export const useGameStore = defineStore('game', () => {
 
   const canCurrentPlayerEnterFastTrack = computed(() => {
     const p = currentPlayer.value
-    if (!p || p.phase !== 'rat_race') return false
-    return p.passiveIncome >= p.totalExpenses
+    if (!p) return false
+    return canEnterFastTrack(p)
   })
 
   // ========== 财务报表计算属性（正确答案） ==========
@@ -291,16 +304,14 @@ export const useGameStore = defineStore('game', () => {
     playerId?: string,
     extra?: Partial<TransactionRecord>,
   ) {
-    const record: TransactionRecord = {
-      id: createId(),
-      turnNumber: turnNumber.value,
-      playerId: playerId ?? currentPlayer.value?.id ?? '',
+    const record = createTransactionRecord({
       type,
       amount,
       description,
-      timestamp: Date.now(),
-      ...extra,
-    }
+      turnNumber: turnNumber.value,
+      playerId: playerId ?? currentPlayer.value?.id ?? '',
+      extra,
+    })
     transactions.value.push(record)
   }
 
@@ -311,18 +322,14 @@ export const useGameStore = defineStore('game', () => {
     action?: CardHistoryRecord['action'],
     amount?: number,
   ) {
-    const record: CardHistoryRecord = {
-      id: createId(),
+    const record = createCardHistoryRecord({
+      type,
+      card,
       turnNumber: turnNumber.value,
       playerId: playerId ?? currentPlayer.value?.id ?? '',
-      type,
-      cardId: card.id,
-      cardTitle: card.title,
-      cardDescription: card.description,
       action,
       amount,
-      timestamp: Date.now(),
-    }
+    })
     cardHistory.value.push(record)
   }
 
@@ -610,7 +617,7 @@ export const useGameStore = defineStore('game', () => {
     const wasLastPlayer = nextIndex === count - 1
     let skippedCount = 0
     do {
-      nextIndex = (nextIndex + 1) % count
+      nextIndex = calcNextPlayerIndex(nextIndex, count)
       skippedCount++
       // 防止死循环（所有玩家都破产的极端情况）
       if (skippedCount > count) {
@@ -690,10 +697,9 @@ export const useGameStore = defineStore('game', () => {
     }
 
     // 年龄递增（全局游戏时间）
-    gameMonth.value += 1
-
-    // 检查退休
-    if (config.value.ageLimit && gameMonth.value >= MAX_AGE_MONTHS) {
+    const result = advanceMonth(gameMonth.value, config.value.ageLimit)
+    gameMonth.value = result.ageMonths
+    if (result.retired) {
       triggerRetirement()
     }
 
@@ -1161,7 +1167,7 @@ export const useGameStore = defineStore('game', () => {
     turnStatus.value = 'rolling'
 
     const oldPosition = player.ratRacePosition
-    player.ratRacePosition = (player.ratRacePosition + roll) % RAT_RACE_BOARD_SIZE
+    player.ratRacePosition = calcNewPosition(player.ratRacePosition, roll, RAT_RACE_BOARD_SIZE)
     const newPosition = player.ratRacePosition
 
     const messages: string[] = [`掷出 ${roll} 点，移动到 ${newPosition + 1} 格。`]
@@ -1539,7 +1545,7 @@ export const useGameStore = defineStore('game', () => {
 
     // 计算实际需要支付的现金（有首付时用首付，否则用全额 cost）
     const hasDownPayment = card.downPayment !== undefined && card.totalValue !== undefined
-    const cashCost = (hasDownPayment ? card.downPayment! : card.cost) * quantity
+    const cashCost = getCardCost(card) * quantity
     if (player.cash < cashCost) return false
 
     player.cash -= cashCost
@@ -2004,7 +2010,7 @@ export const useGameStore = defineStore('game', () => {
     lastRoll.value = roll
     turnStatus.value = 'rolling'
 
-    player.fastTrackPosition = (player.fastTrackPosition + roll) % FAST_TRACK_BOARD_SIZE
+    player.fastTrackPosition = calcNewPosition(player.fastTrackPosition, roll, FAST_TRACK_BOARD_SIZE)
     const cell = getFastTrackCell(player.fastTrackPosition)
 
     switch (cell.type) {
@@ -2013,8 +2019,9 @@ export const useGameStore = defineStore('game', () => {
         player.cash += payout
         recordTransaction('salary', payout, '被动收入日', player.id)
         // FastTrack 被动收入日也推进年龄（全局游戏时间）
-        gameMonth.value += 1
-        if (config.value.ageLimit && gameMonth.value >= MAX_AGE_MONTHS) {
+        const result = advanceMonth(gameMonth.value, config.value.ageLimit)
+        gameMonth.value = result.ageMonths
+        if (result.retired) {
           triggerRetirement()
           turnStatus.value = 'finished'
           saveState()
@@ -2335,7 +2342,7 @@ export const useGameStore = defineStore('game', () => {
         const decision = AIDecision.decideBuyOpportunity(player, card, difficulty)
         if (decision.buy && decision.quantity > 0) {
           // 计算实际需要支付的现金（有首付用首付，否则用全额 cost）
-          const cashCost = (card.downPayment ?? card.cost) * decision.quantity
+          const cashCost = getCardCost(card) * decision.quantity
           if (player.cash < cashCost) {
             const needed = cashCost - player.cash
             const loanAmount = AIDecision.decideBankLoan(player, difficulty)
@@ -2344,7 +2351,7 @@ export const useGameStore = defineStore('game', () => {
               await sleep(200)
             } else {
               // 能买多少买多少
-              const unitCost = card.downPayment ?? card.cost
+              const unitCost = getCardCost(card)
               const affordableQty = Math.floor(player.cash / unitCost)
               if (affordableQty > 0) {
                 buyOpportunity(affordableQty)
@@ -2431,7 +2438,7 @@ export const useGameStore = defineStore('game', () => {
 
         const decision = AIDecision.decideBuyFastTrackOpportunity(player, card, difficulty)
         if (decision.buy && decision.quantity > 0) {
-          const cashCost = (card.downPayment ?? card.cost) * decision.quantity
+          const cashCost = getCardCost(card) * decision.quantity
           if (player.cash < cashCost) {
             const needed = cashCost - player.cash
             const loanAmount = AIDecision.decideBankLoan(player, difficulty)
