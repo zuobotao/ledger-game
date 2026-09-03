@@ -52,6 +52,28 @@ import { getDreamById, getRandomDream } from '@/data/dreams'
 import type { CardDeck } from '@/types/game'
 import { AIDecision } from '@/utils/aiDecision'
 import type { AIDifficulty } from '@/utils/aiDecision'
+import {
+  createBankLoan,
+  createCareerLiabilities,
+  findLoanById,
+  getBankLoans,
+  getTotalBankLoanAmount,
+} from '@/engine/loanEngine'
+import {
+  calcAssetValue,
+  calcTotalAssetValue,
+  calcStockValue,
+  calcRealEstateValue,
+  calcBusinessValue,
+  getStockHolding as getStockHoldingEngine,
+  hasStockHolding as hasStockHoldingEngine,
+} from '@/engine/assetEngine'
+import {
+  totalExpenses,
+  recalcPlayerFinancials,
+  calcPlayerNetWorth,
+  createFinancialSnapshot,
+} from '@/engine/financialEngine'
 
 const STORAGE_KEY = 'ledger101-game-state'
 
@@ -78,111 +100,6 @@ function createFinancialStatement(): FinancialStatementState {
 
 function formatMoney(n: number): string {
   return `$${Math.round(n).toLocaleString()}`
-}
-
-function totalExpenses(expenses: Player['expenses']): number {
-  return (
-    expenses.taxes +
-    expenses.mortgage +
-    expenses.schoolLoan +
-    expenses.carLoan +
-    expenses.creditCard +
-    expenses.other +
-    expenses.child
-  )
-}
-
-function createCareerLiabilities(career: Player['career']): Liability[] {
-  const liabilities: Liability[] = []
-  if (career.expenses.mortgage > 0) {
-    liabilities.push({
-      id: createId(),
-      name: '房屋抵押贷款',
-      amount: career.expenses.mortgage * 120,
-      monthlyPayment: career.expenses.mortgage,
-      category: 'mortgage',
-    })
-  }
-  if (career.expenses.schoolLoan > 0) {
-    liabilities.push({
-      id: createId(),
-      name: '学生贷款',
-      amount: career.expenses.schoolLoan * 60,
-      monthlyPayment: career.expenses.schoolLoan,
-      category: 'school_loan',
-    })
-  }
-  if (career.expenses.carLoan > 0) {
-    liabilities.push({
-      id: createId(),
-      name: '汽车贷款',
-      amount: career.expenses.carLoan * 60,
-      monthlyPayment: career.expenses.carLoan,
-      category: 'car_loan',
-    })
-  }
-  if (career.expenses.creditCard > 0) {
-    liabilities.push({
-      id: createId(),
-      name: '信用卡欠款',
-      amount: career.expenses.creditCard * 24,
-      monthlyPayment: career.expenses.creditCard,
-      category: 'credit_card',
-    })
-  }
-  return liabilities
-}
-
-function recalcPlayerFinancials(player: Player): void {
-  player.passiveIncome = player.assets.reduce((sum, asset) => sum + asset.cashFlow * asset.quantity, 0)
-  player.expenses.child = player.childrenCount * player.career.expenses.child
-
-  const salary = player.isUnemployed ? 0 : player.salary
-  player.totalIncome = salary + player.passiveIncome
-  player.totalExpenses = totalExpenses(player.expenses)
-  player.cashFlow = player.totalIncome - player.totalExpenses
-}
-
-function calcPlayerNetWorth(player: Player): number {
-  const assetsValue = player.assets.reduce(
-    (sum, a) => sum + (a.marketPrice ?? a.cost) * a.quantity,
-    0,
-  )
-  const totalAssets = player.cash + player.savings + assetsValue
-  const totalLiabilities = player.liabilities.reduce((sum, l) => sum + l.amount, 0)
-  return totalAssets - totalLiabilities
-}
-
-function createFinancialSnapshot(player: Player, turn: number): FinancialSnapshot {
-  const stockValue = player.assets
-    .filter((a) => a.type === 'stock')
-    .reduce((sum, a) => sum + (a.marketPrice ?? a.cost) * a.quantity, 0)
-  const realEstateValue = player.assets
-    .filter((a) => a.type === 'real_estate')
-    .reduce((sum, a) => sum + (a.marketPrice ?? a.cost) * a.quantity, 0)
-  const businessValue = player.assets
-    .filter((a) => a.type === 'business')
-    .reduce((sum, a) => sum + (a.marketPrice ?? a.cost) * a.quantity, 0)
-  const otherAssetsValue = player.assets
-    .filter((a) => a.type === 'other')
-    .reduce((sum, a) => sum + (a.marketPrice ?? a.cost) * a.quantity, 0)
-
-  const totalAssets = player.cash + player.savings + stockValue + realEstateValue + businessValue + otherAssetsValue
-  const totalLiabilities = player.liabilities.reduce((sum, l) => sum + l.amount, 0)
-
-  return {
-    turn,
-    cash: player.cash + player.savings,
-    totalAssets,
-    totalLiabilities,
-    netWorth: totalAssets - totalLiabilities,
-    totalIncome: player.totalIncome,
-    totalExpenses: player.totalExpenses,
-    monthlyCashFlow: player.cashFlow,
-    stockValue,
-    realEstateValue,
-    businessValue,
-  }
 }
 
 function createPlayer(
@@ -323,9 +240,7 @@ export const useGameStore = defineStore('game', () => {
     const p = currentPlayer.value
     if (!p) return 0
     // 现金 + 储蓄 + 所有资产市值
-    const assetsValue = p.assets.reduce((sum, a) => {
-      return sum + (a.marketPrice ?? a.cost) * a.quantity
-    }, 0)
+    const assetsValue = calcTotalAssetValue(p.assets)
     return p.cash + p.savings + assetsValue
   })
 
@@ -366,7 +281,7 @@ export const useGameStore = defineStore('game', () => {
   function getStockHolding(symbol: string): Asset | undefined {
     const p = currentPlayer.value
     if (!p) return undefined
-    return p.assets.find((a) => a.type === 'stock' && a.symbol === symbol)
+    return getStockHoldingEngine(p, symbol)
   }
 
   function recordTransaction(
@@ -1122,7 +1037,7 @@ export const useGameStore = defineStore('game', () => {
 
   // 检查玩家是否持有特定股票
   function hasStockHolding(player: Player, symbol: string): boolean {
-    return player.assets.some((a) => a.type === 'stock' && a.symbol === symbol)
+    return hasStockHoldingEngine(player, symbol)
   }
 
   // 获取下一个持有特定股票的玩家索引（多人股票卖出机会）
@@ -1771,9 +1686,7 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function totalBankLoanAmount(player: Player): number {
-    return player.liabilities
-      .filter((l) => l.category === 'bank_loan')
-      .reduce((sum, l) => sum + l.amount, 0)
+    return getTotalBankLoanAmount(player.liabilities)
   }
 
   function maxBankLoanAmount(player: Player): number {
@@ -1790,15 +1703,9 @@ export const useGameStore = defineStore('game', () => {
     if (rounded > maxBankLoanAmount(player)) return false
 
     player.cash += rounded
-    const payment = Math.round(rounded * BANK_CONFIG.interestRate)
-    player.liabilities.push({
-      id: createId(),
-      name: `银行贷款 ${formatMoney(rounded)}`,
-      amount: rounded,
-      monthlyPayment: payment,
-      category: 'bank_loan',
-    })
-    player.expenses.other += payment
+    const loan = createBankLoan(rounded)
+    player.liabilities.push(loan)
+    player.expenses.other += loan.monthlyPayment
     recalcPlayerFinancials(player)
     recordTransaction('bank_loan', rounded, '银行贷款')
     saveState()
@@ -1809,9 +1716,8 @@ export const useGameStore = defineStore('game', () => {
     const player = currentPlayer.value
     if (!player || amount <= 0) return false
 
-    const index = player.liabilities.findIndex((l) => l.id === liabilityId && l.category === 'bank_loan')
-    if (index === -1) return false
-    const loan = player.liabilities[index]!
+    const loan = findLoanById(player.liabilities, liabilityId)
+    if (!loan || loan.category !== 'bank_loan') return false
     const repayAmount = Math.min(amount, loan.amount)
     if (player.cash < repayAmount) return false
 
@@ -1819,7 +1725,8 @@ export const useGameStore = defineStore('game', () => {
     loan.amount -= repayAmount
     if (loan.amount <= 0) {
       player.expenses.other -= loan.monthlyPayment
-      player.liabilities.splice(index, 1)
+      const idx = player.liabilities.findIndex((l) => l.id === liabilityId)
+      if (idx !== -1) player.liabilities.splice(idx, 1)
     }
     recalcPlayerFinancials(player)
     recordTransaction('loan_repay', -repayAmount, `还款 ${loan.name}`)
@@ -1835,10 +1742,7 @@ export const useGameStore = defineStore('game', () => {
     const remainingLoan = maxBankLoanAmount(player)
     if (player.cash + remainingLoan >= amount) return true
     // 加上可变现资产价值（按市价的70%估算）
-    const assetValue = player.assets.reduce(
-      (sum, a) => sum + (a.marketPrice ?? a.cost) * a.quantity * 0.7,
-      0,
-    )
+    const assetValue = calcTotalAssetValue(player.assets) * 0.7
     return player.cash + remainingLoan + assetValue >= amount
   }
 
@@ -1957,8 +1861,7 @@ export const useGameStore = defineStore('game', () => {
     let remaining = repayAmount
 
     // 按贷款金额从大到小依次偿还
-    const bankLoans = player.liabilities
-      .filter((l) => l.category === 'bank_loan')
+    const bankLoans = getBankLoans(player.liabilities)
       .sort((a, b) => b.amount - a.amount)
 
     for (const loan of bankLoans) {
@@ -1987,9 +1890,8 @@ export const useGameStore = defineStore('game', () => {
     const player = currentPlayer.value
     if (!player) return false
 
-    const index = player.liabilities.findIndex((l) => l.id === liabilityId)
-    if (index === -1) return false
-    const loan = player.liabilities[index]!
+    const loan = findLoanById(player.liabilities, liabilityId)
+    if (!loan) return false
     if (player.cash < loan.amount) return false
 
     player.cash -= loan.amount
@@ -2007,7 +1909,8 @@ export const useGameStore = defineStore('game', () => {
         player.expenses.creditCard = 0
         break
     }
-    player.liabilities.splice(index, 1)
+    const idx = player.liabilities.findIndex((l) => l.id === liabilityId)
+    if (idx !== -1) player.liabilities.splice(idx, 1)
     recalcPlayerFinancials(player)
     recordTransaction('loan_repay', -loan.amount, `还清 ${loan.name}`)
     saveState()
