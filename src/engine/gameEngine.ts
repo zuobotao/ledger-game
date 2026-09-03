@@ -38,7 +38,7 @@ import type {
 import { RandomSource, defaultRandom } from './randomSource'
 import { recalcPlayerFinancials, calcPlayerNetWorth, createFinancialSnapshot } from './financialEngine'
 import { calcTotalAssetValue, findAssetById } from './assetEngine'
-import { createBankLoan, findLoanById, getBankLoans, getTotalBankLoanAmount } from './loanEngine'
+import { createBankLoan, findLoanById, getBankLoans, getTotalBankLoanAmount, createCareerLiabilities } from './loanEngine'
 import { calcNextPlayerIndex, calcPlayerAge, calcNewPosition, canEnterFastTrack, advanceMonth } from './turnEngine'
 
 // ==================== GameEngine 类 ====================
@@ -198,7 +198,7 @@ export class GameEngine {
         const player = this.findPlayer(state, action.playerId)
         if (!player) return { success: false, events: [...this.eventLog], messages, error: 'Player not found' }
         if (action.amount <= 0) return { success: false, events: [...this.eventLog], messages, error: 'Invalid loan amount' }
-        const loan = createBankLoan(action.amount)
+        const loan = createBankLoan(action.amount, this.random)
         player.liabilities.push(loan)
         player.cash += action.amount
         recalcPlayerFinancials(player)
