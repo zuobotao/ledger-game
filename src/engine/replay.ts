@@ -415,9 +415,8 @@ export class ReplayEngine {
     }
     return undefined
   }
-}
 
-// ==================== Replay Verification ====================
+  // ==================== Replay Verification ====================
 
   /**
    * 验证回放完整性：将回放重建的最终状态与预期最终状态哈希比较。
