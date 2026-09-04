@@ -313,8 +313,8 @@ describe('Simulation Isolation', () => {
       ]},
     ]
 
-    simEngine.simulateBranches(state, branches)
-    const comparisons = simEngine.compareBranches(branches)
+    const results = simEngine.simulateBranches(state, branches)
+    const comparisons = simEngine.compareBranches(results)
 
     expect(comparisons).toHaveLength(3)
     // Payday ranks highest: positive netWorthChange, no cashFlow penalty
@@ -341,10 +341,11 @@ describe('Simulation Isolation', () => {
       ]},
     ]
 
-    simEngine.simulateBranches(state, branches)
-    const best = simEngine.getBestBranch(branches)
+    const results = simEngine.simulateBranches(state, branches)
+    const best = simEngine.getBestBranch(results)
 
     expect(best).not.toBeNull()
-    expect(best!.id).toBe('b')
+    // Smaller loan is better: less cashFlow penalty
+    expect(best!.id).toBe('a')
   })
 })
