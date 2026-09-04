@@ -102,8 +102,8 @@ function validateGame(
   violations: InvariantViolation[],
   level: ValidationLevel,
 ): void {
-  // Phase 合法性
-  if (!['rat_race', 'fast_track', 'game_over'].includes(state.phase)) {
+  // Phase 合法性: 'setup' | 'rat_race' | 'fast_track' | 'finished'
+  if (!['setup', 'rat_race', 'fast_track', 'finished'].includes(state.phase)) {
     violations.push({
       path: 'phase',
       message: `Invalid phase: "${state.phase}"`,
@@ -137,11 +137,11 @@ function validateGame(
     }
   }
 
-  // gameOver 一致性
-  if (state.phase === 'game_over' && !state.gameEndReason) {
+  // gameOver 一致性: 'finished' 等价于游戏结束
+  if (state.phase === 'finished' && !state.gameEndReason) {
     violations.push({
       path: 'gameEndReason',
-      message: 'phase is game_over but gameEndReason is not set',
+      message: 'phase is finished but gameEndReason is not set',
     })
   }
 
@@ -156,7 +156,7 @@ function validateGame(
 
   if (level === 'full') {
     // turnNumber
-    if (state.turnNumber < 1) {
+    if (state.turnNumber === undefined || state.turnNumber === null || state.turnNumber < 1) {
       violations.push({
         path: 'turnNumber',
         message: `turnNumber must be >= 1, got ${state.turnNumber}`,
