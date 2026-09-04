@@ -1,3 +1,8 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
 # Logs
 logs
 *.log
@@ -39,3 +44,12 @@ __screenshots__/
 # Vite
 *.timestamp-*-*.mjs
 .worktrees/
+
+# Playtest artifacts
+playtest/runs/
+playtest/videos/
+playtest/screenshots/
+*.webm
+test-results/
+playwright-report/
+.playwright-cache/

@@ -537,6 +537,7 @@ function getCareerDisplayName(careerId: string): string {
         <button
           type="submit"
           data-dom-id="btn-begin"
+          data-testid="begin-game"
           class="inline-flex items-center justify-center h-12 px-6 rounded-[var(--radius-md)] bg-primary text-primary-foreground text-base font-semibold shadow-sm hover:brightness-[0.96] transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed"
           :disabled="!canStart"
         >
