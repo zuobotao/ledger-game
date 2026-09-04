@@ -123,6 +123,73 @@ const opportunityCardData = computed<OpportunityCard | null>(() => {
   return null
 })
 
+// ====== v2.1: 机会卡增强信息 ======
+const opportunityLoanAmount = computed(() => {
+  const card = opportunityCardData.value
+  if (!card || card.downPayment === undefined || card.totalValue === undefined) return 0
+  return card.totalValue - card.downPayment
+})
+
+const opportunityCashOnCashReturn = computed(() => {
+  const card = opportunityCardData.value
+  if (!card || !card.cashFlow) return 0
+  const denominator = card.downPayment ?? card.cost
+  if (denominator <= 0) return 0
+  return card.cashFlow / denominator
+})
+
+const opportunityLeverageRatio = computed(() => {
+  const card = opportunityCardData.value
+  if (!card || card.totalValue === undefined || card.totalValue <= 0) return 0
+  const loan = opportunityLoanAmount.value
+  return loan / card.totalValue
+})
+
+const opportunityRiskLevel = computed<'low' | 'medium' | 'high'>(() => {
+  const card = opportunityCardData.value
+  if (!card) return 'medium'
+
+  // 股票风险高于实体资产
+  const baseRisk: Record<string, 'low' | 'medium' | 'high'> = {
+    stock: 'high',
+    real_estate: 'medium',
+    business: 'medium',
+  }
+  let risk = baseRisk[card.type] ?? 'medium'
+
+  // 高杠杆提升风险等级
+  if (opportunityLeverageRatio.value > 0.7) {
+    if (risk === 'low') risk = 'medium'
+    else if (risk === 'medium') risk = 'high'
+  }
+
+  // 负现金流提升风险
+  if (card.cashFlow < 0) {
+    if (risk === 'low') risk = 'medium'
+    else if (risk === 'medium') risk = 'high'
+  }
+
+  return risk
+})
+
+const opportunityRiskLabel = computed(() => {
+  const map = { low: '低', medium: '中', high: '高' }
+  return map[opportunityRiskLevel.value]
+})
+
+const opportunityRiskColor = computed(() => {
+  const map = {
+    low: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+    medium: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+    high: 'text-red-400 bg-red-500/10 border-red-500/30',
+  }
+  return map[opportunityRiskLevel.value]
+})
+
+const isLeveragedOpportunity = computed(() => {
+  return opportunityLoanAmount.value > 0
+})
+
 const marketCardData = computed<MarketEventCard | null>(() => {
   if (props.cardType === 'market' && props.cardData) {
     return props.cardData as MarketEventCard
@@ -233,25 +300,82 @@ const cardTypeAccentClass = computed(() => {
               <!-- 机会卡内容 -->
               <template v-if="cardType === 'opportunity' && opportunityCardData">
                 <div class="card-subtitle">
-                  {{ opportunityCardData.type }}
+                  {{ opportunityCardData.type === 'stock' ? '股票' : opportunityCardData.type === 'real_estate' ? '房地产' : opportunityCardData.type === 'business' ? '企业' : opportunityCardData.type }}
                   <span v-if="opportunityCardData.action === 'sell'" class="text-destructive">· 卖出</span>
                   <span v-else-if="opportunityCardData.action === 'buy'" class="text-success">· 买入</span>
                 </div>
                 <h3 class="card-title">{{ opportunityCardData.title }}</h3>
                 <p class="card-desc">{{ opportunityCardData.description }}</p>
-                <div class="card-stats">
-                  <div class="stat-item">
-                    <div class="stat-label">价格</div>
-                    <div class="stat-value">{{ formatMoney(opportunityCardData.cost) }}</div>
-                  </div>
-                  <div v-if="opportunityCardData.cashFlow > 0" class="stat-item">
-                    <div class="stat-label">月现金流</div>
-                    <div class="stat-value text-success">+{{ formatMoney(opportunityCardData.cashFlow) }}</div>
-                  </div>
-                  <div v-if="opportunityCardData.symbol" class="stat-item">
-                    <div class="stat-label">代码</div>
-                    <div class="stat-value font-mono">{{ opportunityCardData.symbol }}</div>
-                  </div>
+
+                <!-- v2.1: 增强决策信息 -->
+                <div class="card-stats enhanced">
+                  <!-- 有杠杆的资产（房产/企业） -->
+                  <template v-if="isLeveragedOpportunity">
+                    <div class="stat-item">
+                      <div class="stat-label">总价</div>
+                      <div class="stat-value">{{ formatMoney(opportunityCardData.totalValue) }}</div>
+                    </div>
+                    <div class="stat-item highlight">
+                      <div class="stat-label">首付</div>
+                      <div class="stat-value text-primary">{{ formatMoney(opportunityCardData.downPayment) }}</div>
+                    </div>
+                    <div class="stat-item">
+                      <div class="stat-label">贷款</div>
+                      <div class="stat-value text-amber-400">{{ formatMoney(opportunityLoanAmount) }}</div>
+                    </div>
+                    <div class="stat-item">
+                      <div class="stat-label">月现金流</div>
+                      <div class="stat-value" :class="opportunityCardData.cashFlow >= 0 ? 'text-success' : 'text-destructive'">
+                        {{ opportunityCardData.cashFlow >= 0 ? '+' : '' }}{{ formatMoney(opportunityCardData.cashFlow) }}
+                      </div>
+                    </div>
+                    <div class="stat-item">
+                      <div class="stat-label">现金回报率</div>
+                      <div class="stat-value text-cyan-400">
+                        {{ (opportunityCashOnCashReturn * 100).toFixed(1) }}%/月
+                      </div>
+                    </div>
+                    <div class="stat-item">
+                      <div class="stat-label">风险</div>
+                      <div class="stat-value">
+                        <span class="risk-badge border" :class="opportunityRiskColor">
+                          {{ opportunityRiskLabel }}
+                        </span>
+                      </div>
+                    </div>
+                  </template>
+
+                  <!-- 股票等无杠杆资产 -->
+                  <template v-else>
+                    <div class="stat-item">
+                      <div class="stat-label">价格</div>
+                      <div class="stat-value">{{ formatMoney(opportunityCardData.cost) }}</div>
+                    </div>
+                    <div v-if="opportunityCardData.symbol" class="stat-item">
+                      <div class="stat-label">代码</div>
+                      <div class="stat-value font-mono">{{ opportunityCardData.symbol }}</div>
+                    </div>
+                    <div v-if="opportunityCardData.cashFlow !== undefined && opportunityCardData.cashFlow !== 0" class="stat-item">
+                      <div class="stat-label">股息/月</div>
+                      <div class="stat-value" :class="opportunityCardData.cashFlow >= 0 ? 'text-success' : 'text-destructive'">
+                        {{ opportunityCardData.cashFlow >= 0 ? '+' : '' }}{{ formatMoney(opportunityCardData.cashFlow) }}
+                      </div>
+                    </div>
+                    <div v-if="opportunityCardData.cashFlow && opportunityCardData.cashFlow > 0" class="stat-item">
+                      <div class="stat-label">股息率</div>
+                      <div class="stat-value text-cyan-400">
+                        {{ (opportunityCashOnCashReturn * 100).toFixed(1) }}%/月
+                      </div>
+                    </div>
+                    <div class="stat-item">
+                      <div class="stat-label">风险</div>
+                      <div class="stat-value">
+                        <span class="risk-badge border" :class="opportunityRiskColor">
+                          {{ opportunityRiskLabel }}
+                        </span>
+                      </div>
+                    </div>
+                  </template>
                 </div>
               </template>
 
@@ -697,6 +821,56 @@ const cardTypeAccentClass = computed(() => {
 @media (min-width: 640px) {
   .stat-value {
     font-size: 14px;
+  }
+}
+
+/* v2.1: 增强版卡片统计 */
+.card-stats.enhanced {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .card-stats.enhanced {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+}
+
+.card-stats.enhanced .stat-item {
+  min-width: 0;
+  padding: 3px 6px;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .card-stats.enhanced .stat-item {
+    padding: 5px 8px;
+  }
+}
+
+.stat-item.highlight {
+  background: hsl(var(--primary) / 0.15);
+  border: 1px solid hsl(var(--primary) / 0.3);
+}
+
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+@media (min-width: 640px) {
+  .risk-badge {
+    font-size: 11px;
+    padding: 2px 8px;
   }
 }
 
