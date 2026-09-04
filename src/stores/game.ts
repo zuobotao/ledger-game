@@ -77,7 +77,10 @@ import {
   recalcPlayerFinancials,
   calcPlayerNetWorth,
   createFinancialSnapshot,
+  computeFinancialDelta,
+  calcFinancialFreedomRatio,
 } from '@/engine/financialEngine'
+import type { FinancialDelta, GameWarning } from '@/engine/contract'
 import {
   createTransactionId,
   recordTransaction as createTransactionRecord,
@@ -218,6 +221,144 @@ export const useGameStore = defineStore('game', () => {
   const gameStartTime = ref(0)
   const ratRaceTurns = ref(0)
   const fastTrackTurns = ref(0)
+
+  // ====== v2.1: 决策反馈系统 ======
+  // 最近一次重要动作的结果（含财务变化），UI 用它展示决策反馈
+  interface ActionResultDisplay {
+    /** 动作类型 */
+    action: string
+    /** 动作是否成功 */
+    success: boolean
+    /** 标题（如 "资产购买成功"） */
+    title: string
+    /** 财务变化 */
+    delta: FinancialDelta | null
+    /** 警告列表 */
+    warnings: GameWarning[]
+    /** 时间戳（用于触发 UI 动画） */
+    timestamp: number
+    /** 附加信息（如资产名称、数量等） */
+    meta?: Record<string, unknown>
+  }
+
+  const lastActionResult = ref<ActionResultDisplay | null>(null)
+
+  /**
+   * 深拷贝玩家对象（用于计算财务变化前后对比）。
+   * 不使用 structuredClone，因为 Pinia 的 Proxy 对象无法被结构化克隆。
+   */
+  function clonePlayer(p: Player): Player {
+    return JSON.parse(JSON.stringify(p))
+  }
+
+  /**
+   * 记录动作结果，供 UI 决策反馈组件展示。
+   * @param action 动作类型
+   * @param success 是否成功
+   * @param title 标题
+   * @param playerId 受影响的玩家 ID
+   * @param beforePlayer 动作前的玩家状态快照（用于计算 delta）
+   * @param warnings 警告列表
+   * @param meta 附加信息
+   */
+  function recordActionResult(
+    action: string,
+    success: boolean,
+    title: string,
+    playerId: string | null,
+    beforePlayer: Player | null,
+    warnings: GameWarning[] = [],
+    meta?: Record<string, unknown>,
+  ) {
+    let delta: FinancialDelta | null = null
+    if (success && playerId && beforePlayer) {
+      const afterPlayer = players.value.find((p) => p.id === playerId)
+      if (afterPlayer) {
+        delta = computeFinancialDelta(beforePlayer, afterPlayer)
+      }
+    }
+    lastActionResult.value = {
+      action,
+      success,
+      title,
+      delta,
+      warnings,
+      timestamp: Date.now(),
+      meta,
+    }
+  }
+
+  function clearActionResult() {
+    lastActionResult.value = null
+  }
+
+  // ====== v2.1: 回合总结 ======
+  interface TurnInfo {
+    /** 掷骰结果 */
+    diceRoll: number
+    /** 骰子点数数组 */
+    diceValues: number[]
+    /** 落点格子类型 */
+    cellType: string
+    /** 本回合发生的关键动作 */
+    actions: { type: string; description: string }[]
+  }
+
+  const turnStartSnapshot = ref<Player | null>(null)
+  const turnInfo = ref<TurnInfo>({
+    diceRoll: 0,
+    diceValues: [],
+    cellType: '',
+    actions: [],
+  })
+  const showTurnSummary = ref(false)
+
+  /** 记录回合开始时的玩家快照（用于计算回合总变化） */
+  function recordTurnStart(playerId: string) {
+    const player = players.value.find((p) => p.id === playerId)
+    if (player) {
+      turnStartSnapshot.value = clonePlayer(player)
+    }
+    turnInfo.value = {
+      diceRoll: 0,
+      diceValues: [],
+      cellType: '',
+      actions: [],
+    }
+  }
+
+  /** 记录回合中的掷骰结果 */
+  function recordTurnDiceRoll(values: number[], total: number) {
+    turnInfo.value.diceValues = values
+    turnInfo.value.diceRoll = total
+  }
+
+  /** 记录回合中的落点 */
+  function recordTurnCell(cellType: string) {
+    turnInfo.value.cellType = cellType
+  }
+
+  /** 记录回合中的关键动作 */
+  function recordTurnAction(type: string, description: string) {
+    turnInfo.value.actions.push({ type, description })
+  }
+
+  /** 计算本回合的财务总变化 */
+  function getTurnDelta(): FinancialDelta | null {
+    if (!turnStartSnapshot.value || !currentPlayer.value) return null
+    return computeFinancialDelta(turnStartSnapshot.value, currentPlayer.value)
+  }
+
+  /** v2.1: 显示回合总结（替代直接结束回合） */
+  function endTurnWithSummary() {
+    showTurnSummary.value = true
+  }
+
+  /** v2.1: 确认结束回合，进入下一位玩家 */
+  function confirmEndTurn() {
+    showTurnSummary.value = false
+    moveToNextPlayer()
+  }
 
   const currentPlayer = computed<Player | null>(() => players.value[currentPlayerIndex.value] ?? null)
 
@@ -504,6 +645,10 @@ export const useGameStore = defineStore('game', () => {
     players.value.forEach((p) => {
       p.financialSnapshots.push(createFinancialSnapshot(p, 0))
     })
+    // v2.1: 为第一个玩家记录回合开始快照
+    if (players.value.length > 0) {
+      recordTurnStart(players.value[0].id)
+    }
     saveState()
 
     // 如果第一个玩家是 AI，自动开始 AI 回合
@@ -639,6 +784,9 @@ export const useGameStore = defineStore('game', () => {
     }
     const p = currentPlayer.value
     if (!p) return
+
+    // v2.1: 记录回合开始快照
+    recordTurnStart(p.id)
 
     if (p.unemploymentTurns > 0) {
       p.unemploymentTurns -= 1
@@ -957,6 +1105,9 @@ export const useGameStore = defineStore('game', () => {
       return false
     }
 
+    const before = clonePlayer(player)
+    const costBasis = asset.cost * sellQty
+
     // 卖出有贷款的资产时，先偿还贷款本金
     let loanRepaid = 0
     if (asset.loanAmount && asset.loanAmount > 0) {
@@ -1001,6 +1152,37 @@ export const useGameStore = defineStore('game', () => {
       assetType: asset.type,
       loanRepaid,
     })
+
+    // v2.1: 决策反馈
+    const warnings: GameWarning[] = []
+    const pnl = price - costBasis
+    if (pnl < 0) {
+      warnings.push({
+        type: 'info',
+        level: 'low',
+        title: '亏损卖出',
+        description: `本次卖出亏损 ${formatMoney(Math.abs(pnl))}（成本 ${formatMoney(costBasis)}，售价 ${formatMoney(price)}）。市场波动是正常的，重要的是整体策略是否正确。`,
+        relatedMetric: 'assets',
+      })
+    }
+
+    recordActionResult(
+      'sell_asset',
+      true,
+      `卖出 ${asset.name}`,
+      player.id,
+      before,
+      warnings,
+      {
+        assetName: asset.name,
+        assetType: asset.type,
+        quantity: sellQty,
+        totalRevenue: price,
+        costBasis,
+        pnl,
+        loanRepaid,
+      },
+    )
 
     const msg = `${player.name} 卖出 ${asset.name} ×${sellQty}，获得 ${formatMoney(price)}${loanMsg}。可继续卖出其他资产，或点击结束。`
     setPending('market', msg, card)
@@ -1168,6 +1350,9 @@ export const useGameStore = defineStore('game', () => {
     lastRoll.value = roll
     turnStatus.value = 'rolling'
 
+    // v2.1: 记录回合掷骰结果
+    recordTurnDiceRoll(diceValues, roll)
+
     const oldPosition = player.ratRacePosition
     player.ratRacePosition = calcNewPosition(player.ratRacePosition, roll, RAT_RACE_BOARD_SIZE)
     const newPosition = player.ratRacePosition
@@ -1190,6 +1375,8 @@ export const useGameStore = defineStore('game', () => {
     }
 
     const landedCell = getRatRaceCell(newPosition)
+    // v2.1: 记录回合落点
+    recordTurnCell(landedCell.type)
     switch (landedCell.type) {
       case 'opportunity':
       case 'small_opportunity':
@@ -1550,6 +1737,7 @@ export const useGameStore = defineStore('game', () => {
     const cashCost = getCardCost(card) * quantity
     if (player.cash < cashCost) return false
 
+    const before = clonePlayer(player)
     player.cash -= cashCost
     const existing = player.assets.find((a) => a.type === card.type && a.symbol && a.symbol === card.symbol)
     if (existing && card.type === 'stock') {
@@ -1599,11 +1787,68 @@ export const useGameStore = defineStore('game', () => {
       assetType: card.type,
     })
     recordCardDrawn(cardTypeForRecord, card, player.id, 'accepted', cashCost)
+
+    // v2.1: 决策反馈 + 风险提示
+    const warnings: GameWarning[] = []
+    const cashReserveMonths = player.totalExpenses > 0 ? player.cash / player.totalExpenses : 99
+    const totalLiabilities = player.liabilities.reduce((s, l) => s + l.amount, 0)
+    const totalAssets = player.cash + player.savings + calcTotalAssetValue(player.assets)
+
+    if (cashReserveMonths < 1) {
+      warnings.push({
+        type: 'risk',
+        level: 'high',
+        title: '现金储备告急',
+        description: `购买后现金仅够维持 ${cashReserveMonths.toFixed(1)} 个月支出。如果发生失业或市场下跌，你可能被迫低价卖出资产。`,
+        relatedMetric: 'cash',
+      })
+    } else if (cashReserveMonths < 3) {
+      warnings.push({
+        type: 'risk',
+        level: 'medium',
+        title: '现金储备偏低',
+        description: `购买后现金可维持 ${cashReserveMonths.toFixed(1)} 个月支出。建议保留至少 3 个月的应急储备。`,
+        relatedMetric: 'cash',
+      })
+    }
+
+    if (totalLiabilities > totalAssets * 0.7) {
+      warnings.push({
+        type: 'risk',
+        level: 'medium',
+        title: '杠杆率偏高',
+        description: `负债占总资产的 ${((totalLiabilities / Math.max(totalAssets, 1)) * 100).toFixed(0)}%。高杠杆在市场下行时会加速净资产缩水。`,
+        relatedMetric: 'liabilities',
+      })
+    }
+
+    recordActionResult(
+      'buy_opportunity',
+      true,
+      `买入 ${card.title}`,
+      player.id,
+      before,
+      warnings,
+      {
+        assetName: card.title,
+        assetType: card.type,
+        quantity,
+        cashCost,
+        hasDownPayment,
+        loanAmount: hasDownPayment ? (card.totalValue! - card.downPayment!) * quantity : 0,
+        monthlyCashFlow: card.cashFlow * quantity,
+      },
+    )
+
     setPending(
       null,
       `买入 ${card.title}，支付首付 ${formatMoney(cashCost)}${loanInfo}，月净现金流 +${formatMoney(card.cashFlow * quantity)}。`,
     )
     turnStatus.value = 'resolving'
+
+    // v2.1: 记录回合动作
+    recordTurnAction('buy_asset', `买入 ${card.title}`)
+
     saveState()
     return true
   }
@@ -1710,12 +1955,49 @@ export const useGameStore = defineStore('game', () => {
     const rounded = Math.floor(amount / BANK_CONFIG.loanStep) * BANK_CONFIG.loanStep
     if (rounded > maxBankLoanAmount(player)) return false
 
+    const before = clonePlayer(player)
     player.cash += rounded
     const loan = createBankLoan(rounded)
     player.liabilities.push(loan)
     player.expenses.other += loan.monthlyPayment
     recalcPlayerFinancials(player)
     recordTransaction('bank_loan', rounded, '银行贷款')
+
+    // v2.1: 决策反馈
+    const warnings: GameWarning[] = []
+    const totalLiabilities = player.liabilities.reduce((s, l) => s + l.amount, 0)
+    const cashReserveMonths = player.totalExpenses > 0 ? player.cash / player.totalExpenses : 99
+    if (cashReserveMonths < 1) {
+      warnings.push({
+        type: 'risk',
+        level: 'high',
+        title: '现金储备不足',
+        description: `贷款后现金仅够维持 ${cashReserveMonths.toFixed(1)} 个月支出。如果发生失业或意外支出，可能面临资金断裂风险。`,
+        relatedMetric: 'cash',
+      })
+    } else if (totalLiabilities > player.cash * 3) {
+      warnings.push({
+        type: 'risk',
+        level: 'medium',
+        title: '负债率偏高',
+        description: `总负债（$${Math.round(totalLiabilities).toLocaleString()}）是现金储备的 ${(totalLiabilities / Math.max(player.cash, 1)).toFixed(1)} 倍。高杠杆放大收益也放大风险。`,
+        relatedMetric: 'liabilities',
+      })
+    }
+
+    recordActionResult(
+      'take_bank_loan',
+      true,
+      '银行贷款已发放',
+      player.id,
+      before,
+      warnings,
+      { amount: rounded, loanId: loan.id, monthlyPayment: loan.monthlyPayment },
+    )
+
+    // v2.1: 记录回合动作
+    recordTurnAction('take_bank_loan', `借入银行贷款 $${rounded.toLocaleString()}`)
+
     saveState()
     return true
   }
@@ -1729,6 +2011,7 @@ export const useGameStore = defineStore('game', () => {
     const repayAmount = Math.min(amount, loan.amount)
     if (player.cash < repayAmount) return false
 
+    const before = clonePlayer(player)
     player.cash -= repayAmount
     loan.amount -= repayAmount
     if (loan.amount <= 0) {
@@ -1738,6 +2021,33 @@ export const useGameStore = defineStore('game', () => {
     }
     recalcPlayerFinancials(player)
     recordTransaction('loan_repay', -repayAmount, `还款 ${loan.name}`)
+
+    // v2.1: 决策反馈
+    const warnings: GameWarning[] = []
+    const cashReserveMonths = player.totalExpenses > 0 ? player.cash / player.totalExpenses : 99
+    if (cashReserveMonths < 2) {
+      warnings.push({
+        type: 'risk',
+        level: 'medium',
+        title: '还款后现金减少',
+        description: `还款后现金储备可维持 ${cashReserveMonths.toFixed(1)} 个月支出。建议保留至少 3 个月的应急储备。`,
+        relatedMetric: 'cash',
+      })
+    }
+
+    recordActionResult(
+      'repay_bank_loan',
+      true,
+      '还款成功',
+      player.id,
+      before,
+      warnings,
+      { amount: repayAmount, loanName: loan.name, remaining: loan.amount > 0 ? loan.amount : 0 },
+    )
+
+    // v2.1: 记录回合动作
+    recordTurnAction('repay_bank_loan', `偿还贷款 $${repayAmount.toLocaleString()}`)
+
     saveState()
     return true
   }
@@ -2741,6 +3051,17 @@ export const useGameStore = defineStore('game', () => {
     gameStartTime,
     ratRaceTurns,
     fastTrackTurns,
+    // v2.1: 决策反馈
+    lastActionResult,
+    recordActionResult,
+    clearActionResult,
+    calcFinancialFreedomRatio,
+    // v2.1: 回合总结
+    turnInfo,
+    showTurnSummary,
+    getTurnDelta,
+    endTurnWithSummary,
+    confirmEndTurn,
     // 测试用导出
     handlePayday,
     recalcPlayerFinancials,

@@ -223,15 +223,90 @@ export interface SendToFastTrackAction {
   playerId: string
 }
 
+// ==================== FinancialDelta ====================
+
+/**
+ * 统一的财务变化增量结构。
+ *
+ * 所有改变玩家财务状态的动作都应该产出 FinancialDelta，
+ * 描述本次操作对各项财务指标的影响。
+ *
+ * 正值表示增加，负值表示减少。
+ * UI 不需要自己比较前后状态，直接使用 Delta 展示变化。
+ */
+export interface FinancialDelta {
+  /** 现金变化 */
+  cash: number
+  /** 工资收入变化（一般为 0，失业/复职会变） */
+  salary: number
+  /** 被动收入变化 */
+  passiveIncome: number
+  /** 总收入变化 */
+  totalIncome: number
+  /** 总支出变化 */
+  totalExpenses: number
+  /** 月现金流变化（= 总收入 - 总支出） */
+  cashFlow: number
+  /** 总资产变化 */
+  assets: number
+  /** 总负债变化 */
+  liabilities: number
+  /** 净资产变化（= 资产 - 负债 + 现金变化） */
+  netWorth: number
+  /** 储蓄变化 */
+  savings: number
+  /** 孩子数量变化（影响支出） */
+  childrenCount: number
+}
+
+/** 创建一个全零的 FinancialDelta */
+export function createEmptyDelta(): FinancialDelta {
+  return {
+    cash: 0,
+    salary: 0,
+    passiveIncome: 0,
+    totalIncome: 0,
+    totalExpenses: 0,
+    cashFlow: 0,
+    assets: 0,
+    liabilities: 0,
+    netWorth: 0,
+    savings: 0,
+    childrenCount: 0,
+  }
+}
+
+/** 合并多个 FinancialDelta（逐项相加） */
+export function mergeDeltas(...deltas: FinancialDelta[]): FinancialDelta {
+  const result = createEmptyDelta()
+  for (const d of deltas) {
+    for (const k of Object.keys(result) as (keyof FinancialDelta)[]) {
+      result[k] += d[k]
+    }
+  }
+  return result
+}
+
+/** 判断 Delta 是否全为 0（无变化） */
+export function isDeltaEmpty(delta: FinancialDelta): boolean {
+  return Object.values(delta).every((v) => v === 0)
+}
+
 // ==================== GameResult ====================
 
 export interface GameResult {
   /** 操作是否成功 */
   success: boolean
+  /** 动作类型（用于 UI 定位展示模板） */
+  action?: string
   /** 操作后的游戏状态（成功时） */
   state?: GameState
   /** 操作产生的事件列表 */
   events: GameEvent[]
+  /** 受影响玩家的财务变化（key 为 playerId） */
+  financialDeltas: Record<string, FinancialDelta>
+  /** 警告信息（非错误，但玩家应该注意） */
+  warnings: GameWarning[]
   /** 错误信息（失败时） */
   error?: string
   /** 操作后需要 UI 展示的临时消息 */
@@ -242,6 +317,20 @@ export interface GameMessage {
   type: 'info' | 'gain' | 'loss' | 'major'
   text: string
   meta?: Record<string, unknown>
+}
+
+/** 游戏警告：不是错误，但玩家应该意识到的风险或提示 */
+export interface GameWarning {
+  /** 警告类型 */
+  type: 'risk' | 'info' | 'education'
+  /** 警告级别 */
+  level: 'low' | 'medium' | 'high'
+  /** 警告标题 */
+  title: string
+  /** 警告详情 */
+  description: string
+  /** 关联的财务指标 */
+  relatedMetric?: keyof FinancialDelta
 }
 
 // ==================== GameEvent ====================
