@@ -244,6 +244,14 @@ export const useGameStore = defineStore('game', () => {
   const lastActionResult = ref<ActionResultDisplay | null>(null)
 
   /**
+   * 深拷贝玩家对象（用于计算财务变化前后对比）。
+   * 不使用 structuredClone，因为 Pinia 的 Proxy 对象无法被结构化克隆。
+   */
+  function clonePlayer(p: Player): Player {
+    return JSON.parse(JSON.stringify(p))
+  }
+
+  /**
    * 记录动作结果，供 UI 决策反馈组件展示。
    * @param action 动作类型
    * @param success 是否成功
@@ -1022,7 +1030,7 @@ export const useGameStore = defineStore('game', () => {
       return false
     }
 
-    const before = structuredClone(player)
+    const before = clonePlayer(player)
     const costBasis = asset.cost * sellQty
 
     // 卖出有贷款的资产时，先偿还贷款本金
@@ -1649,7 +1657,7 @@ export const useGameStore = defineStore('game', () => {
     const cashCost = getCardCost(card) * quantity
     if (player.cash < cashCost) return false
 
-    const before = structuredClone(player)
+    const before = clonePlayer(player)
     player.cash -= cashCost
     const existing = player.assets.find((a) => a.type === card.type && a.symbol && a.symbol === card.symbol)
     if (existing && card.type === 'stock') {
@@ -1863,7 +1871,7 @@ export const useGameStore = defineStore('game', () => {
     const rounded = Math.floor(amount / BANK_CONFIG.loanStep) * BANK_CONFIG.loanStep
     if (rounded > maxBankLoanAmount(player)) return false
 
-    const before = structuredClone(player)
+    const before = clonePlayer(player)
     player.cash += rounded
     const loan = createBankLoan(rounded)
     player.liabilities.push(loan)
@@ -1916,7 +1924,7 @@ export const useGameStore = defineStore('game', () => {
     const repayAmount = Math.min(amount, loan.amount)
     if (player.cash < repayAmount) return false
 
-    const before = structuredClone(player)
+    const before = clonePlayer(player)
     player.cash -= repayAmount
     loan.amount -= repayAmount
     if (loan.amount <= 0) {

@@ -33,6 +33,8 @@ import GoalProgress from '@/components/GoalProgress.vue'
 import PhaseSwitcher from '@/components/PhaseSwitcher.vue'
 import AITutorAdvice from '@/components/AITutorAdvice.vue'
 import GameToast from '@/components/GameToast.vue'
+import CoreMetricsBar from '@/components/CoreMetricsBar.vue'
+import DecisionFeedbackModal from '@/components/DecisionFeedbackModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -571,6 +573,11 @@ const showActionPanel = computed(() => {
         </button>
       </div>
     </header>
+
+    <!-- v2.1: 核心指标栏 -->
+    <div class="shrink-0 px-3 py-2 sm:px-6 sm:py-2.5 border-b border-border bg-card/50">
+      <CoreMetricsBar />
+    </div>
 
     <!-- Game area -->
     <div class="flex flex-1 flex-col overflow-hidden lg:flex-row">
@@ -1570,6 +1577,9 @@ const showActionPanel = computed(() => {
         @home="goHome"
       />
     </Teleport>
+
+    <!-- v2.1: 决策反馈弹窗 -->
+    <DecisionFeedbackModal />
   </main>
 </template>
 
