@@ -292,6 +292,74 @@ export const useGameStore = defineStore('game', () => {
     lastActionResult.value = null
   }
 
+  // ====== v2.1: 回合总结 ======
+  interface TurnInfo {
+    /** 掷骰结果 */
+    diceRoll: number
+    /** 骰子点数数组 */
+    diceValues: number[]
+    /** 落点格子类型 */
+    cellType: string
+    /** 本回合发生的关键动作 */
+    actions: { type: string; description: string }[]
+  }
+
+  const turnStartSnapshot = ref<Player | null>(null)
+  const turnInfo = ref<TurnInfo>({
+    diceRoll: 0,
+    diceValues: [],
+    cellType: '',
+    actions: [],
+  })
+  const showTurnSummary = ref(false)
+
+  /** 记录回合开始时的玩家快照（用于计算回合总变化） */
+  function recordTurnStart(playerId: string) {
+    const player = players.value.find((p) => p.id === playerId)
+    if (player) {
+      turnStartSnapshot.value = clonePlayer(player)
+    }
+    turnInfo.value = {
+      diceRoll: 0,
+      diceValues: [],
+      cellType: '',
+      actions: [],
+    }
+  }
+
+  /** 记录回合中的掷骰结果 */
+  function recordTurnDiceRoll(values: number[], total: number) {
+    turnInfo.value.diceValues = values
+    turnInfo.value.diceRoll = total
+  }
+
+  /** 记录回合中的落点 */
+  function recordTurnCell(cellType: string) {
+    turnInfo.value.cellType = cellType
+  }
+
+  /** 记录回合中的关键动作 */
+  function recordTurnAction(type: string, description: string) {
+    turnInfo.value.actions.push({ type, description })
+  }
+
+  /** 计算本回合的财务总变化 */
+  function getTurnDelta(): FinancialDelta | null {
+    if (!turnStartSnapshot.value || !currentPlayer.value) return null
+    return computeFinancialDelta(turnStartSnapshot.value, currentPlayer.value)
+  }
+
+  /** v2.1: 显示回合总结（替代直接结束回合） */
+  function endTurnWithSummary() {
+    showTurnSummary.value = true
+  }
+
+  /** v2.1: 确认结束回合，进入下一位玩家 */
+  function confirmEndTurn() {
+    showTurnSummary.value = false
+    moveToNextPlayer()
+  }
+
   const currentPlayer = computed<Player | null>(() => players.value[currentPlayerIndex.value] ?? null)
 
   // 主玩家（第一个非AI玩家，如果全是AI则用第一个）
@@ -577,6 +645,10 @@ export const useGameStore = defineStore('game', () => {
     players.value.forEach((p) => {
       p.financialSnapshots.push(createFinancialSnapshot(p, 0))
     })
+    // v2.1: 为第一个玩家记录回合开始快照
+    if (players.value.length > 0) {
+      recordTurnStart(players.value[0].id)
+    }
     saveState()
 
     // 如果第一个玩家是 AI，自动开始 AI 回合
@@ -712,6 +784,9 @@ export const useGameStore = defineStore('game', () => {
     }
     const p = currentPlayer.value
     if (!p) return
+
+    // v2.1: 记录回合开始快照
+    recordTurnStart(p.id)
 
     if (p.unemploymentTurns > 0) {
       p.unemploymentTurns -= 1
@@ -1275,6 +1350,9 @@ export const useGameStore = defineStore('game', () => {
     lastRoll.value = roll
     turnStatus.value = 'rolling'
 
+    // v2.1: 记录回合掷骰结果
+    recordTurnDiceRoll(diceValues, roll)
+
     const oldPosition = player.ratRacePosition
     player.ratRacePosition = calcNewPosition(player.ratRacePosition, roll, RAT_RACE_BOARD_SIZE)
     const newPosition = player.ratRacePosition
@@ -1297,6 +1375,8 @@ export const useGameStore = defineStore('game', () => {
     }
 
     const landedCell = getRatRaceCell(newPosition)
+    // v2.1: 记录回合落点
+    recordTurnCell(landedCell.type)
     switch (landedCell.type) {
       case 'opportunity':
       case 'small_opportunity':
@@ -1765,6 +1845,10 @@ export const useGameStore = defineStore('game', () => {
       `买入 ${card.title}，支付首付 ${formatMoney(cashCost)}${loanInfo}，月净现金流 +${formatMoney(card.cashFlow * quantity)}。`,
     )
     turnStatus.value = 'resolving'
+
+    // v2.1: 记录回合动作
+    recordTurnAction('buy_asset', `买入 ${card.title}`)
+
     saveState()
     return true
   }
@@ -1911,6 +1995,9 @@ export const useGameStore = defineStore('game', () => {
       { amount: rounded, loanId: loan.id, monthlyPayment: loan.monthlyPayment },
     )
 
+    // v2.1: 记录回合动作
+    recordTurnAction('take_bank_loan', `借入银行贷款 $${rounded.toLocaleString()}`)
+
     saveState()
     return true
   }
@@ -1957,6 +2044,9 @@ export const useGameStore = defineStore('game', () => {
       warnings,
       { amount: repayAmount, loanName: loan.name, remaining: loan.amount > 0 ? loan.amount : 0 },
     )
+
+    // v2.1: 记录回合动作
+    recordTurnAction('repay_bank_loan', `偿还贷款 $${repayAmount.toLocaleString()}`)
 
     saveState()
     return true
@@ -2966,6 +3056,12 @@ export const useGameStore = defineStore('game', () => {
     recordActionResult,
     clearActionResult,
     calcFinancialFreedomRatio,
+    // v2.1: 回合总结
+    turnInfo,
+    showTurnSummary,
+    getTurnDelta,
+    endTurnWithSummary,
+    confirmEndTurn,
     // 测试用导出
     handlePayday,
     recalcPlayerFinancials,

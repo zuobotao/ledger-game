@@ -35,6 +35,7 @@ import AITutorAdvice from '@/components/AITutorAdvice.vue'
 import GameToast from '@/components/GameToast.vue'
 import CoreMetricsBar from '@/components/CoreMetricsBar.vue'
 import DecisionFeedbackModal from '@/components/DecisionFeedbackModal.vue'
+import TurnSummary from '@/components/TurnSummary.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -319,7 +320,7 @@ const disableHumanActions = computed(() => {
 })
 
 function onEndTurn() {
-  gameStore.moveToNextPlayer()
+  gameStore.endTurnWithSummary()
 }
 
 function onBuyOpportunity() {
@@ -1580,6 +1581,7 @@ const showActionPanel = computed(() => {
 
     <!-- v2.1: 决策反馈弹窗 -->
     <DecisionFeedbackModal />
+    <TurnSummary />
   </main>
 </template>
 
