@@ -44,6 +44,7 @@ function goToHistory() {
           <button
             type="button"
             data-dom-id="btn-start"
+            data-testid="game-start"
             class="inline-flex h-14 items-center justify-center gap-2 rounded-full bg-primary px-8 text-base font-semibold text-primary-foreground shadow-md transition hover:brightness-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             @click="goToSetup"
           >

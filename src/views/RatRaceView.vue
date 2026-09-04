@@ -531,6 +531,7 @@ const showActionPanel = computed(() => {
         <!-- 银行 -->
         <button
           type="button"
+          data-testid="bank-button"
           :disabled="isCurrentPlayerAI"
           class="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
           title="银行"
@@ -963,6 +964,7 @@ const showActionPanel = computed(() => {
               v-if="gameStore.turnStatus === 'idle'"
               key="roll"
               type="button"
+              data-testid="roll-dice"
               class="inline-flex h-12 items-center gap-2 rounded-full bg-primary px-8 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 sm:h-14 sm:px-10 sm:text-lg"
               :disabled="isCurrentPlayerAI"
               @click="onRollDice"
@@ -978,6 +980,7 @@ const showActionPanel = computed(() => {
               v-else
               key="end"
               type="button"
+              data-testid="end-turn"
               class="inline-flex h-12 items-center gap-2 rounded-full bg-secondary px-8 text-base font-semibold text-foreground shadow-md transition hover:bg-muted active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 sm:h-14 sm:px-10 sm:text-lg"
               :disabled="gameStore.turnStatus === 'rolling' || isCurrentPlayerAI"
               @click="onEndTurn"

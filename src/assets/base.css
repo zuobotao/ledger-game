@@ -72,9 +72,9 @@
   --color-sidebar-border: #404040;
   --color-sidebar-ring: #00266b;
 
-  /* Typography */
-  --font-sans: 'Stack Sans Text', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  /* Typography — system font stack, no bundled custom fonts */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
 
   /* Radius - Doubao: 19.2px base */
   --radius-sm: 0.6rem;
