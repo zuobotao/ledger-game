@@ -6,6 +6,7 @@
  */
 
 import type { FinancialSnapshot, Player } from '@/types/game'
+import type { FinancialDelta } from './contract'
 import {
   calcAssetValue,
   calcTotalAssetValue,
@@ -85,4 +86,48 @@ export function createFinancialSnapshot(player: Player, turn: number): Financial
     realEstateValue,
     businessValue,
   }
+}
+
+/**
+ * 计算两个玩家状态之间的财务变化增量 (after - before)。
+ *
+ * 这是计算 FinancialDelta 的标准方式：
+ * 捕获操作前状态，执行操作，然后调用此函数得到 Delta。
+ *
+ * 注意：调用前确保两个 player 的财务字段都已经过 recalcPlayerFinancials 计算。
+ */
+export function computeFinancialDelta(before: Player, after: Player): FinancialDelta {
+  const assetsBefore = calcTotalAssetValue(before.assets)
+  const assetsAfter = calcTotalAssetValue(after.assets)
+  const liabilitiesBefore = before.liabilities.reduce((s, l) => s + l.amount, 0)
+  const liabilitiesAfter = after.liabilities.reduce((s, l) => s + l.amount, 0)
+
+  const netWorthBefore = before.cash + before.savings + assetsBefore - liabilitiesBefore
+  const netWorthAfter = after.cash + after.savings + assetsAfter - liabilitiesAfter
+
+  return {
+    cash: after.cash - before.cash,
+    salary: (after.isUnemployed ? 0 : after.salary) - (before.isUnemployed ? 0 : before.salary),
+    passiveIncome: after.passiveIncome - before.passiveIncome,
+    totalIncome: after.totalIncome - before.totalIncome,
+    totalExpenses: after.totalExpenses - before.totalExpenses,
+    cashFlow: after.cashFlow - before.cashFlow,
+    assets: assetsAfter - assetsBefore,
+    liabilities: liabilitiesAfter - liabilitiesBefore,
+    netWorth: netWorthAfter - netWorthBefore,
+    savings: after.savings - before.savings,
+    childrenCount: after.childrenCount - before.childrenCount,
+  }
+}
+
+/**
+ * 计算财务自由度（被动收入 / 总支出）。
+ *
+ * - 0: 完全没有被动收入
+ * - 0.5: 被动收入覆盖一半支出
+ * - 1.0: 财务自由（被动收入 >= 总支出）
+ */
+export function calcFinancialFreedomRatio(player: Player): number {
+  if (player.totalExpenses <= 0) return 1.0
+  return player.passiveIncome / player.totalExpenses
 }

@@ -34,9 +34,12 @@ import type {
   GameEvent,
   GameMessage,
   GameEventLog,
+  FinancialDelta,
+  GameWarning,
 } from './contract'
+import { createEmptyDelta } from './contract'
 import { RandomSource, defaultRandom } from './randomSource'
-import { recalcPlayerFinancials, calcPlayerNetWorth, createFinancialSnapshot } from './financialEngine'
+import { recalcPlayerFinancials, calcPlayerNetWorth, createFinancialSnapshot, computeFinancialDelta } from './financialEngine'
 import { calcTotalAssetValue, findAssetById } from './assetEngine'
 import { createBankLoan, findLoanById, getBankLoans, getTotalBankLoanAmount, createCareerLiabilities } from './loanEngine'
 import { calcNextPlayerIndex, calcPlayerAge, calcNewPosition, canEnterFastTrack, advanceMonth } from './turnEngine'
@@ -151,10 +154,12 @@ export class GameEngine {
 
   /**
    * 统一的 action dispatch 入口
-   * 返回 GameResult 包含成功/失败、事件列表和 UI 消息
+   * 返回 GameResult 包含成功/失败、事件列表、财务变化和 UI 消息
    */
   dispatch(action: GameAction, state: GameState): GameResult {
     const messages: GameMessage[] = []
+    const warnings: GameWarning[] = []
+    const financialDeltas: Record<string, FinancialDelta> = {}
 
     switch (action.type) {
       case 'roll_dice': {
@@ -168,12 +173,13 @@ export class GameEngine {
           values,
           total,
         })
-        return { success: true, state, events: [...this.eventLog], messages }
+        return { success: true, action: action.type, state, events: [...this.eventLog], financialDeltas, warnings, messages }
       }
 
       case 'handle_payday': {
         const player = this.findPlayer(state, action.playerId)
-        if (!player) return { success: false, events: [...this.eventLog], messages, error: 'Player not found' }
+        if (!player) return { success: false, action: action.type, events: [...this.eventLog], financialDeltas, warnings, messages, error: 'Player not found' }
+        const before = structuredClone(player)
         const beforeCash = player.cash
         const cashFlow = player.cashFlow
         player.cash += cashFlow
@@ -190,14 +196,17 @@ export class GameEngine {
         if (retired) {
           this.log({ type: 'age_retired', timestamp: this.now(), playerId: action.playerId, age: calcPlayerAge(player.ageMonths) })
         }
+        recalcPlayerFinancials(player)
+        financialDeltas[action.playerId] = computeFinancialDelta(before, player)
         messages.push({ type: 'gain', text: `收到现金流 $${cashFlow}` })
-        return { success: true, state, events: [...this.eventLog], messages }
+        return { success: true, action: action.type, state, events: [...this.eventLog], financialDeltas, warnings, messages }
       }
 
       case 'take_bank_loan': {
         const player = this.findPlayer(state, action.playerId)
-        if (!player) return { success: false, events: [...this.eventLog], messages, error: 'Player not found' }
-        if (action.amount <= 0) return { success: false, events: [...this.eventLog], messages, error: 'Invalid loan amount' }
+        if (!player) return { success: false, action: action.type, events: [...this.eventLog], financialDeltas, warnings, messages, error: 'Player not found' }
+        if (action.amount <= 0) return { success: false, action: action.type, events: [...this.eventLog], financialDeltas, warnings, messages, error: 'Invalid loan amount' }
+        const before = structuredClone(player)
         const loan = createBankLoan(action.amount, this.random)
         player.liabilities.push(loan)
         player.cash += action.amount
@@ -211,17 +220,30 @@ export class GameEngine {
           loanId: loan.id,
           monthlyPayment: loan.monthlyPayment,
         })
+        financialDeltas[action.playerId] = computeFinancialDelta(before, player)
+        // 风险提示：负债增加
+        const totalLiabilities = player.liabilities.reduce((s, l) => s + l.amount, 0)
+        if (totalLiabilities > player.cash * 2) {
+          warnings.push({
+            type: 'risk',
+            level: 'medium',
+            title: '负债水平上升',
+            description: `贷款后总负债为 $${Math.round(totalLiabilities).toLocaleString()}，是现金储备的 ${(totalLiabilities / Math.max(player.cash, 1)).toFixed(1)} 倍。请注意还款压力。`,
+            relatedMetric: 'liabilities',
+          })
+        }
         messages.push({ type: 'info', text: `借入银行贷款 $${action.amount}` })
-        return { success: true, state, events: [...this.eventLog], messages }
+        return { success: true, action: action.type, state, events: [...this.eventLog], financialDeltas, warnings, messages }
       }
 
       case 'repay_bank_loan': {
         const player = this.findPlayer(state, action.playerId)
-        if (!player) return { success: false, events: [...this.eventLog], messages, error: 'Player not found' }
+        if (!player) return { success: false, action: action.type, events: [...this.eventLog], financialDeltas, warnings, messages, error: 'Player not found' }
         const loan = findLoanById(player.liabilities, action.liabilityId)
-        if (!loan) return { success: false, events: [...this.eventLog], messages, error: 'Loan not found' }
+        if (!loan) return { success: false, action: action.type, events: [...this.eventLog], financialDeltas, warnings, messages, error: 'Loan not found' }
         const repayAmount = Math.min(action.amount, loan.amount)
-        if (player.cash < repayAmount) return { success: false, events: [...this.eventLog], messages, error: 'Insufficient cash' }
+        if (player.cash < repayAmount) return { success: false, action: action.type, events: [...this.eventLog], financialDeltas, warnings, messages, error: 'Insufficient cash' }
+        const before = structuredClone(player)
         player.cash -= repayAmount
         loan.amount -= repayAmount
         if (loan.amount <= 0) {
@@ -235,21 +257,25 @@ export class GameEngine {
           amount: repayAmount,
           remainingLoan: loan.amount > 0 ? loan.amount : 0,
         })
+        financialDeltas[action.playerId] = computeFinancialDelta(before, player)
         messages.push({ type: 'info', text: `偿还银行贷款 $${repayAmount}` })
-        return { success: true, state, events: [...this.eventLog], messages }
+        return { success: true, action: action.type, state, events: [...this.eventLog], financialDeltas, warnings, messages }
       }
 
       case 'declare_bankruptcy': {
         const player = this.findPlayer(state, action.playerId)
-        if (!player) return { success: false, events: [...this.eventLog], messages, error: 'Player not found' }
+        if (!player) return { success: false, action: action.type, events: [...this.eventLog], financialDeltas, warnings, messages, error: 'Player not found' }
+        const before = structuredClone(player)
         player.isBankrupt = true
+        recalcPlayerFinancials(player)
         this.log({
           type: 'bankruptcy_declared',
           timestamp: this.now(),
           playerId: action.playerId,
         })
+        financialDeltas[action.playerId] = computeFinancialDelta(before, player)
         messages.push({ type: 'major', text: `${player.name} 宣告破产` })
-        return { success: true, state, events: [...this.eventLog], messages }
+        return { success: true, action: action.type, state, events: [...this.eventLog], financialDeltas, warnings, messages }
       }
 
       case 'end_turn': {
@@ -259,17 +285,17 @@ export class GameEngine {
           playerId: action.playerId,
           turnNumber: state.turnNumber ?? 0,
         })
-        return { success: true, state, events: [...this.eventLog], messages }
+        return { success: true, action: action.type, state, events: [...this.eventLog], financialDeltas, warnings, messages }
       }
 
       case 'reset_game': {
         this.eventLog = []
         this.log({ type: 'game_reset', timestamp: this.now() })
-        return { success: true, state, events: [...this.eventLog], messages }
+        return { success: true, action: action.type, state, events: [...this.eventLog], financialDeltas, warnings, messages }
       }
 
       default:
-        return { success: true, state, events: [...this.eventLog], messages }
+        return { success: true, action: action.type, state, events: [...this.eventLog], financialDeltas, warnings, messages }
     }
   }
 

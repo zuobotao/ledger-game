@@ -77,7 +77,10 @@ import {
   recalcPlayerFinancials,
   calcPlayerNetWorth,
   createFinancialSnapshot,
+  computeFinancialDelta,
+  calcFinancialFreedomRatio,
 } from '@/engine/financialEngine'
+import type { FinancialDelta, GameWarning } from '@/engine/contract'
 import {
   createTransactionId,
   recordTransaction as createTransactionRecord,
@@ -218,6 +221,68 @@ export const useGameStore = defineStore('game', () => {
   const gameStartTime = ref(0)
   const ratRaceTurns = ref(0)
   const fastTrackTurns = ref(0)
+
+  // ====== v2.1: 决策反馈系统 ======
+  // 最近一次重要动作的结果（含财务变化），UI 用它展示决策反馈
+  interface ActionResultDisplay {
+    /** 动作类型 */
+    action: string
+    /** 动作是否成功 */
+    success: boolean
+    /** 标题（如 "资产购买成功"） */
+    title: string
+    /** 财务变化 */
+    delta: FinancialDelta | null
+    /** 警告列表 */
+    warnings: GameWarning[]
+    /** 时间戳（用于触发 UI 动画） */
+    timestamp: number
+    /** 附加信息（如资产名称、数量等） */
+    meta?: Record<string, unknown>
+  }
+
+  const lastActionResult = ref<ActionResultDisplay | null>(null)
+
+  /**
+   * 记录动作结果，供 UI 决策反馈组件展示。
+   * @param action 动作类型
+   * @param success 是否成功
+   * @param title 标题
+   * @param playerId 受影响的玩家 ID
+   * @param beforePlayer 动作前的玩家状态快照（用于计算 delta）
+   * @param warnings 警告列表
+   * @param meta 附加信息
+   */
+  function recordActionResult(
+    action: string,
+    success: boolean,
+    title: string,
+    playerId: string | null,
+    beforePlayer: Player | null,
+    warnings: GameWarning[] = [],
+    meta?: Record<string, unknown>,
+  ) {
+    let delta: FinancialDelta | null = null
+    if (success && playerId && beforePlayer) {
+      const afterPlayer = players.value.find((p) => p.id === playerId)
+      if (afterPlayer) {
+        delta = computeFinancialDelta(beforePlayer, afterPlayer)
+      }
+    }
+    lastActionResult.value = {
+      action,
+      success,
+      title,
+      delta,
+      warnings,
+      timestamp: Date.now(),
+      meta,
+    }
+  }
+
+  function clearActionResult() {
+    lastActionResult.value = null
+  }
 
   const currentPlayer = computed<Player | null>(() => players.value[currentPlayerIndex.value] ?? null)
 
@@ -957,6 +1022,9 @@ export const useGameStore = defineStore('game', () => {
       return false
     }
 
+    const before = structuredClone(player)
+    const costBasis = asset.cost * sellQty
+
     // 卖出有贷款的资产时，先偿还贷款本金
     let loanRepaid = 0
     if (asset.loanAmount && asset.loanAmount > 0) {
@@ -1001,6 +1069,37 @@ export const useGameStore = defineStore('game', () => {
       assetType: asset.type,
       loanRepaid,
     })
+
+    // v2.1: 决策反馈
+    const warnings: GameWarning[] = []
+    const pnl = price - costBasis
+    if (pnl < 0) {
+      warnings.push({
+        type: 'info',
+        level: 'low',
+        title: '亏损卖出',
+        description: `本次卖出亏损 ${formatMoney(Math.abs(pnl))}（成本 ${formatMoney(costBasis)}，售价 ${formatMoney(price)}）。市场波动是正常的，重要的是整体策略是否正确。`,
+        relatedMetric: 'assets',
+      })
+    }
+
+    recordActionResult(
+      'sell_asset',
+      true,
+      `卖出 ${asset.name}`,
+      player.id,
+      before,
+      warnings,
+      {
+        assetName: asset.name,
+        assetType: asset.type,
+        quantity: sellQty,
+        totalRevenue: price,
+        costBasis,
+        pnl,
+        loanRepaid,
+      },
+    )
 
     const msg = `${player.name} 卖出 ${asset.name} ×${sellQty}，获得 ${formatMoney(price)}${loanMsg}。可继续卖出其他资产，或点击结束。`
     setPending('market', msg, card)
@@ -1550,6 +1649,7 @@ export const useGameStore = defineStore('game', () => {
     const cashCost = getCardCost(card) * quantity
     if (player.cash < cashCost) return false
 
+    const before = structuredClone(player)
     player.cash -= cashCost
     const existing = player.assets.find((a) => a.type === card.type && a.symbol && a.symbol === card.symbol)
     if (existing && card.type === 'stock') {
@@ -1599,6 +1699,59 @@ export const useGameStore = defineStore('game', () => {
       assetType: card.type,
     })
     recordCardDrawn(cardTypeForRecord, card, player.id, 'accepted', cashCost)
+
+    // v2.1: 决策反馈 + 风险提示
+    const warnings: GameWarning[] = []
+    const cashReserveMonths = player.totalExpenses > 0 ? player.cash / player.totalExpenses : 99
+    const totalLiabilities = player.liabilities.reduce((s, l) => s + l.amount, 0)
+    const totalAssets = player.cash + player.savings + calcTotalAssetValue(player.assets)
+
+    if (cashReserveMonths < 1) {
+      warnings.push({
+        type: 'risk',
+        level: 'high',
+        title: '现金储备告急',
+        description: `购买后现金仅够维持 ${cashReserveMonths.toFixed(1)} 个月支出。如果发生失业或市场下跌，你可能被迫低价卖出资产。`,
+        relatedMetric: 'cash',
+      })
+    } else if (cashReserveMonths < 3) {
+      warnings.push({
+        type: 'risk',
+        level: 'medium',
+        title: '现金储备偏低',
+        description: `购买后现金可维持 ${cashReserveMonths.toFixed(1)} 个月支出。建议保留至少 3 个月的应急储备。`,
+        relatedMetric: 'cash',
+      })
+    }
+
+    if (totalLiabilities > totalAssets * 0.7) {
+      warnings.push({
+        type: 'risk',
+        level: 'medium',
+        title: '杠杆率偏高',
+        description: `负债占总资产的 ${((totalLiabilities / Math.max(totalAssets, 1)) * 100).toFixed(0)}%。高杠杆在市场下行时会加速净资产缩水。`,
+        relatedMetric: 'liabilities',
+      })
+    }
+
+    recordActionResult(
+      'buy_opportunity',
+      true,
+      `买入 ${card.title}`,
+      player.id,
+      before,
+      warnings,
+      {
+        assetName: card.title,
+        assetType: card.type,
+        quantity,
+        cashCost,
+        hasDownPayment,
+        loanAmount: hasDownPayment ? (card.totalValue! - card.downPayment!) * quantity : 0,
+        monthlyCashFlow: card.cashFlow * quantity,
+      },
+    )
+
     setPending(
       null,
       `买入 ${card.title}，支付首付 ${formatMoney(cashCost)}${loanInfo}，月净现金流 +${formatMoney(card.cashFlow * quantity)}。`,
@@ -1710,12 +1863,46 @@ export const useGameStore = defineStore('game', () => {
     const rounded = Math.floor(amount / BANK_CONFIG.loanStep) * BANK_CONFIG.loanStep
     if (rounded > maxBankLoanAmount(player)) return false
 
+    const before = structuredClone(player)
     player.cash += rounded
     const loan = createBankLoan(rounded)
     player.liabilities.push(loan)
     player.expenses.other += loan.monthlyPayment
     recalcPlayerFinancials(player)
     recordTransaction('bank_loan', rounded, '银行贷款')
+
+    // v2.1: 决策反馈
+    const warnings: GameWarning[] = []
+    const totalLiabilities = player.liabilities.reduce((s, l) => s + l.amount, 0)
+    const cashReserveMonths = player.totalExpenses > 0 ? player.cash / player.totalExpenses : 99
+    if (cashReserveMonths < 1) {
+      warnings.push({
+        type: 'risk',
+        level: 'high',
+        title: '现金储备不足',
+        description: `贷款后现金仅够维持 ${cashReserveMonths.toFixed(1)} 个月支出。如果发生失业或意外支出，可能面临资金断裂风险。`,
+        relatedMetric: 'cash',
+      })
+    } else if (totalLiabilities > player.cash * 3) {
+      warnings.push({
+        type: 'risk',
+        level: 'medium',
+        title: '负债率偏高',
+        description: `总负债（$${Math.round(totalLiabilities).toLocaleString()}）是现金储备的 ${(totalLiabilities / Math.max(player.cash, 1)).toFixed(1)} 倍。高杠杆放大收益也放大风险。`,
+        relatedMetric: 'liabilities',
+      })
+    }
+
+    recordActionResult(
+      'take_bank_loan',
+      true,
+      '银行贷款已发放',
+      player.id,
+      before,
+      warnings,
+      { amount: rounded, loanId: loan.id, monthlyPayment: loan.monthlyPayment },
+    )
+
     saveState()
     return true
   }
@@ -1729,6 +1916,7 @@ export const useGameStore = defineStore('game', () => {
     const repayAmount = Math.min(amount, loan.amount)
     if (player.cash < repayAmount) return false
 
+    const before = structuredClone(player)
     player.cash -= repayAmount
     loan.amount -= repayAmount
     if (loan.amount <= 0) {
@@ -1738,6 +1926,30 @@ export const useGameStore = defineStore('game', () => {
     }
     recalcPlayerFinancials(player)
     recordTransaction('loan_repay', -repayAmount, `还款 ${loan.name}`)
+
+    // v2.1: 决策反馈
+    const warnings: GameWarning[] = []
+    const cashReserveMonths = player.totalExpenses > 0 ? player.cash / player.totalExpenses : 99
+    if (cashReserveMonths < 2) {
+      warnings.push({
+        type: 'risk',
+        level: 'medium',
+        title: '还款后现金减少',
+        description: `还款后现金储备可维持 ${cashReserveMonths.toFixed(1)} 个月支出。建议保留至少 3 个月的应急储备。`,
+        relatedMetric: 'cash',
+      })
+    }
+
+    recordActionResult(
+      'repay_bank_loan',
+      true,
+      '还款成功',
+      player.id,
+      before,
+      warnings,
+      { amount: repayAmount, loanName: loan.name, remaining: loan.amount > 0 ? loan.amount : 0 },
+    )
+
     saveState()
     return true
   }
@@ -2741,6 +2953,11 @@ export const useGameStore = defineStore('game', () => {
     gameStartTime,
     ratRaceTurns,
     fastTrackTurns,
+    // v2.1: 决策反馈
+    lastActionResult,
+    recordActionResult,
+    clearActionResult,
+    calcFinancialFreedomRatio,
     // 测试用导出
     handlePayday,
     recalcPlayerFinancials,
