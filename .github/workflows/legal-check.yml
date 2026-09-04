@@ -1,0 +1,113 @@
+name: Legal Compliance Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'LICENSE'
+      - 'NOTICE'
+      - 'TERMS.md'
+      - 'PRIVACY.md'
+      - 'THIRD_PARTY_NOTICES.md'
+      - 'CONTRIBUTING.md'
+      - 'docs/legal/**'
+      - 'package.json'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'LICENSE'
+      - 'NOTICE'
+      - 'TERMS.md'
+      - 'PRIVACY.md'
+      - 'THIRD_PARTY_NOTICES.md'
+      - 'CONTRIBUTING.md'
+      - 'docs/legal/**'
+      - 'package.json'
+
+jobs:
+  legal-check:
+    runs-on: ubuntu-latest
+    name: Legal compliance
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify required legal files exist
+        run: |
+          echo "Checking required legal files..."
+          MISSING=""
+          for f in LICENSE NOTICE TERMS.md PRIVACY.md THIRD_PARTY_NOTICES.md CONTRIBUTING.md; do
+            if [ ! -f "$f" ]; then
+              echo "  MISSING: $f"
+              MISSING="$MISSING $f"
+            else
+              echo "  OK: $f"
+            fi
+          done
+
+          for f in docs/legal/IP_AUDIT.md docs/legal/TRADEMARK_REVIEW.md docs/legal/ASSET_LICENSES.md docs/legal/CARD_PROVENANCE.md docs/legal/FINANCIAL_DISCLAIMER.md docs/legal/AI_DATA_POLICY.md docs/legal/AI_CONTRIBUTION_POLICY.md; do
+            if [ ! -f "$f" ]; then
+              echo "  MISSING: $f"
+              MISSING="$MISSING $f"
+            else
+              echo "  OK: $f"
+            fi
+          done
+
+          if [ -n "$MISSING" ]; then
+            echo ""
+            echo "ERROR: Missing required legal files:$MISSING"
+            exit 1
+          fi
+          echo ""
+          echo "All required legal files present."
+
+      - name: Check license field in package.json
+        run: |
+          echo "Checking package.json license..."
+          LICENSE=$(node -p "require('./package.json').license")
+          if [ "$LICENSE" != "Apache-2.0" ]; then
+            echo "ERROR: package.json license is '$LICENSE', expected 'Apache-2.0'"
+            exit 1
+          fi
+          echo "  OK: package.json license is Apache-2.0"
+
+      - name: Check for third-party IP references in PRD
+        run: |
+          echo "Checking for third-party IP references in docs/PRD.md..."
+          if grep -i "cashflow\|kiyosaki\|rich dad\|poor dad" docs/PRD.md 2>/dev/null; then
+            echo "ERROR: Found third-party IP references in docs/PRD.md"
+            exit 1
+          fi
+          echo "  OK: No third-party IP references found"
+
+      - name: Check financial disclaimer in key views
+        run: |
+          echo "Checking financial disclaimer presence..."
+          if grep -q "不构成投资建议\|不构成任何投资建议\|does not constitute investment advice" src/components/AITutorAdvice.vue 2>/dev/null; then
+            echo "  OK: AITutorAdvice has disclaimer"
+          else
+            echo "  WARN: AITutorAdvice disclaimer not found (non-blocking)"
+          fi
+          echo "Disclaimer check complete."
+
+      - name: Verify .env.example exists and .env is gitignored
+        run: |
+          echo "Checking environment variable safety..."
+          if [ ! -f ".env.example" ]; then
+            echo "ERROR: .env.example not found"
+            exit 1
+          fi
+          echo "  OK: .env.example exists"
+          if grep -q "^.env" .gitignore 2>/dev/null || grep -q "^\.env" .gitignore 2>/dev/null; then
+            echo "  OK: .env is in .gitignore"
+          else
+            echo "  WARN: .env not found in .gitignore (non-blocking)"
+          fi
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "========================================="
+          echo "  Legal compliance check: PASSED"
+          echo "========================================="
