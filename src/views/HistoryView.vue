@@ -25,24 +25,85 @@ import {
   X,
   RotateCcw,
   Filter,
+  UserPlus,
+  User,
+  Plus,
+  Check,
 } from 'lucide-vue-next'
 import { useGameHistoryStore } from '@/stores/gameHistory'
+import { useProfileStore, DEFAULT_PROFILE_ID } from '@/stores/profile'
 import type { GameHistoryRecord, GameHistoryDetail, GameResult } from '@/types/game'
 import { START_AGE } from '@/types/game'
 
 const router = useRouter()
 const historyStore = useGameHistoryStore()
+const profileStore = useProfileStore()
 
 // 视图状态
 const selectedRecord = ref<GameHistoryDetail | null>(null)
 const showDeleteConfirm = ref(false)
 const filterResult = ref<GameResult | 'all'>('all')
+// 档案过滤：'all' 显示所有，否则匹配指定档案（旧记录按默认档案归属）
+const selectedProfile = ref<'all' | string>('all')
+
+// 按档案过滤后的记录
+const scopedRecords = computed(() => {
+  if (selectedProfile.value === 'all') return historyStore.records
+  return historyStore.records.filter(
+    (r) => (r.profileId ?? DEFAULT_PROFILE_ID) === selectedProfile.value,
+  )
+})
 
 // 筛选后的记录
 const filteredRecords = computed(() => {
-  if (filterResult.value === 'all') return historyStore.records
-  return historyStore.records.filter((r) => r.result === filterResult.value)
+  if (filterResult.value === 'all') return scopedRecords.value
+  return scopedRecords.value.filter((r) => r.result === filterResult.value)
 })
+
+// 当前档案作用域内的统计
+const visibleStats = computed(() => {
+  const total = scopedRecords.value.length
+  const victories = scopedRecords.value.filter((r) => r.result === 'victory').length
+  const bankruptcies = scopedRecords.value.filter((r) => r.result === 'bankrupt').length
+  const retirements = scopedRecords.value.filter((r) => r.result === 'retirement').length
+  const winRate = total > 0 ? (victories / total) * 100 : 0
+  const avgTurns =
+    total > 0
+      ? scopedRecords.value.reduce((sum, r) => sum + r.totalTurns, 0) / total
+      : 0
+  const gradeCount: Record<string, number> = { S: 0, A: 0, B: 0, C: 0, D: 0 }
+  for (const r of scopedRecords.value) {
+    if (r.grade) gradeCount[r.grade] = (gradeCount[r.grade] ?? 0) + 1
+  }
+  return { totalGames: total, victories, bankruptcies, retirements, winRate, avgTurns: Math.round(avgTurns), gradeCount }
+})
+
+// 档案相关
+const showAddProfile = ref(false)
+const newProfileName = ref('')
+const newProfileEmoji = ref('🙂')
+
+const EMOJI_OPTIONS = ['🧑', '🙂', '🧑🚀', '💼', '👩💼', '🦁', '🐱', '🌱', '⚡', '🏝️']
+
+function addProfile() {
+  const profile = profileStore.addProfile(newProfileName.value, newProfileEmoji.value)
+  if (profile) {
+    showAddProfile.value = false
+    newProfileName.value = ''
+    newProfileEmoji.value = '🙂'
+    selectedProfile.value = profile.id
+  }
+}
+
+function profileName(id: string | null | undefined): string {
+  const p = id ? profileStore.findProfile(id) : undefined
+  return p?.name ?? '未署名'
+}
+
+function profileEmoji(id: string | null | undefined): string {
+  const p = id ? profileStore.findProfile(id) : undefined
+  return p?.emoji ?? '🧑'
+}
 
 // 展开的详情 section
 const expandedSections = ref<Set<string>>(
@@ -397,6 +458,37 @@ onMounted(() => {
     </header>
 
     <main class="page-content">
+      <!-- 档案切换 -->
+      <section class="profile-bar">
+        <div class="profile-label">
+          <User class="h-4 w-4" />
+          <span>玩家档案</span>
+        </div>
+        <div class="profile-chips">
+          <button
+            :class="['profile-chip', { active: selectedProfile === 'all' }]"
+            @click="selectedProfile = 'all'"
+          >
+            <span class="profile-emoj">🧑</span>
+            <span>全部</span>
+          </button>
+          <button
+            v-for="profile in profileStore.profiles"
+            :key="profile.id"
+            :class="['profile-chip', { active: selectedProfile === profile.id }]"
+            @click="selectedProfile = profile.id"
+            :title="profile.name"
+          >
+            <span class="profile-emoj">{{ profile.emoji }}</span>
+            <span>{{ profile.name }}</span>
+          </button>
+          <button class="profile-chip add" @click="showAddProfile = true" title="新建档案">
+            <Plus class="h-3.5 w-3.5" />
+            <span>新建</span>
+          </button>
+        </div>
+      </section>
+
       <!-- 统计概览 -->
       <section class="stats-overview">
         <div class="stat-card">
@@ -404,7 +496,7 @@ onMounted(() => {
             <Trophy class="h-5 w-5" />
           </div>
           <div class="stat-info">
-            <div class="stat-value">{{ historyStore.stats.totalGames }}</div>
+            <div class="stat-value">{{ visibleStats.totalGames }}</div>
             <div class="stat-label">总局数</div>
           </div>
         </div>
@@ -413,7 +505,7 @@ onMounted(() => {
             <TrendingUp class="h-5 w-5" />
           </div>
           <div class="stat-info">
-            <div class="stat-value text-amber-400">{{ historyStore.stats.victories }}</div>
+            <div class="stat-value text-amber-400">{{ visibleStats.victories }}</div>
             <div class="stat-label">财务自由</div>
           </div>
         </div>
@@ -422,7 +514,7 @@ onMounted(() => {
             <TrendingDown class="h-5 w-5" />
           </div>
           <div class="stat-info">
-            <div class="stat-value text-destructive">{{ historyStore.stats.bankruptcies }}</div>
+            <div class="stat-value text-destructive">{{ visibleStats.bankruptcies }}</div>
             <div class="stat-label">破产</div>
           </div>
         </div>
@@ -431,14 +523,14 @@ onMounted(() => {
             <PieChart class="h-5 w-5" />
           </div>
           <div class="stat-info">
-            <div class="stat-value text-primary">{{ historyStore.stats.winRate.toFixed(0) }}%</div>
+            <div class="stat-value text-primary">{{ visibleStats.winRate.toFixed(0) }}%</div>
             <div class="stat-label">财务自由率</div>
           </div>
         </div>
       </section>
 
       <!-- 评级分布 -->
-      <section v-if="historyStore.stats.totalGames > 0" class="grade-distribution">
+      <section v-if="visibleStats.totalGames > 0" class="grade-distribution">
         <h3 class="section-title">评级分布</h3>
         <div class="grade-bars">
           <div
@@ -451,13 +543,13 @@ onMounted(() => {
               <div
                 :class="['grade-bar-fill', `grade-${grade.toLowerCase()}`]"
                 :style="{
-                  width: historyStore.stats.totalGames > 0
-                    ? `${((historyStore.stats.gradeCount[grade] ?? 0) / historyStore.stats.totalGames) * 100}%`
+                  width: visibleStats.totalGames > 0
+                    ? `${((visibleStats.gradeCount[grade] ?? 0) / visibleStats.totalGames) * 100}%`
                     : '0%',
                 }"
               />
             </div>
-            <span class="grade-count">{{ historyStore.stats.gradeCount[grade] ?? 0 }}</span>
+            <span class="grade-count">{{ visibleStats.gradeCount[grade] ?? 0 }}</span>
           </div>
         </div>
       </section>
@@ -539,6 +631,8 @@ onMounted(() => {
                 <span>{{ record.totalTurns }} 回合</span>
                 <span v-if="record.dreamName" class="meta-sep">·</span>
                 <span v-if="record.dreamName" class="dream-name">{{ record.dreamName }}</span>
+                <span class="meta-sep">·</span>
+                <span class="profile-tag">{{ profileEmoji(record.profileId) ?? '🧑' }} {{ profileName(record.profileId) }}</span>
               </div>
             </div>
           </div>
@@ -956,6 +1050,45 @@ onMounted(() => {
         </div>
       </div>
     </Teleport>
+
+    <!-- 新建档案弹窗 -->
+    <Teleport to="body">
+      <div v-if="showAddProfile" class="confirm-overlay" @click.self="showAddProfile = false">
+        <div class="profile-modal">
+          <div class="profile-modal-header">
+            <UserPlus class="h-5 w-5 text-primary" />
+            <h3 class="profile-modal-title">新建玩家档案</h3>
+          </div>
+          <p class="profile-modal-desc">用于区分历史对局的归属，仅保存在本地。</p>
+          <div class="emoji-row">
+            <button
+              v-for="em in EMOJI_OPTIONS"
+              :key="em"
+              :class="['emoji-btn', { active: newProfileEmoji === em }]"
+              @click="newProfileEmoji = em"
+            >
+              {{ em }}
+            </button>
+          </div>
+          <input
+            v-model="newProfileName"
+            class="profile-name-input"
+            placeholder="输入昵称（如：小明）"
+            maxlength="12"
+            @keyup.enter="addProfile"
+          />
+          <div class="confirm-buttons">
+            <button class="confirm-btn secondary" @click="showAddProfile = false">
+              取消
+            </button>
+            <button class="confirm-btn primary" :disabled="!newProfileName.trim()" @click="addProfile">
+              <Check class="h-4 w-4" />
+              创建
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -1151,6 +1284,165 @@ onMounted(() => {
   gap: 6px;
   font-size: 13px;
   color: var(--color-muted-foreground);
+}
+
+/* Profile Bar */
+.profile-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.profile-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-muted-foreground);
+}
+
+.profile-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-secondary);
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.profile-chip:hover {
+  background: var(--color-muted);
+}
+
+.profile-chip.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+.profile-chip.add {
+  border-style: dashed;
+  color: var(--color-primary);
+}
+
+.profile-chip.add:hover {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.profile-emoj {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.profile-tag {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.profile-modal {
+  width: 100%;
+  max-width: 340px;
+  background: var(--color-background);
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  padding: 24px;
+  text-align: center;
+}
+
+.profile-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.profile-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.profile-modal-desc {
+  font-size: 12px;
+  color: var(--color-muted-foreground);
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+
+.emoji-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.emoji-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.emoji-btn:hover {
+  background: var(--color-muted);
+}
+
+.emoji-btn.active {
+  border-color: var(--color-primary);
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.profile-name-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  margin-bottom: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-secondary);
+  color: var(--color-foreground);
+  font-size: 14px;
+  outline: none;
+}
+
+.profile-name-input:focus {
+  border-color: var(--color-primary);
+}
+
+.confirm-btn.primary {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.confirm-btn.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .filter-buttons {

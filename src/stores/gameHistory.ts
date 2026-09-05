@@ -11,6 +11,7 @@ import type {
   GameResult,
 } from '@/types/game'
 import { START_AGE } from '@/types/game'
+import { useProfileStore } from '@/stores/profile'
 import {
   getAllRecords,
   getRecordDetail,
@@ -186,6 +187,7 @@ export const useGameHistoryStore = defineStore('gameHistory', () => {
       cardHistory,
       dreamName,
       grade,
+      profileId: useProfileStore().currentProfileId,
     })
 
     // 保存后刷新列表

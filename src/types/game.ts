@@ -484,6 +484,8 @@ export interface GameHistoryRecord {
   aiCount: number
   mainPlayerId: string
   players: GameHistoryPlayerSummary[]
+  /** 本地玩家档案归属；旧记录为 null */
+  profileId?: string | null
   dreamName?: string
   grade?: 'S' | 'A' | 'B' | 'C' | 'D'
   note?: string

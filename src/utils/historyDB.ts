@@ -206,6 +206,26 @@ function createTables(): void {
   db.run('CREATE INDEX IF NOT EXISTS idx_transactions_gameId ON game_transactions(gameId)')
   db.run('CREATE INDEX IF NOT EXISTS idx_card_history_gameId ON game_card_history(gameId)')
   db.run('CREATE INDEX IF NOT EXISTS idx_snapshots_gameId ON game_financial_snapshots(gameId)')
+
+  ensureProfileColumn()
+}
+
+/**
+ * 兼容迁移：为旧库补上 profileId 列
+ */
+function ensureProfileColumn(): void {
+  if (!db) return
+  try {
+    const cols = db.exec('PRAGMA table_info(game_history)')
+    if (cols.length > 0) {
+      const hasProfile = cols[0]!.values.some((row) => row[1] === 'profileId')
+      if (!hasProfile) {
+        db.run('ALTER TABLE game_history ADD COLUMN profileId TEXT')
+      }
+    }
+  } catch (e) {
+    console.error('Failed to ensure profileId column:', e)
+  }
 }
 
 /**
@@ -228,6 +248,7 @@ function rowToRecord(row: any[]): GameHistoryRecord {
     config: JSON.parse(row[12] as string) as GameConfig,
     players: JSON.parse(row[13] as string) as GameHistoryPlayerSummary[],
     note: row[14] as string | undefined,
+    profileId: (row[15] as string | null | undefined) ?? null,
   }
 }
 
@@ -241,7 +262,7 @@ export async function getAllRecords(): Promise<GameHistoryRecord[]> {
   if (!db) return []
 
   const result = db.exec(
-    'SELECT id, startTime, endTime, totalTurns, ratRaceTurns, fastTrackTurns, result, playerCount, aiCount, mainPlayerId, dreamName, grade, configJson, playersJson, note FROM game_history ORDER BY startTime DESC LIMIT ?',
+    'SELECT id, startTime, endTime, totalTurns, ratRaceTurns, fastTrackTurns, result, playerCount, aiCount, mainPlayerId, dreamName, grade, configJson, playersJson, note, profileId FROM game_history ORDER BY startTime DESC LIMIT ?',
     [MAX_RECORDS],
   )
 
@@ -257,7 +278,7 @@ export async function getRecordDetail(id: string): Promise<GameHistoryDetail | n
   if (!db) return null
 
   const recordResult = db.exec(
-    'SELECT id, startTime, endTime, totalTurns, ratRaceTurns, fastTrackTurns, result, playerCount, aiCount, mainPlayerId, dreamName, grade, configJson, playersJson, note FROM game_history WHERE id = ?',
+    'SELECT id, startTime, endTime, totalTurns, ratRaceTurns, fastTrackTurns, result, playerCount, aiCount, mainPlayerId, dreamName, grade, configJson, playersJson, note, profileId FROM game_history WHERE id = ?',
     [id],
   )
 
@@ -356,6 +377,7 @@ export async function saveGameRecord(params: {
   cardHistory: CardHistoryRecord[]
   dreamName?: string
   grade?: 'S' | 'A' | 'B' | 'C' | 'D'
+  profileId?: string | null
 }): Promise<string> {
   await initDB()
   if (!db) throw new Error('Database not initialized')
@@ -374,6 +396,7 @@ export async function saveGameRecord(params: {
     cardHistory,
     dreamName,
     grade,
+    profileId,
   } = params
 
   const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -406,8 +429,8 @@ export async function saveGameRecord(params: {
   // 插入主记录
   db.run(
     `INSERT INTO game_history 
-     (id, startTime, endTime, totalTurns, ratRaceTurns, fastTrackTurns, result, playerCount, aiCount, mainPlayerId, dreamName, grade, configJson, playersJson)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     (id, startTime, endTime, totalTurns, ratRaceTurns, fastTrackTurns, result, playerCount, aiCount, mainPlayerId, dreamName, grade, configJson, playersJson, profileId)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       startTime,
@@ -423,6 +446,7 @@ export async function saveGameRecord(params: {
       grade ?? null,
       JSON.stringify(config),
       JSON.stringify(playerSummaries),
+      profileId ?? null,
     ],
   )
 
