@@ -1796,20 +1796,21 @@ export const useGameStore = defineStore('game', () => {
           Math.round(stockPrices.value[symbol] / ratio)
         )
       }
-      // 同时更新所有玩家持有的该股票市价
+
+      // 对所有持有该标的的玩家持仓执行拆分/合股，保持市值近似守恒。
+      // 之前只调整当前玩家数量/成本，导致多人下其他玩家持仓"价格腰斩数量不变"（价值减半）。
       for (const p of players.value) {
-        p.assets
-          .filter((a) => a.type === 'stock' && a.symbol === symbol)
-          .forEach((a) => {
-            a.marketPrice = Math.round((a.marketPrice ?? a.cost) / ratio)
-          })
+        for (const a of p.assets) {
+          if (a.type !== 'stock' || a.symbol !== symbol) continue
+          const prevPrice = a.marketPrice ?? a.cost
+          a.quantity = Math.max(1, Math.round(a.quantity * ratio))
+          a.cost = Math.round(a.cost / ratio)
+          a.marketPrice = prevPrice > 0 ? Math.round(prevPrice / ratio) : prevPrice
+        }
       }
 
       if (holding) {
-        holding.quantity = Math.floor(oldQuantity * ratio)
-        holding.cost = Math.round(holding.cost / ratio)
-
-        // 记录交易
+        // 记录交易（仅当前玩家的持仓变化记录一条）
         recordTransaction(
           'stock_split',
           0,
