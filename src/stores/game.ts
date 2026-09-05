@@ -94,11 +94,17 @@ import {
   rollDice,
   calcNewPosition,
   canEnterFastTrack,
+  getFastTrackEligibility,
   isRetirementAge,
   advanceMonth,
 } from '@/engine/turnEngine'
 
 import { defaultRandom } from '@/engine/randomSource'
+import {
+  resolveOpportunityTier,
+  bigCooldownRecovery,
+  DEFAULT_BIG_COOLDOWN_WINDOW,
+} from '@/engine/opportunitySelector'
 
 const STORAGE_KEY = 'ledger101-game-state'
 /** 存档 schema 版本：升级时递增并编写迁移逻辑 */
@@ -221,6 +227,11 @@ export const useGameStore = defineStore('game', () => {
   const isAIThinking = ref(false)
   const viewingPlayerId = ref<string | null>(null)
   const viewingPhase = ref<'rat_race' | 'fast_track' | null>(null)
+  // v2.3 P0-2: Big 机会冷却跟踪（缓解连续大机会挫败）
+  const lastBigOpportunityTurn = ref(0)
+  const bigOpportunityEncounterCount = ref(0)
+  // v2.3 P0-2: 机会选择器旧模式开关（仅用于 Simulation 前后对比，玩法层默认关闭）
+  const legacyOpportunityMode = ref(false)
   const learningMode = ref(false)
   const gameStartTime = ref(0)
   const ratRaceTurns = ref(0)
@@ -409,6 +420,13 @@ export const useGameStore = defineStore('game', () => {
     const p = currentPlayer.value
     if (!p) return false
     return canEnterFastTrack(p)
+  })
+
+  /** 资本游戏资格明细（纯派生，刷新后由持久化字段自动重算，支持 Scenario D/E） */
+  const fastTrackEligibility = computed(() => {
+    const p = currentPlayer.value
+    if (!p) return null
+    return getFastTrackEligibility(p)
   })
 
   // ========== 财务报表计算属性（正确答案） ==========
@@ -660,6 +678,9 @@ export const useGameStore = defineStore('game', () => {
     marketEvent.value = null
     marketEventState.value = null
     decks.value = createDecks()
+    // v2.3 P0-2: 重置 Big 机会冷却
+    lastBigOpportunityTurn.value = 0
+    bigOpportunityEncounterCount.value = 0
     // 初始化股票价格
     stockPrices.value = {}
     TRADABLE_STOCKS.forEach((s) => {
@@ -754,6 +775,11 @@ export const useGameStore = defineStore('game', () => {
   function toggleLearningMode() {
     learningMode.value = !learningMode.value
     saveState()
+  }
+
+  // v2.3 P0-2: 仅用于 Simulation 前后对比的旧模式开关。仅返回 true/false，不持久化。
+  function setLegacyOpportunityMode(v: boolean) {
+    legacyOpportunityMode.value = v
   }
 
   // 当前显示的阶段（用于跨阶段观战）
@@ -1411,16 +1437,32 @@ export const useGameStore = defineStore('game', () => {
         let deckKey: 'bigOpportunity' | 'smallOpportunity' = isBig ? 'bigOpportunity' : 'smallOpportunity'
         let drawFn = isBig ? drawBigOpportunityCard : drawSmallOpportunityCard
 
-        // v2.3 渐进式机会梯度：现金不足以覆盖最便宜的大机会首付时，
-        // 将大机会格替换为可为决策的小/中机会，避免"只能看着大机会离开"。
-        // 随财富跨越阶梯，真实大机会逐步解锁，形成 小→中→大 的成长曲线。
-        if (isBig) {
-          const cash = player.cash
+        // v2.3 P0-2: 机会梯级选择（OpportunitySelector）
+        // 保留资金不足 → 降级为可决策的小机会；叠加 Big 冷却，最近刚兑现过大机会时
+        // 按冷却权重压低再次兑现（保留随机性），缓解连续大机会带来的挫败。
+        if (isBig && !legacyOpportunityMode.value) {
+          const funds = player.cash + player.savings
           const minBigDown = decks.value.bigOpportunity.reduce(
             (m, c) => Math.min(m, c.downPayment ?? c.cost),
             Infinity,
           )
-          if (minBigDown !== Infinity && cash < minBigDown) {
+          const turnsSinceLastBig =
+            lastBigOpportunityTurn.value > 0
+              ? Math.max(0, ratRaceTurns.value - lastBigOpportunityTurn.value)
+              : DEFAULT_BIG_COOLDOWN_WINDOW
+          const recovery = bigCooldownRecovery({
+            turnsSinceLastBig,
+            cooldownWindow: DEFAULT_BIG_COOLDOWN_WINDOW,
+          })
+          const tier = resolveOpportunityTier({
+            landed: 'big_opportunity',
+            funds,
+            bigTierMinCost: minBigDown === Infinity ? 0 : minBigDown,
+            bigCooldownRecovery: recovery,
+            unlockRatio: 1,
+            roll: defaultRandom.next(),
+          })
+          if (tier === 'small') {
             isBig = false
             deckKey = 'smallOpportunity'
             drawFn = drawSmallOpportunityCard
@@ -1430,6 +1472,12 @@ export const useGameStore = defineStore('game', () => {
         const { card, remaining } = drawFn(decks.value[deckKey])
         decks.value[deckKey] = remaining
         recordCardDrawn('opportunity', card)
+
+        // v2.3 P0-2: 记录最近一次真实兑现 Big 的回合，用于冷却
+        if (isBig) {
+          lastBigOpportunityTurn.value = ratRaceTurns.value
+          bigOpportunityEncounterCount.value += 1
+        }
 
         // 多人模式下，小机会的股票卖出卡：所有持有人都可以卖
         if (
@@ -2355,6 +2403,14 @@ export const useGameStore = defineStore('game', () => {
     lastRoll.value = 0
     clearPending()
 
+    // 审计：记录进入资本游戏的资格明细，便于 Replay/回放复盘
+    recordTransaction(
+      'other',
+      0,
+      `进入资本游戏：被动收入 $${formatMoney(player.passiveIncome)} ≥ 支出 $${formatMoney(player.totalExpenses)}`,
+      player.id,
+    )
+
     // 如果所有玩家都进入了快车道，全局phase切换为fast_track
     const allInFastTrack = players.value.every((p) => p.isBankrupt || p.phase === 'fast_track')
     if (allInFastTrack) {
@@ -3035,10 +3091,12 @@ export const useGameStore = defineStore('game', () => {
     isSpectatingOtherPhase,
     learningMode,
     toggleLearningMode,
+    setLegacyOpportunityMode,
     currentPlayer,
     isGameStarted,
     resumableGame,
     canCurrentPlayerEnterFastTrack,
+    fastTrackEligibility,
     correctTotalAssets,
     correctTotalLiabilities,
     correctNetWorth,

@@ -143,6 +143,9 @@ export interface FastTrackCell {
 export type OpportunityCardType = 'stock' | 'real_estate' | 'business' | 'other'
 export type OpportunityCardSize = 'small' | 'big'
 
+/** 机会稀缺度：Big 机会通常对应更高稀缺度，供 Selector/冷却机制使用 */
+export type OpportunityRarity = 'COMMON' | 'UNCOMMON' | 'RARE' | 'LEGENDARY'
+
 export interface OpportunityCard {
   id: string
   size: OpportunityCardSize
@@ -159,6 +162,8 @@ export interface OpportunityCard {
   downPayment?: number
   /** 资产总价值（房地产/企业类），即首付 + 贷款 */
   totalValue?: number
+  /** 稀缺度（可空，兜底由 size 推导） */
+  rarity?: OpportunityRarity
 }
 
 export interface MarketEventCard {

@@ -19,6 +19,7 @@ import {
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import type { Asset, Liability, MarketEventCard, OpportunityCard, StoryCard } from '@/types/game'
+import { evaluateOpportunity } from '@/engine/opportunityEvaluator'
 import BankModal from '@/components/BankModal.vue'
 import RatRaceBoard from '@/components/RatRaceBoard.vue'
 import TransactionHistory from '@/components/TransactionHistory.vue'
@@ -34,6 +35,7 @@ import PhaseSwitcher from '@/components/PhaseSwitcher.vue'
 import AITutorAdvice from '@/components/AITutorAdvice.vue'
 import GameToast from '@/components/GameToast.vue'
 import CoreMetricsBar from '@/components/CoreMetricsBar.vue'
+import FastTrackEligibility from '@/components/FastTrackEligibility.vue'
 import DecisionFeedbackModal from '@/components/DecisionFeedbackModal.vue'
 import TurnSummary from '@/components/TurnSummary.vue'
 
@@ -204,6 +206,23 @@ const opportunityBuyPreview = computed(() => {
 const isOpportunitySell = computed(() => {
   const card = opportunityCard.value
   return card?.type === 'stock' && card.action === 'sell'
+})
+
+// v2.3 P0-2: 机会参与能力评估（全款/融资/暂不能完全参与）
+const opportunityParticipation = computed(() => {
+  const card = opportunityCard.value
+  const player = gameStore.currentPlayer
+  if (!card || !player) return null
+  return evaluateOpportunity(player, card, gameStore.maxBankLoanAmount(player))
+})
+
+const participationHintText = computed(() => {
+  const ev = opportunityParticipation.value
+  if (!ev || ev.participation === 'full') return ''
+  if (ev.participation === 'finance') {
+    return `自有资金还差 $${Math.round(ev.gap).toLocaleString()}，可通过银行贷款融资买下这${ev.fastTrackEligible ? '个机会' : '个机会'}（注意月供）。`
+  }
+  return `机会仍然存在，只是当前还差 $${Math.round(ev.gap).toLocaleString()} 才能完整参与。提升被动收入或储蓄后再来，不必强求现在买下。`
 })
 
 const currentStockHolding = computed(() => {
@@ -566,12 +585,13 @@ const showActionPanel = computed(() => {
         >
           <Landmark class="h-5 w-5" />
         </button>
-        <!-- 财务报表（切换到左侧面板财务 Tab） -->
+        <!-- 财务报表（打开财务报表弹窗，全平台可见） -->
         <button
           type="button"
-          class="hidden sm:flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-muted"
+          data-testid="financial-statement-button"
+          class="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-muted"
           title="财务报表"
-          @click="sidePanelTab = 'balance'"
+          @click="bankInitialTab = 'statement'; showBankModal = true"
         >
           <PieChart class="h-5 w-5" />
         </button>
@@ -590,22 +610,20 @@ const showActionPanel = computed(() => {
         >
           <Shield class="h-5 w-5" />
         </button>
-        <!-- 进入资本游戏（仅在可进入时显示） -->
-        <button
-          v-if="gameStore.canCurrentPlayerEnterFastTrack"
-          type="button"
-          class="hidden sm:inline-flex h-9 items-center gap-1 rounded-full bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/20"
-          @click="enterFastTrack"
-        >
-          进入资本游戏
-          <ArrowRight class="h-3.5 w-3.5" />
-        </button>
       </div>
     </header>
 
     <!-- v2.1: 核心指标栏 -->
     <div class="shrink-0 px-3 py-2 sm:px-6 sm:py-2.5 border-b border-border bg-card/50">
       <CoreMetricsBar />
+    </div>
+
+    <!-- v2.3 P0-3: 资本游戏资格面板（全平台可见，含进入 CTA） -->
+    <div
+      v-if="!isSpectator && !isCurrentPlayerAI && gameStore.currentPlayer?.phase === 'rat_race'"
+      class="shrink-0 px-3 pt-2 sm:px-6"
+    >
+      <FastTrackEligibility @enter="enterFastTrack" />
     </div>
 
     <!-- Game area -->
@@ -1360,6 +1378,14 @@ const showActionPanel = computed(() => {
                   >
                     ✓ 现金充足，可支付首付
                   </div>
+                </div>
+
+                <!-- v2.3 P0-2: 机会参与能力提示（机会仍在，只是当前可能无法完整参与） -->
+                <div
+                  v-if="participationHintText && opportunityCard.splitRatio === undefined && !isStockTradeCard"
+                  class="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm leading-relaxed text-amber-600"
+                >
+                  {{ participationHintText }}
                 </div>
 
                 <!-- 操作按钮（拆分/合股卡和交易卡除外） -->

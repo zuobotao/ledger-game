@@ -45,6 +45,59 @@ export function canEnterFastTrack(player: Player): boolean {
   return player.phase === 'rat_race' && player.passiveIncome >= player.totalExpenses
 }
 
+export interface FastTrackCriterion {
+  label: string
+  met: boolean
+  detail: string
+}
+
+export interface FastTrackEligibilityResult {
+  /** 当前是否具备进入资本游戏的资格 */
+  eligible: boolean
+  passiveIncome: number
+  totalExpenses: number
+  /** 仍需补齐的被动收入缺口（已具备时为 0） */
+  gap: number
+  /** 触发资格的客观原因标识，便于事件/回放/模拟复用 */
+  reason: 'PASSIVE_INCOME_COVERS_EXPENSES' | 'NOT_ELIGIBLE'
+  /** 判定项明细（满足/不满足 + 说明） */
+  criteria: FastTrackCriterion[]
+}
+
+/**
+ * 计算资本游戏资格明细。
+ *
+ * 与 canEnterFastTrack 共享同一判定规则（被动收入 >= 总支出），但额外输出
+ * 满足/不满足项与缺口，供 UI、事件、Replay、Simulation 复用。
+ * 该结果是纯派生值，可由持久化的 passiveIncome/totalExpenses 随时重算。
+ */
+export function getFastTrackEligibility(player: Player): FastTrackEligibilityResult {
+  const passiveIncome = player.passiveIncome
+  const totalExpenses = player.totalExpenses
+  const eligible = player.phase === 'rat_race' && passiveIncome >= totalExpenses
+  const gap = Math.max(0, totalExpenses - passiveIncome)
+
+  const criteria: FastTrackCriterion[] = [
+    {
+      label: '被动收入覆盖总支出',
+      met: passiveIncome >= totalExpenses,
+      detail:
+        passiveIncome >= totalExpenses
+          ? `被动收入 $${Math.round(passiveIncome).toLocaleString()} ≥ 支出 $${Math.round(totalExpenses).toLocaleString()}`
+          : `被动收入 $${Math.round(passiveIncome).toLocaleString()} < 支出 $${Math.round(totalExpenses).toLocaleString()}，还需 $${Math.round(gap).toLocaleString()}/月`,
+    },
+  ]
+
+  return {
+    eligible,
+    passiveIncome,
+    totalExpenses,
+    gap,
+    reason: eligible ? 'PASSIVE_INCOME_COVERS_EXPENSES' : 'NOT_ELIGIBLE',
+    criteria,
+  }
+}
+
 /**
  * 检查是否达到退休年龄
  */

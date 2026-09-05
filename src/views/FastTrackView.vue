@@ -181,6 +181,7 @@ watch(ftStockTradingPending, (val) => {
 const ftQuantity = ref(1)
 const ftBuyError = ref('')
 const showBankModal = ref(false)
+const bankInitialTab = ref<'deposit' | 'loan' | 'repay' | 'assets' | 'statement' | 'insurance'>('deposit')
 const showFinancialPanel = ref(true)
 const showPlayerSwitcher = ref(false)
 
@@ -428,7 +429,8 @@ watch(
           :disabled="isCurrentPlayerAI"
           class="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
           title="财务报表"
-          @click="showFinancialPanel = !showFinancialPanel"
+          data-testid="financial-statement-button"
+          @click="bankInitialTab = 'statement'; showBankModal = true"
         >
           <PieChart class="h-5 w-5" />
         </button>
@@ -1296,7 +1298,7 @@ watch(
     </div>
 
     <!-- Bank modal -->
-    <BankModal :show="showBankModal" @close="showBankModal = false" />
+    <BankModal :show="showBankModal" :initial-tab="bankInitialTab" @close="showBankModal = false" />
   </main>
 </template>
 

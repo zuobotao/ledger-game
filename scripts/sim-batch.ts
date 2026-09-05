@@ -24,6 +24,26 @@ interface SimStats {
   smallSeen: number
   bigAffordableCash: number
   smallAffordableCash: number
+  // v2.3 P0-2: 连续大机会（连续"兑现为大机会"的回合）
+  bigTurns: number // 兑现为大机会的回合数
+  maxBigRun: number // 最长连续大机会回合
+  curBigRun: number // 当前连续数（累计用）
+  bigRuns: number // 连续段数量（≥1 记为一段）
+  bigRun2: number // 连续≥2 的段数
+  bigRun3: number // 连续≥3 的段数
+  bigRun4: number // 连续≥4 的段数
+  // 大机会平均间隔（段之间）
+  lastBigTurn: number
+  bigGapSum: number
+  // 参与方式
+  oppFull: number
+  oppFinance: number
+  oppPartial: number
+  oppNone: number
+  // 瞬态：本回合是否兑现为大机会（用于连续统计）
+  bigSeenThisTurn: boolean
+  // v2.3 P0-3: Fast Track 可达性（被动收入 >= 总支出）
+  ftReachTurn: number // 首次满足脱离 Rat Race 条件（被动收入>=总支出）的回合，0=未达成
   // 前 5 回合机会
   first5Seen: number
   first5AffordableCash: number
@@ -58,6 +78,8 @@ const OUTPUT = process.argv.find((a) => a.startsWith('--runs='))
 const RUNS = OUTPUT ? parseInt(OUTPUT.split('=')[1]!, 10) : 1040
 const TURNS_ARG = process.argv.find((a) => a.startsWith('--turns='))
 const MAX_TURNS = TURNS_ARG ? parseInt(TURNS_ARG.split('=')[1]!, 10) : 40
+// --legacy: 关闭 v2.3 OpportunitySelector（无冷却/无资金降级），用于前后对比
+const LEGACY = process.argv.includes('--legacy')
 
 const SAMPLE_CAREERS = [
   'cleaner', 'janitor', 'nurse', 'engineer', 'teacher',
@@ -92,6 +114,7 @@ function resolvePending(store: ReturnType<typeof useGameStore>, s: SimStats): vo
     const isBig = card?.size === 'big'
 
     s.opportunitySeen++
+    s.bigSeenThisTurn = isBig
     if (isBig) { s.bigSeen++; if (affordableCash) s.bigAffordableCash++ }
     else { s.smallSeen++; if (affordableCash) s.smallAffordableCash++ }
     if (s.turns <= 5) {
@@ -99,6 +122,12 @@ function resolvePending(store: ReturnType<typeof useGameStore>, s: SimStats): vo
       if (affordableCash) s.first5AffordableCash++
       if (isBig) { s.first5BigSeen++; if (affordableCash) s.first5BigAffordable++ }
     }
+
+    // v2.3 P0-2: 参与方式分布（full / partial / none）
+    const funds = (player?.cash ?? 0) + (player?.savings ?? 0)
+    if (upfront > 0 && funds >= upfront) s.oppFull++
+    else if (upfront > 0 && funds >= upfront * 0.5) s.oppPartial++
+    else s.oppNone++
 
     if (affordableCash) {
       s.curUnaffordableRun = 0
@@ -173,6 +202,12 @@ function runOne(careerId: string): SimStats {
     careerId, turns: 0,
     opportunitySeen: 0, oppAffordableCash: 0, oppAffordableFull: 0,
     bigSeen: 0, smallSeen: 0, bigAffordableCash: 0, smallAffordableCash: 0,
+    bigTurns: 0, maxBigRun: 0, curBigRun: 0, bigRuns: 0,
+    bigRun2: 0, bigRun3: 0, bigRun4: 0,
+    lastBigTurn: 0, bigGapSum: 0,
+    oppFull: 0, oppFinance: 0, oppPartial: 0, oppNone: 0,
+    bigSeenThisTurn: false,
+    ftReachTurn: 0,
     first5Seen: 0, first5AffordableCash: 0, first5BigSeen: 0, first5BigAffordable: 0,
     firstAssetTurn: 0, firstPassiveIncomeTurn: 0, firstPositiveCashFlowTurn: 0, firstBigBuyTurn: 0,
     maxUnaffordableRun: 0, curUnaffordableRun: 0, totalUnaffordable: 0,
@@ -185,6 +220,7 @@ function runOne(careerId: string): SimStats {
   const pinia = createPinia()
   setActivePinia(pinia)
   const store = useGameStore()
+  if (LEGACY) store.setLegacyOpportunityMode(true)
   if (!startGame(store, careerId)) return s
 
   let prevChildren = 0
@@ -210,6 +246,36 @@ function runOne(careerId: string): SimStats {
       cap++
     }
 
+    // v2.3 P0-2: 连续大机会统计（跨回合连续兑现为大机会）
+    if (s.bigSeenThisTurn) {
+      s.bigTurns++
+      if (s.curBigRun === 0) {
+        // 新连续段开始
+        s.bigRuns++
+        s.curBigRun = 1
+      } else {
+        s.curBigRun++
+      }
+      if (s.curBigRun > s.maxBigRun) s.maxBigRun = s.curBigRun
+      // 段结束判断：若下一回合非大机会则归零（在 turn 首部处理）
+    } else {
+      if (s.curBigRun > 0) {
+        // 段结束
+        if (s.curBigRun >= 2) s.bigRun2++
+        if (s.curBigRun >= 3) s.bigRun3++
+        if (s.curBigRun >= 4) s.bigRun4++
+        s.curBigRun = 0
+      }
+    }
+    // 大机会间隔（连续段之间）
+    if (s.bigSeenThisTurn && s.turns > 1 && s.lastBigTurn === 0 && s.bigTurns === 1) {
+      // 第一次遇到，无间隔
+    } else if (s.bigSeenThisTurn && s.lastBigTurn > 0) {
+      s.bigGapSum += s.turns - s.lastBigTurn
+    }
+    if (s.bigSeenThisTurn) s.lastBigTurn = s.turns
+    s.bigSeenThisTurn = false
+
     // 检测孩子变化
     const cc = store.currentPlayer?.childrenCount ?? 0
     if (cc > prevChildren) {
@@ -233,6 +299,8 @@ function runOne(careerId: string): SimStats {
       if (s.firstAssetTurn === 0 && pl.assets.length > 0) s.firstAssetTurn = s.turns
       if (s.firstPassiveIncomeTurn === 0 && pl.passiveIncome > 0) s.firstPassiveIncomeTurn = s.turns
       if (s.firstPositiveCashFlowTurn === 0 && pl.cashFlow > 0) s.firstPositiveCashFlowTurn = s.turns
+      // v2.3 P0-3: Fast Track 可达性（被动收入 >= 总支出）
+      if (s.ftReachTurn === 0 && pl.passiveIncome >= pl.totalExpenses) s.ftReachTurn = s.turns
 
       if (turn === 10) {
         s.cashT10 = pl.cash
@@ -248,8 +316,20 @@ function runOne(careerId: string): SimStats {
     if (store.turnStatus === 'resolving') store.endTurn()
   }
   if (s.sampleCount > 0) void (s.turns) // keep
-  s.cashflowT10 = s.cashflowT10 // noop
+  // 收尾：把可能未结算的尾段计入连续统计
+  if (s.curBigRun > 0) {
+    if (s.curBigRun >= 2) s.bigRun2++
+    if (s.curBigRun >= 3) s.bigRun3++
+    if (s.curBigRun >= 4) s.bigRun4++
+    s.curBigRun = 0
+  }
   return s
+}
+
+// 将 SimStats 的参与方式计数转换为占比
+function share(r: SimStats, key: 'oppFull' | 'oppFinance' | 'oppPartial' | 'oppNone'): number {
+  if (r.opportunitySeen === 0) return 0
+  return r[key] / r.opportunitySeen
 }
 
 function aggregate(): void {
@@ -273,9 +353,29 @@ function aggregate(): void {
       opportunitySeen: avg((s) => s.opportunitySeen),
       oppAffordableCashRate: avg((s) => (s.opportunitySeen ? s.oppAffordableCash / s.opportunitySeen : 0)),
       oppAffordableFullRate: avg((s) => (s.opportunitySeen ? s.oppAffordableFull / s.opportunitySeen : 0)),
+      // 机会分布
+      smallShare: avg((s) => (s.opportunitySeen ? s.smallSeen / s.opportunitySeen : 0)),
       bigShare: avg((s) => (s.opportunitySeen ? s.bigSeen / s.opportunitySeen : 0)),
       bigAffordableCashRate: avg((s) => (s.bigSeen ? s.bigAffordableCash / s.bigSeen : 0)),
       smallAffordableCashRate: avg((s) => (s.smallSeen ? s.smallAffordableCash / s.smallSeen : 0)),
+      // v2.3 P0-2: 参与方式分布
+      participation: {
+        full: avg((s) => share(s, 'oppFull')),
+        finance: avg((s) => share(s, 'oppFinance')),
+        partial: avg((s) => share(s, 'oppPartial')),
+        none: avg((s) => share(s, 'oppNone')),
+      },
+      // v2.3 P0-2: 连续大机会
+      bigPerGame: avg((s) => s.bigTurns),
+      maxBigRun: avg((s) => s.maxBigRun),
+      bigRuns: avg((s) => s.bigRuns),
+      'bigRun2+': avg((s) => s.bigRun2),
+      'bigRun3+': avg((s) => s.bigRun3),
+      'bigRun4+': avg((s) => s.bigRun4),
+      bigAvgInterval: avg((s) => (s.bigTurns > 1 && s.bigRuns >= 1 ? s.bigGapSum / Math.max(1, s.bigTurns - 1) : 0)),
+      // v2.3 P0-3: Fast Track 可达性
+      ftReachRate: avg((s) => (s.ftReachTurn > 0 ? 1 : 0)),
+      ftReachTurn: avg((s) => (s.ftReachTurn > 0 ? s.ftReachTurn : 0)),
       // 前5回合
       first5Seen: avg((s) => s.first5Seen),
       first5AffordableRate: avg((s) => (s.first5Seen ? s.first5AffordableCash / s.first5Seen : 0)),
