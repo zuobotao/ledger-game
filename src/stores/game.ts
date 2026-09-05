@@ -585,6 +585,7 @@ export const useGameStore = defineStore('game', () => {
       gameStartTime: gameStartTime.value,
       ratRaceTurns: ratRaceTurns.value,
       fastTrackTurns: fastTrackTurns.value,
+      stockPrices: stockPrices.value,
       schemaVersion: SAVE_SCHEMA_VERSION,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
@@ -639,6 +640,15 @@ export const useGameStore = defineStore('game', () => {
       gameStartTime.value = state.gameStartTime ?? 0
       ratRaceTurns.value = state.ratRaceTurns ?? 0
       fastTrackTurns.value = state.fastTrackTurns ?? 0
+      // v2.4.1 P0-3：恢复交易价格表；缺失的已知标的回落 basePrice，避免重载后价格归零
+      const restoredPrices = state.stockPrices ?? {}
+      for (const s of TRADABLE_STOCKS) {
+        const v = restoredPrices[s.symbol]
+        if (v === undefined || !Number.isFinite(v) || v <= 0) {
+          restoredPrices[s.symbol] = s.basePrice
+        }
+      }
+      stockPrices.value = restoredPrices
       players.value.forEach(recalcPlayerFinancials)
     } catch {
       localStorage.removeItem(STORAGE_KEY)

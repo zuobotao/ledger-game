@@ -32,6 +32,7 @@ export function buildGameState(store: GameStore): GameState {
     gameStartTime: store.gameStartTime,
     ratRaceTurns: store.ratRaceTurns,
     fastTrackTurns: store.fastTrackTurns,
+    stockPrices: store.stockPrices,
   }
 }
 

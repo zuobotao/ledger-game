@@ -310,6 +310,8 @@ export interface GameState {
   gameStartTime?: number
   ratRaceTurns?: number
   fastTrackTurns?: number
+  /** 交易标的当前价格表（必须持久化，否则重载后交易价归零） */
+  stockPrices?: Record<string, number>
   /** 存档 schema 版本，供未来升级迁移用 */
   schemaVersion?: number
 }
