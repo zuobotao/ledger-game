@@ -401,7 +401,10 @@ export const useGameStore = defineStore('game', () => {
   })
 
   const currentPlayerAge = computed(() => {
-    const totalMonths = gameMonth.value
+    // 权威来源：当前玩家的 ageMonths（多人下互不影响）；旧存档无值则回退 gameMonth。
+    const p = currentPlayer.value
+    const totalMonths =
+      p && Number.isFinite(p.ageMonths) && p.ageMonths > 0 ? p.ageMonths : gameMonth.value
     const years = calcPlayerAge(totalMonths)
     const months = totalMonths % 12
     const percent = Math.min(100, (totalMonths / MAX_AGE_MONTHS) * 100)
@@ -604,6 +607,11 @@ export const useGameStore = defineStore('game', () => {
         patched.charityProtection ??= false
         patched.isAI ??= false
         patched.ageMonths ??= 0
+        // v2.4.1 迁移：旧存档未持久化 per-player ageMonths（恒为 0），
+        // 用此前唯一的年龄来源 gameMonth 回填，避免升级后老化被重置。
+        if (patched.ageMonths === 0 && (state.gameMonth ?? 0) > 0 && (!p.ageMonths || p.ageMonths === 0)) {
+          patched.ageMonths = state.gameMonth ?? 0
+        }
         patched.hasUnemploymentInsurance ??= false
         if (!patched.financialStatement) {
           patched.financialStatement = createFinancialStatement()
@@ -898,8 +906,10 @@ export const useGameStore = defineStore('game', () => {
       msg = `发工资：获得 ${formatMoney(player.cashFlow)} 现金流${premium > 0 ? `，扣除失业保险 ${formatMoney(premium)}` : ''}。`
     }
 
-    // 年龄递增（全局游戏时间）
-    const result = advanceMonth(gameMonth.value, config.value.ageLimit)
+    // 年龄递增：按玩家自身的 ageMonths 推进（多人下各玩家独立老化，不随玩家数翻倍）
+    const result = advanceMonth(player.ageMonths, config.value.ageLimit)
+    player.ageMonths = result.ageMonths
+    // 兼容旧存档/序列化：让世界时钟 gameMonth 与该玩家老化同步（单人行为不变）
     gameMonth.value = result.ageMonths
     if (result.retired) {
       triggerRetirement()
@@ -2439,8 +2449,9 @@ export const useGameStore = defineStore('game', () => {
         const payout = player.cashFlow * 100
         player.cash += payout
         recordTransaction('salary', payout, '被动收入日', player.id)
-        // FastTrack 被动收入日也推进年龄（全局游戏时间）
-        const result = advanceMonth(gameMonth.value, config.value.ageLimit)
+        // FastTrack 被动收入日也推进年龄（按当前玩家自身 ageMonths）
+        const result = advanceMonth(player.ageMonths, config.value.ageLimit)
+        player.ageMonths = result.ageMonths
         gameMonth.value = result.ageMonths
         if (result.retired) {
           triggerRetirement()
