@@ -13,6 +13,7 @@
     "test:unit": "vitest run test/unit",
     "test:integration": "vitest run test/integration",
     "test:regression": "vitest run test/regression",
+    "server": "TSX_TSCONFIG_PATH=./tsconfig.server.json tsx server/index.ts",
     "lint": "run-s \"lint:*\"",
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
