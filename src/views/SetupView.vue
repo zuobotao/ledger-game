@@ -209,6 +209,17 @@ function getCareerDisplayName(careerId: string): string {
   const career = getCareerById(careerId)
   return career?.name ?? '未知职业'
 }
+
+// v2.3 Mobile UX：底部固定操作区的「已选择」摘要
+const dockSummary = computed(() => {
+  if (activeSetups.value.length === 1) {
+    const s = activeSetups.value[0]
+    if (!s) return ''
+    const dream = s.dreamId ? getDreamName(s.dreamId) : '未选梦想'
+    return `${getCareerDisplayName(s.careerId)} · ${dream}`
+  }
+  return `${activeSetups.value.length} 名玩家已就绪`
+})
 </script>
 
 <template>
@@ -523,26 +534,47 @@ function getCareerDisplayName(careerId: string): string {
         {{ errorMessage }}
       </div>
 
+      <!-- v2.3 Mobile UX：开始游戏固定底部操作区（sticky 钉住视口底，桌面端自然排列） -->
       <div
-        class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2"
+        class="sticky bottom-0 z-30 -mx-6 -mb-6 mt-1 border-t border-border/70 bg-card/95 px-6 py-3 backdrop-blur sm:-mx-8 sm:-mb-8 sm:px-8"
+        style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))"
       >
-        <button
-          type="button"
-          class="inline-flex items-center justify-center h-11 px-4 rounded-[var(--radius-md)] text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-          @click="goHome"
-        >
-          <ArrowLeft class="w-4 h-4 mr-1" />
-          返回首页
-        </button>
-        <button
-          type="submit"
-          data-dom-id="btn-begin"
-          data-testid="begin-game"
-          class="inline-flex items-center justify-center h-12 px-6 rounded-[var(--radius-md)] bg-primary text-primary-foreground text-base font-semibold shadow-sm hover:brightness-[0.96] transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed"
-          :disabled="!canStart"
-        >
-          开始游戏
-        </button>
+        <div class="flex w-full items-center justify-between gap-3">
+          <!-- 移动端：已选择摘要 -->
+          <div class="min-w-0 flex-1 md:hidden">
+            <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">已选择</p>
+            <p class="truncate text-sm font-medium text-foreground">{{ dockSummary }}</p>
+          </div>
+          <!-- 桌面端：返回首页 -->
+          <button
+            type="button"
+            class="hidden h-11 items-center justify-center rounded-[var(--radius-md)] px-4 text-sm font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors md:inline-flex"
+            @click="goHome"
+          >
+            <ArrowLeft class="w-4 h-4 mr-1" />
+            返回首页
+          </button>
+          <div class="flex items-center gap-2 md:ml-auto">
+            <!-- 移动端：轻量返回 -->
+            <button
+              type="button"
+              class="inline-flex h-11 w-10 items-center justify-center rounded-[var(--radius-md)] text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors md:hidden"
+              :aria-label="'返回首页'"
+              @click="goHome"
+            >
+              <ArrowLeft class="w-5 h-5" />
+            </button>
+            <button
+              type="submit"
+              data-dom-id="btn-begin"
+              data-testid="begin-game"
+              class="inline-flex items-center justify-center h-12 flex-1 md:flex-none md:px-8 rounded-[var(--radius-md)] bg-primary text-primary-foreground text-base font-semibold shadow-sm hover:brightness-[0.96] transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="!canStart"
+            >
+              开始游戏
+            </button>
+          </div>
+        </div>
       </div>
     </form>
 
