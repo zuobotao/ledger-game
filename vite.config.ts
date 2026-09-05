@@ -12,7 +12,8 @@ export default defineConfig({
   base: '/ledger-game/',
   plugins: [
     vue(),
-    vueDevTools(),
+    // 自动化 E2E/Playtest 时注入浮窗面板会拦截真实点击；通过 VITE_DISABLE_DEVTOOLS=1 关闭
+    ...(process.env.VITE_DISABLE_DEVTOOLS ? [] : [vueDevTools()]),
     tailwindcss(),
   ],
   resolve: {

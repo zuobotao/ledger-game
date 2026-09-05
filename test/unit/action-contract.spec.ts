@@ -60,8 +60,8 @@ describe('GameAction Contract Audit', () => {
     }
   })
 
-  it('should have 26 action types total', () => {
-    expect(GAME_ACTION_TYPES.length).toBe(26)
+  it('should have 27 action types total', () => {
+    expect(GAME_ACTION_TYPES.length).toBe(27)
   })
 
   // --- 2. Action-playerId Convention ---
@@ -69,7 +69,7 @@ describe('GameAction Contract Audit', () => {
   it('should require playerId for player-specific actions', () => {
     const playerSpecificActions: GameActionType[] = [
       'roll_dice', 'move_player', 'resolve_cell', 'handle_payday',
-      'handle_charity', 'buy_opportunity', 'sell_opportunity',
+      'handle_charity', 'buy_opportunity', 'sell_opportunity', 'skip_stock_sell',
       'decline_opportunity', 'handle_market', 'handle_doodad',
       'handle_story', 'take_bank_loan', 'repay_bank_loan',
       'deposit_savings', 'withdraw_savings', 'buy_insurance',
