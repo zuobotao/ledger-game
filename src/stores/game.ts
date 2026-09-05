@@ -893,10 +893,11 @@ export const useGameStore = defineStore('game', () => {
     let msg = ''
     if (player.isUnemployed) {
       if (player.hasUnemploymentInsurance) {
-        // 失业+有失业保险：领全额工资
-        player.cash += player.cashFlow
-        recordTransaction('unemployment_insurance_benefit', player.cashFlow, '失业保险金', player.id)
-        msg = `失业中：失业保险生效，领取 ${formatMoney(player.cashFlow)} 全额工资。`
+        // 失业保险：覆盖失业期间的收入损失，恢复"可工作的现金流"（工资 + 被动 - 支出）
+        const coveredFlow = player.salary + player.passiveIncome - player.totalExpenses
+        player.cash += coveredFlow
+        recordTransaction('unemployment_insurance_benefit', coveredFlow, '失业保险金（覆盖失业工资）', player.id)
+        msg = `失业中：失业保险生效，赔付 ${formatMoney(coveredFlow)}，实际失业损失为 0。`
       } else {
         // 失业+无保险：扣支出
         player.cash -= player.totalExpenses
@@ -1594,7 +1595,9 @@ export const useGameStore = defineStore('game', () => {
           player.isUnemployed = true
           player.unemploymentTurns = 1
           recalcPlayerFinancials(player)
-          setPending('layoff', '裁员：你失去了工作，将跳过 1 个回合的工资。')
+          setPending('layoff', player.hasUnemploymentInsurance
+            ? '裁员：你暂时失业，但失业保险将在发工资时覆盖收入损失，实际无损失。'
+            : '裁员：你失去了工作，将跳过 1 个回合的工资。')
         }
         break
       }
