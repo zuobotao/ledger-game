@@ -313,11 +313,11 @@ const cardTypeAccentClass = computed(() => {
                   <template v-if="isLeveragedOpportunity">
                     <div class="stat-item">
                       <div class="stat-label">总价</div>
-                      <div class="stat-value">{{ formatMoney(opportunityCardData.totalValue) }}</div>
+                      <div class="stat-value">{{ formatMoney(opportunityCardData.totalValue!) }}</div>
                     </div>
                     <div class="stat-item highlight">
                       <div class="stat-label">首付</div>
-                      <div class="stat-value text-primary">{{ formatMoney(opportunityCardData.downPayment) }}</div>
+                      <div class="stat-value text-primary">{{ formatMoney(opportunityCardData.downPayment!) }}</div>
                     </div>
                     <div class="stat-item">
                       <div class="stat-label">贷款</div>

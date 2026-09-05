@@ -97,7 +97,7 @@ function calcNetWorth(): number {
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="isOpen" class="turn-summary-overlay" @click.self="handleContinue">
+      <div v-if="isOpen" class="turn-summary-overlay" data-testid="turn-summary-overlay" @click.self="handleContinue">
         <div class="turn-summary-modal">
           <!-- 头部 -->
           <div class="summary-header">
@@ -233,7 +233,7 @@ function calcNetWorth(): number {
 
           <!-- 继续按钮 -->
           <div class="summary-footer">
-            <button class="continue-btn" @click="handleContinue">
+            <button class="continue-btn" data-testid="turn-summary-continue" @click="handleContinue">
               下一回合
               <ChevronRight class="w-4 h-4" />
             </button>

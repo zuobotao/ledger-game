@@ -1032,6 +1032,7 @@ const showActionPanel = computed(() => {
                   <button
                     type="button"
                     :disabled="disableHumanActions"
+                    data-testid="opportunity-confirm"
                     class="w-full rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
                     @click="onBuyOpportunity"
                   >
@@ -1127,6 +1128,7 @@ const showActionPanel = computed(() => {
                     <button
                       type="button"
                       :disabled="maxBuyQuantity === 0 || buyQuantity <= 0 || disableHumanActions"
+                      data-testid="opportunity-stock-buy"
                       class="w-full rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                       @click="onTradeBuy"
                     >
@@ -1154,6 +1156,7 @@ const showActionPanel = computed(() => {
                     <button
                       type="button"
                       :disabled="maxSellQuantity === 0 || sellQuantity <= 0 || disableHumanActions"
+                      data-testid="opportunity-stock-sell"
                       class="w-full rounded-full bg-success px-4 py-2.5 text-sm font-semibold text-success-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                       @click="onTradeSell"
                     >
@@ -1165,6 +1168,7 @@ const showActionPanel = computed(() => {
                   <button
                     type="button"
                     :disabled="disableHumanActions"
+                    data-testid="opportunity-decline"
                     class="mt-3 w-full rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
                     @click="onDeclineOpportunity"
                   >
@@ -1269,6 +1273,7 @@ const showActionPanel = computed(() => {
                 <div v-if="opportunityCard.splitRatio === undefined && !isStockTradeCard" class="flex gap-2">
                   <button
                     v-if="!isOpportunitySell"
+                    data-testid="opportunity-buy"
                     type="button"
                     :disabled="(gameStore.currentPlayer ? gameStore.currentPlayer.cash < (opportunityCard.downPayment ?? opportunityCard.cost) * opportunityQuantity : true) || disableHumanActions"
                     class="flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
@@ -1278,6 +1283,7 @@ const showActionPanel = computed(() => {
                   </button>
                   <button
                     v-else
+                    data-testid="opportunity-sell"
                     type="button"
                     :disabled="maxOpportunityQuantity === 0 || opportunityQuantity <= 0 || disableHumanActions"
                     class="flex-1 rounded-full bg-success px-4 py-2.5 text-sm font-semibold text-success-foreground hover:opacity-90 disabled:opacity-40"
@@ -1286,6 +1292,7 @@ const showActionPanel = computed(() => {
                     卖出
                   </button>
                   <button
+                    data-testid="opportunity-decline"
                     type="button"
                     :disabled="disableHumanActions"
                     class="flex-1 rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-40"
@@ -1372,6 +1379,7 @@ const showActionPanel = computed(() => {
 
                     <!-- 卖出按钮（醒目） -->
                     <button
+                      :data-testid="`market-sell-${asset.id}`"
                       type="button"
                       :disabled="disableHumanActions"
                       class="w-full rounded-full bg-success py-2.5 text-sm font-semibold text-success-foreground shadow-sm shadow-success/20 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
@@ -1385,6 +1393,7 @@ const showActionPanel = computed(() => {
                   无可卖出的相关资产。
                 </div>
                 <button
+                  data-testid="market-dismiss"
                   type="button"
                   :disabled="disableHumanActions"
                   class="mt-3 w-full rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-40"
@@ -1488,6 +1497,7 @@ const showActionPanel = computed(() => {
               <!-- Charity -->
               <div v-if="gameStore.pendingAction.type === 'charity'" class="mt-3 flex gap-2">
                 <button
+                  data-testid="charity-accept"
                   type="button"
                   :disabled="disableHumanActions"
                   class="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
@@ -1496,6 +1506,7 @@ const showActionPanel = computed(() => {
                   捐赠
                 </button>
                 <button
+                  data-testid="charity-decline"
                   type="button"
                   :disabled="disableHumanActions"
                   class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-40"
@@ -1508,6 +1519,7 @@ const showActionPanel = computed(() => {
               <!-- Need loan -->
               <div v-if="gameStore.pendingAction.type === 'need_loan'" class="mt-3 flex gap-2">
                 <button
+                  data-testid="loan-take"
                   type="button"
                   :disabled="disableHumanActions"
                   class="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
@@ -1516,6 +1528,7 @@ const showActionPanel = computed(() => {
                   申请贷款
                 </button>
                 <button
+                  data-testid="loan-decline"
                   type="button"
                   :disabled="disableHumanActions"
                   class="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-40"
@@ -1541,9 +1554,10 @@ const showActionPanel = computed(() => {
                 class="mt-3 flex justify-end"
               >
                 <button
+                  data-testid="known-dismiss"
                   type="button"
-                  :disabled="disableHumanActions"
                   class="rounded-full bg-secondary px-5 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-40"
+                  :disabled="disableHumanActions"
                   @click="
                     gameStore.pendingAction.type === 'doodad'
                       ? gameStore.dismissDoodad()

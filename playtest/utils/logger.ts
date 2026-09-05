@@ -1,9 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { ActionLog, UXIssue, GameStateSnapshot } from '../types'
+import type { ActionLog, UXIssue, GameStateSnapshot, DecisionResult, StateDiff } from '../types'
 
 /**
- * Playtest logger — records actions, states, issues, and events
+ * Playtest logger — records actions, states, issues, decisions, diffs, and events
  * to files in the run directory.
  */
 export class PlaytestLogger {
@@ -13,6 +13,9 @@ export class PlaytestLogger {
   private issues: UXIssue[] = []
   private states: GameStateSnapshot[] = []
   private events: string[] = []
+  private decisions: DecisionResult[] = []
+  private diffs: StateDiff[] = []
+  private uiStates: string[] = []
 
   constructor(runDir: string, gameId: string) {
     this.runDir = runDir
@@ -21,7 +24,7 @@ export class PlaytestLogger {
   }
 
   private ensureDirs() {
-    const dirs = ['logs', 'states', 'events', 'screenshots', 'videos']
+    const dirs = ['logs', 'states', 'events', 'screenshots', 'videos', 'ui']
     for (const dir of dirs) {
       fs.mkdirSync(path.join(this.runDir, dir), { recursive: true })
     }
@@ -43,6 +46,18 @@ export class PlaytestLogger {
     this.events.push(`${new Date().toISOString()} ${event}`)
   }
 
+  logDecision(decision: DecisionResult) {
+    this.decisions.push(decision)
+  }
+
+  logDiff(diff: StateDiff) {
+    this.diffs.push(diff)
+  }
+
+  logUIState(ui: string) {
+    this.uiStates.push(`${new Date().toISOString()} ${ui}`)
+  }
+
   getActions(): ActionLog[] {
     return [...this.actions]
   }
@@ -59,6 +74,14 @@ export class PlaytestLogger {
     return [...this.states]
   }
 
+  getDecisions(): DecisionResult[] {
+    return [...this.decisions]
+  }
+
+  getDiffs(): StateDiff[] {
+    return [...this.diffs]
+  }
+
   getScreenshotPath(name: string): string {
     return path.join(this.runDir, 'screenshots', `${name}.png`)
   }
@@ -72,32 +95,17 @@ export class PlaytestLogger {
    * Called at the end of a game.
    */
   flush() {
-    // Actions log
-    fs.writeFileSync(
-      path.join(this.runDir, 'logs', `${this.gameId}-actions.json`),
-      JSON.stringify(this.actions, null, 2),
-      'utf-8',
-    )
+    const write = (dir: string, file: string, data: unknown) => {
+      fs.writeFileSync(path.join(this.runDir, dir, `${this.gameId}-${file}`), JSON.stringify(data, null, 2), 'utf-8')
+    }
 
-    // Issues log
-    fs.writeFileSync(
-      path.join(this.runDir, 'logs', `${this.gameId}-issues.json`),
-      JSON.stringify(this.issues, null, 2),
-      'utf-8',
-    )
+    write('logs', 'actions.json', this.actions)
+    write('logs', 'issues.json', this.issues)
+    write('logs', 'decisions.json', this.decisions)
+    write('states', 'states.json', this.states)
+    write('states', 'diffs.json', this.diffs)
+    write('events', 'events.txt', this.events.join('\n'))
 
-    // States snapshot (sampled)
-    fs.writeFileSync(
-      path.join(this.runDir, 'states', `${this.gameId}-states.json`),
-      JSON.stringify(this.states, null, 2),
-      'utf-8',
-    )
-
-    // Events log
-    fs.writeFileSync(
-      path.join(this.runDir, 'events', `${this.gameId}-events.txt`),
-      this.events.join('\n'),
-      'utf-8',
-    )
+    fs.writeFileSync(path.join(this.runDir, 'ui', `${this.gameId}-ui-states.txt`), this.uiStates.join('\n'), 'utf-8')
   }
 }

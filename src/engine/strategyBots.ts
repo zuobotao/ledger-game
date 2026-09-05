@@ -158,13 +158,13 @@ export class ConservativeBot extends StrategyBot {
     }
 
     // 2. 市场事件
-    if (pendingType === 'market_event') {
+    if (pendingType === 'market') {
       store.dismissMarketEvent()
       return true
     }
 
     // 3. 生活支出 / 慈善 / 其他 → 确认
-    if (pendingType === 'doodad' || pendingType === 'charity' || pendingType === 'baby' || pendingType === 'lawsuit') {
+    if (pendingType === 'doodad' || pendingType === 'charity') {
       store.acknowledgeMessage()
       return true
     }
@@ -172,7 +172,7 @@ export class ConservativeBot extends StrategyBot {
     // 4. 有银行贷款且现金充足 → 还款
     const bankLoans = player.liabilities.filter((l) => l.category === 'bank_loan')
     if (bankLoans.length > 0 && this.cashReserveMonths(store) > 6) {
-      const loan = bankLoans[0]
+      const loan = bankLoans[0]!
       const repayAmount = Math.min(player.cash * 0.3, loan.amount)
       if (repayAmount >= 1000) {
         store.repayBankLoan(loan.id, Math.round(repayAmount / 1000) * 1000)
@@ -263,13 +263,13 @@ export class CashFlowBot extends StrategyBot {
     }
 
     // 2. 市场事件
-    if (pendingType === 'market_event') {
+    if (pendingType === 'market') {
       store.dismissMarketEvent()
       return true
     }
 
     // 3. 生活支出 / 慈善 / 其他 → 确认
-    if (pendingType === 'doodad' || pendingType === 'charity' || pendingType === 'baby' || pendingType === 'lawsuit') {
+    if (pendingType === 'doodad' || pendingType === 'charity') {
       store.acknowledgeMessage()
       return true
     }
@@ -281,7 +281,7 @@ export class CashFlowBot extends StrategyBot {
     // 5. 有银行贷款且现金充足（> 6 个月）→ 还一部分
     const bankLoans = player.liabilities.filter((l) => l.category === 'bank_loan')
     if (bankLoans.length > 0 && this.cashReserveMonths(store) > 6) {
-      const loan = bankLoans[0]
+      const loan = bankLoans[0]!
       const repayAmount = Math.min(player.cash * 0.2, loan.amount)
       if (repayAmount >= 1000) {
         store.repayBankLoan(loan.id, Math.round(repayAmount / 1000) * 1000)
@@ -371,13 +371,13 @@ export class AggressiveBot extends StrategyBot {
     }
 
     // 2. 市场事件
-    if (pendingType === 'market_event') {
+    if (pendingType === 'market') {
       store.dismissMarketEvent()
       return true
     }
 
     // 3. 生活支出 / 慈善 / 其他 → 确认
-    if (pendingType === 'doodad' || pendingType === 'charity' || pendingType === 'baby' || pendingType === 'lawsuit') {
+    if (pendingType === 'doodad' || pendingType === 'charity') {
       store.acknowledgeMessage()
       return true
     }
@@ -453,13 +453,13 @@ export class RandomBot extends StrategyBot {
     }
 
     // 2. 市场事件
-    if (pendingType === 'market_event') {
+    if (pendingType === 'market') {
       store.dismissMarketEvent()
       return true
     }
 
     // 3. 生活支出 / 慈善 / 其他 → 确认
-    if (pendingType === 'doodad' || pendingType === 'charity' || pendingType === 'baby' || pendingType === 'lawsuit') {
+    if (pendingType === 'doodad' || pendingType === 'charity') {
       store.acknowledgeMessage()
       return true
     }
@@ -475,7 +475,7 @@ export class RandomBot extends StrategyBot {
     // 5. 随机还款（10% 概率）
     const bankLoans = player.liabilities.filter((l) => l.category === 'bank_loan')
     if (bankLoans.length > 0 && this.random.next() < 0.1) {
-      const loan = bankLoans[Math.floor(this.random.next() * bankLoans.length)]
+      const loan = bankLoans[Math.floor(this.random.next() * bankLoans.length)]!
       const amount = Math.min(player.cash * 0.5, loan.amount)
       if (amount >= 1000) {
         store.repayBankLoan(loan.id, Math.round(amount / 1000) * 1000)

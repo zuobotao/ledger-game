@@ -189,7 +189,7 @@ const visibleMetrics = computed(() => {
 
           <!-- 底部按钮 -->
           <div class="modal-footer">
-            <button class="confirm-btn" @click="close">
+            <button class="confirm-btn" data-testid="decision-feedback-dismiss" @click="close">
               知道了
             </button>
           </div>

@@ -647,7 +647,7 @@ export const useGameStore = defineStore('game', () => {
     })
     // v2.1: 为第一个玩家记录回合开始快照
     if (players.value.length > 0) {
-      recordTurnStart(players.value[0].id)
+      recordTurnStart(players.value[0]!.id)
     }
     saveState()
 

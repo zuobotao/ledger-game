@@ -34,6 +34,31 @@ export interface ActionLog {
   detail?: string
 }
 
+/** 一次决策操作前后财务变化（v2.2 决策分析基础） */
+export interface DecisionResult {
+  turn: number
+  player: string
+  action: string
+  target: string
+  before: Record<string, number>
+  after: Record<string, number>
+  delta: Record<string, number>
+  timestamp: string
+}
+
+/** 两个 GameStateSnapshot 之间的财务变化 */
+export interface StateDiff {
+  turn: number
+  timestamp: string
+  cash: number
+  income: number
+  expenses: number
+  cashFlow: number
+  assets: number
+  liabilities: number
+  netWorth: number
+}
+
 export interface UXIssue {
   turn: number
   type:
@@ -107,4 +132,6 @@ export interface BotConfig {
   maxTurns: number
   thinkDelayMs: number
   gameTimeoutMs: number
+  /** 确定性试玩种子：相同 seed 复现相同 Bot 决策序列 */
+  seed?: number
 }

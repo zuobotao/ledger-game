@@ -1,17 +1,25 @@
 import type { Page, BrowserContext } from '@playwright/test'
+import * as fs from 'node:fs'
 import { PlaytestLogger } from '../utils/logger'
 import { ScreenshotManager } from '../utils/screenshot'
-import { readGameState } from '../utils/state-reader'
+import { readGameState, readStateBridge, type RawGameState } from '../utils/state-reader'
+import { resolveActions } from '../resolver/action-resolver'
+import { ActionGuard, GuardError } from '../resolver/action-guard'
+import { clickAction } from '../utils/driver'
+import { buildDecisionResult, buildStateDiff } from '../utils/state-diff'
+import type { PlaytestAction } from '../resolver/playtest-action'
 import type { BotConfig, GameResult, ActionLog, UXIssue, GameStateSnapshot } from '../types'
 
 /**
- * BaseBot — abstract base class for playtest bots.
+ * BaseBot — Resolver 驱动的基础机器人。
  *
- * All bot interaction MUST go through the UI (click, fill, select, press).
- * Bots must NOT call gameStore methods directly.
+ * 职责分离（v2.2）：
+ * - Resolver：判断「当前能做什么」（playtest/resolver/）
+ * - ActionGuard：防死循环（重复点击/状态卡死/回合上限）
+ * - Browser Driver：负责「怎么点击」（playtest/utils/driver.ts）
+ * - Bot Strategy（子类 chooseAction）：决定「做什么」
  *
- * The bot reads state via window.gameStore (read-only) to make decisions,
- * but performs all actions through the DOM.
+ * 所有交互必须通过真实 UI（data-testid → click），禁止调用 store 方法。
  */
 export abstract class BaseBot {
   protected page: Page
@@ -22,9 +30,9 @@ export abstract class BaseBot {
   protected gameId: string
   protected baseURL: string
   protected startTime = 0
-  protected lastStateHash = ''
-  protected noStateChangeCount = 0
-  protected consoleErrors: string[] = []
+  /** 确定性 LCG：设置 seed 时复现相同决策序列 */
+  private _seed: number
+  private _s: number
 
   constructor(
     page: Page,
@@ -33,7 +41,7 @@ export abstract class BaseBot {
     logger: PlaytestLogger,
     screenshots: ScreenshotManager,
     gameId: string,
-    baseURL: string = 'http://localhost:5173',
+    baseURL: string = 'http://localhost:5173/ledger-game',
   ) {
     this.page = page
     this.context = context
@@ -42,33 +50,35 @@ export abstract class BaseBot {
     this.screenshots = screenshots
     this.gameId = gameId
     this.baseURL = baseURL
+    this._seed = config.seed ?? Date.now()
+    this._s = this._seed % 2147483647
   }
 
-  /**
-   * Run a full game. Returns the game result.
-   */
+  /** 确定性随机数（0..1）。带 seed 时完全可复现，否则用时间种子。 */
+  protected rng(): number {
+    // Park–Miller 最小标准 LCG
+    this._s = (this._s * 48271) % 2147483647
+    return this._s / 2147483647
+  }
+
   async run(): Promise<GameResult> {
     this.startTime = Date.now()
     this.setupConsoleCapture()
 
     try {
-      // Navigate to home and start game
       await this.navigateToHome()
       await this.screenshots.capture(this.page, '01-home')
       this.logger.logEvent('Navigated to home page')
 
       await this.startGameFromHome()
-      await this.logger.logEvent('Clicked start game')
+      this.logger.logEvent('Clicked start game')
 
-      // Setup game (1 player, AI type based on bot config)
       await this.setupGame()
       await this.screenshots.capture(this.page, '02-game-start')
       this.logger.logEvent('Game setup complete, game started')
 
-      // Play until game ends or max turns reached
       const result = await this.playGame()
 
-      // Capture final state
       const finalState = await readGameState(this.page)
       if (finalState) {
         this.logger.logState(finalState)
@@ -101,7 +111,6 @@ export abstract class BaseBot {
       this.logger.flush()
       return gameResult
     } catch (error: any) {
-      // Capture error state
       await this.screenshots.captureError(this.page, 0, 'fatal')
       this.logger.logIssue({
         turn: 0,
@@ -125,7 +134,6 @@ export abstract class BaseBot {
         events: this.logger.getEvents(),
         errorMessage: error.message,
       }
-
       this.logger.flush()
       return gameResult
     }
@@ -135,7 +143,6 @@ export abstract class BaseBot {
     this.page.on('console', (msg) => {
       if (msg.type() === 'error') {
         const text = msg.text()
-        this.consoleErrors.push(text)
         this.logger.logIssue({
           turn: 0,
           type: 'console-error',
@@ -144,7 +151,6 @@ export abstract class BaseBot {
         })
       }
     })
-
     this.page.on('pageerror', (err) => {
       this.logger.logIssue({
         turn: 0,
@@ -155,15 +161,14 @@ export abstract class BaseBot {
     })
   }
 
-  // === Navigation helpers ===
+  // === Navigation ===
 
   protected async navigateToHome() {
-    await this.page.goto(this.baseURL + '/')
+    await this.page.goto(`${this.baseURL}/`)
     await this.page.waitForLoadState('networkidle')
   }
 
   protected async startGameFromHome() {
-    // Try data-dom-id first, fall back to text
     const startBtn = this.page.getByTestId('btn-start')
       .or(this.page.locator('[data-dom-id="btn-start"]'))
       .or(this.page.getByRole('button', { name: '开始游戏' }))
@@ -172,11 +177,154 @@ export abstract class BaseBot {
     await this.page.waitForLoadState('networkidle')
   }
 
-  protected abstract setupGame(): Promise<void>
+  /** 统一单人局设置（人类玩家，由 Bot 通过 UI 操作） */
+  protected async setupGame() {
+    const turn = 0
+    const player = 'setup'
+    const playerCountSelect = this.page.locator('#player-count')
+    await playerCountSelect.selectOption('1')
+    await this.recordAction(turn, player, 'select', 'player-count-1', 'success')
+    const beginBtn = this.page
+      .locator('[data-dom-id="btn-begin"]')
+      .or(this.page.getByRole('button', { name: '开始游戏' }))
+    await beginBtn.click()
+    await this.recordAction(turn, player, 'click', 'begin-game', 'success')
+    await this.page.waitForFunction(() => window.location.hash.includes('rat-race'))
+    await this.page.waitForLoadState('networkidle')
+    await this.page.waitForTimeout(1500)
+  }
 
-  protected abstract playGame(): Promise<{ status: 'completed' | 'victory' | 'game-over' | 'failed' | 'timeout'; turns: number }>
+  // === Resolver-driven main loop ===
 
-  // === Action helpers ===
+  protected async playGame(): Promise<{ status: 'completed' | 'victory' | 'game-over' | 'failed' | 'timeout'; turns: number }> {
+    const start = Date.now()
+    const guard = new ActionGuard(this.config.maxTurns, this.config.gameTimeoutMs, start)
+    let turns = 0
+    let lastTurn = -1
+    let lastRebasedTurn = -1
+    let fastTrackLogged = false
+
+    try {
+      while (true) {
+        guard.checkTimeout()
+        if (this.isVictoryScreen()) return { status: 'victory', turns }
+        if (this.isGameOverScreen()) return { status: 'game-over', turns }
+
+        const bridge = await readStateBridge(this.page)
+        if (!bridge) {
+          await this.page.waitForTimeout(800)
+          continue
+        }
+
+        // Turn changed → reset per-turn counters + snapshot + milestone
+        if (bridge.turn !== lastTurn) {
+          lastTurn = bridge.turn
+          turns = bridge.turn
+          guard.beginTurn()
+          guard.checkTurns(bridge.turn)
+          this.logger.logUIState(`turn=${bridge.turn} status=${bridge.turnStatus} pending=${bridge.pendingAction}`)
+          await this.snapshotState()
+          if (bridge.turn === 5) await this.screenshots.capture(this.page, '04-decision')
+          if (bridge.turn === 10) await this.screenshots.capture(this.page, '05-after-decision')
+          if (bridge.turn === 20) await this.screenshots.capture(this.page, '06-mid-game')
+        }
+
+        // Fast Track 里程碑（UX Funnel）
+        if (bridge.phase === 'fast_track' && !fastTrackLogged) {
+          fastTrackLogged = true
+          await this.screenshots.capture(this.page, 'ft-enter')
+          this.logger.logEvent(`Entered fast track at turn ${bridge.turn}`)
+        }
+
+        const key = `${bridge.turn}|${bridge.turnStatus}|${bridge.pendingAction}`
+        guard.observeState(key, bridge.turn)
+
+        let legal = await resolveActions(this.page, bridge)
+
+        if (legal.length === 0) {
+          // 卡片弹层常有一小段渲染延迟：先短暂重试几次，避免把「还没渲染完」误报为无动作
+          for (let i = 0; i < 3 && legal.length === 0; i++) {
+            await this.page.waitForTimeout(600)
+            legal = await resolveActions(this.page, bridge)
+          }
+
+          if (legal.length === 0) {
+            await this.recordIssue(bridge.turn, 'no-actionable-element', `No legal action: status=${bridge.turnStatus} pending=${bridge.pendingAction}`)
+            await this.screenshots.captureError(this.page, bridge.turn, `pending-${bridge.pendingAction}`)
+            await this.page.waitForTimeout(1000)
+            continue
+          }
+        }
+
+        await this.page.waitForTimeout(this.config.thinkDelayMs)
+
+        const action = await this.chooseAction(legal, bridge)
+        if (!action) {
+          await this.page.waitForTimeout(800)
+          continue
+        }
+
+        guard.recordAction()
+        const before = bridge
+        await this.recordAction(bridge.turn, bridge.currentPlayer, action.type, action.target, 'success')
+
+        const outcome = await clickAction(this.page, action)
+        if (!outcome.ok) {
+          guard.actionFailed(action, bridge.turn)
+          await this.recordIssue(bridge.turn, 'button-unclickable', `Click failed ${action.type}: ${outcome.error}`)
+          await this.screenshots.captureError(this.page, bridge.turn, `click-${action.type.replace(/\W/g, '-')}`)
+          continue
+        }
+
+        await this.page.waitForTimeout(500)
+
+        const after = await readStateBridge(this.page)
+        if (after) {
+          this.logger.logDecision(buildDecisionResult(bridge.turn, bridge.currentPlayer, action.type, action.target, before, after))
+          this.logger.logDiff(buildStateDiff(before, after))
+        }
+
+        // 回合回退保护：若回合号异常（少回合），重设以记录
+        if (after && after.turn === lastTurn && (lastRebasedTurn !== after.turn || true)) {
+          lastRebasedTurn = after.turn
+        }
+      }
+    } catch (err) {
+      if (err instanceof GuardError) {
+        const turn = Math.max(0, err.turn >= 0 ? err.turn : lastTurn)
+        await this.recordIssue(turn, this.mapGuardToIssue(err.outcome), err.message)
+        await this.screenshots.captureError(this.page, turn, err.outcome)
+        this.logger.logEvent(`Guard stopped game: ${err.outcome} (${err.message})`)
+        if (err.outcome === 'max-turns') {
+          return { status: 'completed', turns }
+        }
+        return { status: 'failed', turns }
+      }
+      throw err
+    }
+  }
+
+  /** 由具体 Bot 策略决定执行哪个合法动作，返回 null 表示本轮暂不动 */
+  protected abstract chooseAction(legal: PlaytestAction[], bridge: RawGameState): Promise<PlaytestAction | null>
+
+  private mapGuardToIssue(outcome: string): UXIssue['type'] {
+    switch (outcome) {
+      case 'action-failure':
+        return 'button-unclickable'
+      case 'stuck-ui':
+        return 'stuck-turn'
+      case 'state-transition-failure':
+        return 'state-stopped'
+      case 'stuck-turn':
+        return 'stuck-turn'
+      case 'timeout':
+        return 'timeout'
+      default:
+        return 'state-stopped'
+    }
+  }
+
+  // === Logging helpers ===
 
   protected async recordAction(
     turn: number,
@@ -186,241 +334,37 @@ export abstract class BaseBot {
     result: 'success' | 'failed' | 'skipped',
     detail?: string,
   ) {
-    const log: ActionLog = {
-      turn,
-      player,
-      action,
-      target,
-      timestamp: new Date().toISOString(),
-      result,
-      detail,
-    }
+    const log: ActionLog = { turn, player, action, target, timestamp: new Date().toISOString(), result, detail }
     this.logger.logAction(log)
   }
 
-  protected async recordIssue(
-    turn: number,
-    type: UXIssue['type'],
-    message: string,
-    screenshotPath?: string,
-  ) {
-    this.logger.logIssue({
-      turn,
-      type,
-      message,
-      timestamp: new Date().toISOString(),
-      screenshot: screenshotPath,
-    })
+  protected async recordIssue(turn: number, type: UXIssue['type'], message: string, screenshotPath?: string) {
+    this.logger.logIssue({ turn, type, message, timestamp: new Date().toISOString(), screenshot: screenshotPath })
   }
 
   protected async snapshotState(): Promise<GameStateSnapshot | null> {
     const state = await readGameState(this.page)
-    if (state) {
-      this.logger.logState(state)
-    }
+    if (state) this.logger.logState(state)
     return state
   }
 
-  protected async waitForStateChange(timeoutMs = 5000): Promise<boolean> {
-    const startTime = Date.now()
-    const initialHash = this.lastStateHash
+  // === Screen detection ===
+  // 注意：这些方法必须是「同步 boolean」，因为在循环里用 `if (this.isXxxScreen())`
+  // 直接判断。若改成 async，if 收到的是 Promise（恒为 truthy）→ 会误判终止。
 
-    while (Date.now() - startTime < timeoutMs) {
-      const state = await readGameState(this.page)
-      if (state) {
-        const hash = `${state.turn}-${state.phase}-${state.turnStatus}-${state.currentPlayer}-${state.pendingAction}`
-        if (hash !== initialHash) {
-          this.lastStateHash = hash
-          this.noStateChangeCount = 0
-          return true
-        }
-      }
-      await this.page.waitForTimeout(200)
-    }
-
-    this.noStateChangeCount++
-    return false
-  }
-
-  /**
-   * Wait until a clickable button with the given text appears.
-   * Returns the locator if found, null if timeout.
-   */
-  protected async waitForClickable(text: string, timeoutMs = 5000) {
+  protected isVictoryScreen(): boolean {
     try {
-      const locator = this.page.getByRole('button', { name: text })
-      await locator.waitFor({ state: 'visible', timeout: timeoutMs })
-      const isEnabled = await locator.isEnabled()
-      return isEnabled ? locator : null
-    } catch {
-      return null
-    }
-  }
-
-  /**
-   * Check if we're on the victory screen.
-   */
-  protected async isVictoryScreen(): Promise<boolean> {
-    try {
-      const url = this.page.url()
-      return url.includes('victory')
+      return this.page.url().includes('victory')
     } catch {
       return false
     }
   }
 
-  /**
-   * Check if we're on the game over screen.
-   */
-  protected async isGameOverScreen(): Promise<boolean> {
+  protected isGameOverScreen(): boolean {
     try {
-      const url = this.page.url()
-      return url.includes('game-over')
+      return this.page.url().includes('game-over')
     } catch {
       return false
     }
-  }
-
-  /**
-   * Get current turn number from game state.
-   */
-  protected async getCurrentTurn(): Promise<number> {
-    const state = await readGameState(this.page)
-    return state?.turn ?? 0
-  }
-
-  protected async getCurrentPlayer(): Promise<string> {
-    const state = await readGameState(this.page)
-    return state?.currentPlayer ?? 'unknown'
-  }
-
-  protected async getTurnStatus(): Promise<string> {
-    const state = await readGameState(this.page)
-    return state?.turnStatus ?? 'unknown'
-  }
-
-  protected async getPendingAction(): Promise<string | null> {
-    const state = await readGameState(this.page)
-    return state?.pendingAction ?? null
-  }
-
-  /**
-   * Find and click the roll dice button.
-   */
-  protected async clickRollDice(): Promise<boolean> {
-    try {
-      // Try data-testid first, fall back to text
-      const rollBtn = this.page
-        .getByTestId('roll-dice')
-        .or(this.page.getByRole('button', { name: /掷骰/ }).first())
-
-      await rollBtn.waitFor({ state: 'visible', timeout: 5000 })
-      const isEnabled = await rollBtn.isEnabled()
-      if (!isEnabled) return false
-
-      await rollBtn.click()
-      await this.page.waitForTimeout(1000) // Let dice animation start
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  /**
-   * Find and click the end turn button.
-   */
-  protected async clickEndTurn(): Promise<boolean> {
-    try {
-      const endBtn = this.page
-        .getByTestId('end-turn')
-        .or(this.page.getByRole('button', { name: /结束回合/ }).first())
-
-      await endBtn.waitFor({ state: 'visible', timeout: 3000 })
-      const isEnabled = await endBtn.isEnabled()
-      if (!isEnabled) return false
-
-      await endBtn.click()
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  /**
-   * Check if there's a pending opportunity/deal and handle it.
-   * Returns true if an opportunity was handled.
-   */
-  protected abstract handlePendingAction(): Promise<boolean>
-
-  /**
-   * Wait for dice animation to finish and next action to appear.
-   */
-  protected async waitForDiceResult(timeoutMs = 10000): Promise<boolean> {
-    const startTime = Date.now()
-    while (Date.now() - startTime < timeoutMs) {
-      const status = await this.getTurnStatus()
-      const pending = await this.getPendingAction()
-      // After rolling, either we have a pending action or turn is resolving
-      if (pending || status === 'resolving' || status === 'waiting_action') {
-        return true
-      }
-      await this.page.waitForTimeout(300)
-    }
-    return false
-  }
-
-  /**
-   * Try to dismiss a card/modal by finding common acknowledgment buttons.
-   * Returns true if a dismiss button was found and clicked.
-   */
-  protected async tryDismissCard(): Promise<boolean> {
-    const dismissTexts = [
-      '知道了',
-      '继续',
-      '好的',
-      '确定',
-      '确认',
-      '下一位玩家',
-      '结束',
-      '明白了',
-      '我知道了',
-      '收下',
-      '领取',
-      '完成',
-    ]
-
-    for (const text of dismissTexts) {
-      try {
-        const btns = this.page.getByRole('button', { name: text })
-        const count = await btns.count()
-        for (let i = 0; i < count; i++) {
-          const btn = btns.nth(i)
-          const isVisible = await btn.isVisible()
-          const isEnabled = await btn.isEnabled()
-          if (isVisible && isEnabled) {
-            await btn.click()
-            await this.page.waitForTimeout(300)
-            return true
-          }
-        }
-      } catch {
-        // Not found
-      }
-    }
-
-    // Also try clicking overlay to close modals
-    try {
-      const overlay = this.page.locator('[data-overlay="true"]')
-      const count = await overlay.count()
-      if (count > 0) {
-        await overlay.first().click({ position: { x: 10, y: 10 } })
-        await this.page.waitForTimeout(300)
-        return true
-      }
-    } catch {
-      // ignore
-    }
-
-    return false
   }
 }
