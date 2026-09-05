@@ -38,10 +38,16 @@ import CoreMetricsBar from '@/components/CoreMetricsBar.vue'
 import FastTrackEligibility from '@/components/FastTrackEligibility.vue'
 import DecisionFeedbackModal from '@/components/DecisionFeedbackModal.vue'
 import TurnSummary from '@/components/TurnSummary.vue'
+import MobileBoardScroller from '@/components/mobile/MobileBoardScroller.vue'
+import { useDisplayMode } from '@/composables/useDisplayMode'
 
 const router = useRouter()
 const route = useRoute()
 const gameStore = useGameStore()
+
+// 设备显示模式：移动端棋盘采用「测滚 + 当前格自动居中」呈现，桌面端保持完整展示
+const { isMobile } = useDisplayMode()
+const MOBILE_BOARD_SIZE = 520
 
 // 是否处于观战模式
 const isSpectator = computed(() => route.query.spectator === 'true')
@@ -988,7 +994,31 @@ const showActionPanel = computed(() => {
         <!-- 消息提示（纯消息类，不需要确认） -->
         <GameToast :suppress="suppressUI" />
 
-        <div class="grid h-full w-full place-items-center overflow-hidden p-2 sm:p-4 lg:p-6">
+        <!-- 移动端：棋盘保持合理尺寸，测滚浏览，当前格自动居中 -->
+        <div v-if="isMobile" class="mobile-board-pane">
+          <MobileBoardScroller
+            :board-size="MOBILE_BOARD_SIZE"
+            :active-index="gameStore.currentPlayer?.ratRacePosition ?? 0"
+            :cell-gap="4"
+          >
+            <RatRaceBoard
+              :players="gameStore.players"
+              :current-position="gameStore.currentPlayer?.ratRacePosition ?? 0"
+              :last-roll="gameStore.lastRoll"
+              :turn-number="gameStore.turnNumber"
+              :current-player-name="gameStore.currentPlayer?.name ?? ''"
+              :is-rolling="showDiceAnimation"
+              :dice-values="gameStore.lastDiceValues"
+              :show-card="showBoardCard"
+              :card-type="boardCardType"
+              :card-data="boardCardData"
+              @dice-done="onDiceAnimationDone"
+            />
+          </MobileBoardScroller>
+        </div>
+
+        <!-- 桌面端：棋盘完整居中展示 -->
+        <div v-else class="grid h-full w-full place-items-center overflow-hidden p-2 sm:p-4 lg:p-6">
             <RatRaceBoard
               :players="gameStore.players"
               :current-position="gameStore.currentPlayer?.ratRacePosition ?? 0"
@@ -1763,5 +1793,16 @@ const showActionPanel = computed(() => {
 /* 卡片操作面板样式 */
 .card-action-panel {
   width: 100%;
+}
+
+/* 移动端棋盘测滚区域：受控高度，棋盘保持合理尺寸，拖动浏览并自动居中当前格 */
+.mobile-board-pane {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  height: min(52svh, 520px);
 }
 </style>

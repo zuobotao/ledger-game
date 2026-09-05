@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Play, HelpCircle, History, BookOpen, RotateCcw, AlertTriangle } from 'lucide-vue-next'
+import { Play, HelpCircle, History, BookOpen, RotateCcw, AlertTriangle, Users } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
 import { formatMoney } from '@/utils/format'
@@ -41,6 +41,10 @@ function goToGuide() {
 
 function goToHistory() {
   router.push({ name: 'history' })
+}
+
+function goToMultiplayer() {
+  router.push({ name: 'multiplayer' })
 }
 </script>
 
@@ -141,6 +145,16 @@ function goToHistory() {
           >
             <BookOpen class="h-5 w-5" />
             新手简介
+          </button>
+          <button
+            type="button"
+            data-dom-id="btn-multiplayer"
+            data-testid="multiplayer-entry"
+            @click="goToMultiplayer"
+            class="inline-flex h-12 items-center justify-center gap-2 rounded-full px-4 text-base font-semibold text-foreground/80 transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <Users class="h-5 w-5" />
+            多人房间
           </button>
         </div>
 

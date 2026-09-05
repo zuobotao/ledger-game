@@ -56,6 +56,21 @@ const router = createRouter({
       component: () => import('../views/HistoryView.vue'),
     },
     {
+      path: '/multiplayer',
+      name: 'multiplayer',
+      component: () => import('../views/MultiplayerHomeView.vue'),
+    },
+    {
+      path: '/lobby',
+      name: 'room-lobby',
+      component: () => import('../views/RoomLobbyView.vue'),
+    },
+    {
+      path: '/multiplayer-game',
+      name: 'multiplayer-game',
+      component: () => import('../views/MultiplayerGameView.vue'),
+    },
+    {
       path: '/test',
       name: 'test',
       component: () => import('../views/TestView.vue'),

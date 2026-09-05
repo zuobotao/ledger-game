@@ -96,12 +96,25 @@ async function assertMobileLayout(page: any) {
   expect(overflow.scrollWidth, `mobile-horizontal-overflow ${overflow.scrollWidth} > ${overflow.clientWidth}`)
     .toBeLessThanOrEqual(overflow.clientWidth)
 
-  // 2. 棋盘完整可见
+  // 2. 棋盘完整可见，且移动端采用「缓冲区内双向测滚」承接大棋盘（不放溢到页面）
   const board = page.locator('.rat-race-board').first()
   await expect(board).toBeVisible()
   const boardBox = await board.boundingBox()
-  expect(boardBox && boardBox.width, 'board width must fit viewport').toBeLessThanOrEqual(overflow.clientWidth)
   expect(boardBox && boardBox.y >= 0, 'board visible in viewport').toBeTruthy()
+  // 移动端棋盘保持合理尺寸（可能超出视口宽度），由棋盘容器内部滚动承接，而非整页横向溢出
+  const scroller = await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>('.board-scroll')
+    if (!el) return null
+    return { scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }
+  })
+  expect(scroller, 'mobile board wrapped in pannable scroller (.board-scroll)').toBeTruthy()
+  if (scroller) {
+    expect(scroller.scrollWidth, 'board pannable within its own container').toBeGreaterThanOrEqual(scroller.clientWidth)
+  }
+  // 移动端棋盘本体应大于视口（未被打小成与屏等宽的小正方形）
+  if (boardBox) {
+    expect(boardBox.width, 'mobile board keeps a usable size (not squished to viewport)').toBeGreaterThan(overflow.clientWidth * 0.8)
+  }
 
   // 3. 核心操作按钮在视口内可见（滚回顶部后）
   await page.evaluate(() => window.scrollTo(0, 0))
