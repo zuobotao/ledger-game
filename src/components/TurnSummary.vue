@@ -262,8 +262,8 @@ function calcNetWorth(): number {
   max-width: 480px;
   max-height: 90vh;
   overflow-y: auto;
-  background: var(--card, hsl(240 10% 3.9%));
-  border: 1px solid var(--border, hsl(240 3.7% 15.9%));
+  background: var(--color-card, hsl(240 10% 3.9%));
+  border: 1px solid var(--color-border, hsl(240 3.7% 15.9%));
   border-radius: 1rem;
   padding: 1.5rem;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -276,7 +276,7 @@ function calcNetWorth(): number {
   gap: 0.875rem;
   margin-bottom: 1.25rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border, hsl(240 3.7% 15.9%));
+  border-bottom: 1px solid var(--color-border, hsl(240 3.7% 15.9%));
 }
 
 .header-icon {
@@ -295,12 +295,12 @@ function calcNetWorth(): number {
   font-size: 1.15rem;
   font-weight: 700;
   margin: 0;
-  color: var(--foreground, hsl(0 0% 98%));
+  color: var(--color-foreground, hsl(0 0% 98%));
 }
 
 .header-text .subtitle {
   font-size: 0.85rem;
-  color: var(--muted-foreground, hsl(240 5% 64.9%));
+  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
   margin: 0.15rem 0 0 0;
 }
 
@@ -317,7 +317,7 @@ function calcNetWorth(): number {
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem;
-  background: var(--muted, hsl(240 4.8% 95.9%));
+  background: var(--color-muted, hsl(240 4.8% 12%));
   border-radius: 0.75rem;
 }
 
@@ -350,13 +350,13 @@ function calcNetWorth(): number {
 
 .basic-label {
   font-size: 0.75rem;
-  color: var(--muted-foreground, hsl(240 5% 64.9%));
+  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
 }
 
 .basic-value {
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--foreground, hsl(0 0% 98%));
+  color: var(--color-foreground, hsl(0 0% 98%));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -369,7 +369,7 @@ function calcNetWorth(): number {
   gap: 0.4rem;
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--foreground, hsl(0 0% 98%));
+  color: var(--color-foreground, hsl(0 0% 98%));
   margin: 0 0 0.75rem 0;
 }
 
@@ -389,10 +389,10 @@ function calcNetWorth(): number {
   align-items: center;
   gap: 0.35rem;
   padding: 0.5rem 0.75rem;
-  background: var(--muted, hsl(240 4.8% 95.9%));
+  background: var(--color-muted, hsl(240 4.8% 12%));
   border-radius: 0.5rem;
   font-size: 0.875rem;
-  color: var(--foreground, hsl(0 0% 98%));
+  color: var(--color-foreground, hsl(0 0% 98%));
 }
 
 /* Delta */
@@ -411,7 +411,7 @@ function calcNetWorth(): number {
   justify-content: space-between;
   align-items: center;
   padding: 0.55rem 0.75rem;
-  background: var(--muted, hsl(240 4.8% 95.9%));
+  background: var(--color-muted, hsl(240 4.8% 12%));
   border-radius: 0.5rem;
   border-left: 3px solid transparent;
 }
@@ -426,7 +426,7 @@ function calcNetWorth(): number {
 
 .delta-label {
   font-size: 0.8rem;
-  color: var(--muted-foreground, hsl(240 5% 64.9%));
+  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
 }
 
 .delta-value {
@@ -445,31 +445,31 @@ function calcNetWorth(): number {
 
 .no-change {
   padding: 0.75rem;
-  background: var(--muted, hsl(240 4.8% 95.9%));
+  background: var(--color-muted, hsl(240 4.8% 12%));
   border-radius: 0.5rem;
   text-align: center;
   font-size: 0.85rem;
-  color: var(--muted-foreground, hsl(240 5% 64.9%));
+  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
 }
 
 /* No change section */
 .no-change-section {
   margin-bottom: 1.25rem;
   padding: 1rem;
-  background: var(--muted, hsl(240 4.8% 95.9%));
+  background: var(--color-muted, hsl(240 4.8% 12%));
   border-radius: 0.75rem;
   text-align: center;
 }
 
 .no-change-text {
   font-size: 0.9rem;
-  color: var(--foreground, hsl(0 0% 98%));
+  color: var(--color-foreground, hsl(0 0% 98%));
   margin: 0 0 0.4rem 0;
 }
 
 .no-change-hint {
   font-size: 0.8rem;
-  color: var(--muted-foreground, hsl(240 5% 64.9%));
+  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
   margin: 0;
 }
 
@@ -477,7 +477,7 @@ function calcNetWorth(): number {
 .current-status {
   margin-bottom: 1.25rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--border, hsl(240 3.7% 15.9%));
+  border-top: 1px solid var(--color-border, hsl(240 3.7% 15.9%));
 }
 
 .status-grid {
@@ -492,7 +492,7 @@ function calcNetWorth(): number {
   align-items: center;
   gap: 0.35rem;
   padding: 0.75rem 0.5rem;
-  background: var(--muted, hsl(240 4.8% 95.9%));
+  background: var(--color-muted, hsl(240 4.8% 12%));
   border-radius: 0.625rem;
   text-align: center;
 }
@@ -540,14 +540,14 @@ function calcNetWorth(): number {
 
 .status-label {
   font-size: 0.7rem;
-  color: var(--muted-foreground, hsl(240 5% 64.9%));
+  color: var(--color-muted-foreground, hsl(240 5% 64.9%));
 }
 
 .status-value {
   font-size: 0.85rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--foreground, hsl(0 0% 98%));
+  color: var(--color-foreground, hsl(0 0% 98%));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
