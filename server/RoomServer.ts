@@ -300,7 +300,12 @@ export class RoomServer {
           if (room.status !== 'playing' && room.status !== 'paused') throw new RoomError(ErrorCodes.INVALID_ACTION, '游戏未在进行')
           const session = this.sessions.get(roomId)
           if (!session) throw new RoomError(ErrorCodes.INVALID_ACTION, '会话不存在')
-          const result = session.dispatch(msg.action as GameAction, msg.requestId)
+          // 权威身份绑定：行动者以"连接所绑定的座位"为准，而非信任客户端自填的 playerId。
+          // 防止恶意/异常客户端冒充当前玩家提交 action（计划 §11.1）。
+          const actorGameId = this.gamePlayerIdForRoomPlayer(room, playerId)
+          if (!actorGameId) throw new RoomError(ErrorCodes.NOT_YOUR_TURN, '座位与游戏玩家未对齐')
+          const actorAction = { ...(msg.action as GameAction), playerId: actorGameId } as GameAction
+          const result = session.dispatch(actorAction, msg.requestId)
           this.broadcastActionResult(room, msg.requestId, result)
           if (session.status === 'finished') {
             this.roomManager.finishGame(session.id)
@@ -384,6 +389,13 @@ export class RoomServer {
     const idx = this.gamePlayers(room).findIndex((gp) => gp.id === gamePlayerId)
     if (idx < 0) return undefined
     return room.players[idx]?.playerId
+  }
+
+  /** 房内玩家 id → 游戏玩家 id（按座位对齐，权威身份反查） */
+  private gamePlayerIdForRoomPlayer(room: Room, roomPlayerId: string): string | undefined {
+    const idx = room.players.findIndex((p) => p.playerId === roomPlayerId)
+    if (idx < 0) return undefined
+    return this.gamePlayers(room)[idx]?.id
   }
 
   /** 取当前会话的游戏玩家列表（与房内玩家按座位对齐） */
