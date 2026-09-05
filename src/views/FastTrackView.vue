@@ -436,12 +436,12 @@ watch(
     </header>
 
     <!-- Game area -->
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
       <!-- 左侧财务面板（可折叠） -->
       <Transition name="side-panel">
         <aside
           v-if="showFinancialPanel"
-          class="flex shrink-0 flex-col overflow-hidden border-r border-border bg-secondary/30 w-72 sm:w-80 lg:w-96"
+          class="order-2 flex w-full shrink-0 flex-col border-t border-border bg-secondary/30 lg:order-1 lg:w-96 lg:overflow-hidden lg:border-t-0 lg:border-r"
         >
           <!-- Player switcher (multiplayer) -->
           <div v-if="gameStore.players.length > 1" class="px-4 pt-3 lg:px-5">
@@ -753,7 +753,7 @@ watch(
       </Transition>
 
       <!-- Board -->
-      <section class="relative flex flex-1 flex-col overflow-hidden min-h-0">
+      <section class="relative order-1 flex min-h-[38vh] flex-1 flex-col overflow-hidden lg:min-h-0">
         <!-- 消息提示（纯消息类，不需要确认） -->
         <GameToast :suppress="suppressUI" />
 

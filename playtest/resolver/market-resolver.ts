@@ -28,6 +28,9 @@ export function resolveMarket(bridge: RawGameState): PlaytestAction[] {
 
   if (responder?.sellableAssetIds && responder.sellableAssetIds.length > 0) {
     for (const id of responder.sellableAssetIds) {
+      // 资产已全部卖出（quantity<=0）后按钮会从 DOM 消失，过滤掉以免点击不存在的按钮
+      const qty = responder.sellableAssetQuantities?.[id] ?? 1
+      if (qty <= 0) continue
       actions.push({
         type: 'market-sell',
         label: '卖出',

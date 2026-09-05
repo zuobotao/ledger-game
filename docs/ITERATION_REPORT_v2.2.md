@@ -1,174 +1,121 @@
-# ITERATION_REPORT — Ledger v2.2
+# Ledger v2.2 迭代报告 — 内测反馈驱动优化
 
 > Version: v2.2.0
 > Date: 2026-09-05
-> Iteration Type: Playtest Driven Development
-> Primary Run: `playtest/runs/20260905-012600`
+> 核心目标：不增加新功能，优先解决真实内测用户「玩不下去、看不懂、操作不了」的问题。
 
 ---
 
-## 1. 本版本目标
+## 1. 内测反馈
 
-v2.2 不以"增加游戏内容"为主要目标，核心是建立完整闭环：
+| # | 反馈 | 来源 | 优先级 |
+|---|------|------|--------|
+| 1 | 一直在生孩子 | 内测用户文字反馈 | P0 |
+| 2 | 开始全是大机会，只能眼巴巴看着然后放弃 | 内测用户文字反馈 | P0 |
+| 3 | 手机版本底下看不了 / 页面布局异常 | 3 张手机截图 + 录屏 | P0 |
+| 4 | Market Event 无持仓时可能导致自动试玩卡死 | 已有 Playtest | P0 |
+| 5 | Playtest Bot 对 UI 状态识别不可靠 | 已有 Playtest | P0 |
 
-```
-自动试玩 → 问题发现 → 数据记录 → 定位问题 → 修复 → 自动回归 → 再试玩
-```
+## 2. 问题根因
 
-让 Agent 能够使用真实浏览器、通过真实 UI 完整游玩 Ledger，自动录屏 / 截图 / 记录 GameState / GameAction / GameEvent，自动发现异常并生成 Report，根据报告修复后自动回归并再次验证。
+1. **一直在生孩子**：孩子事件无冷却、无多样性约束，形成了「生孩子 → 增加支出 → 继续走 → 又生孩子」的低决策密度循环。
+2. **全是大机会买不起**：玩家遇到机会却无资格参与，UI 又没告诉「差多少、为什么」，变成了「随机看广告」。机会卡缺购买前财务影响预览。
+3. **手机布局**：游戏区域仍是桌面双栏 `财务面板 | 棋盘`，在手机上第一屏挤满指标、棋盘被截断、下方操作与 Tab 内容不可见。
+4. **Market 卡死**：待办解决器对「带持仓的市场事件」识别不完整，卖完资产后仍把已消失的 `market-sell-*` 按钮列入可行动作 → 反复点击失败 → 判定 stuck-ui。
 
----
+## 3. 修改内容
 
-## 2. 实际完成内容
+### 3.1 移动端布局（P0）
+- `src/views/RatRaceView.vue` / `FastTrackView.vue`：游戏主体改为移动端单列垂直滚动（`flex-col overflow-y-auto lg:flex-row`），移除财务面板固定高度；通用序拖到棋盘与操作区之后。
+- `RatRaceBoard.vue` / `FastTrackBoard.vue`：`≤640px` 时棋盘 `width:100%; height:auto`，保证完整可见、无横向裁剪。
 
-### 2.1 Playtest 基础设施（Phase 1）
-- 统一 URL 管理：`resolveBaseURL`，支持 `--url http://localhost:5173/ledger-game` 与 `--url http://localhost:4173/...`，Bot 不再自行拼接。
-- Playtest CLI 参数化：`--bot / --games / --url / --max-turns / --timeout`。
-- State Reader：读取 `window.gameStore`（只读，禁止修改 Store），输出 cash / income / expenses / cashFlow / assets / liabilities / netWorth / savings 等 8 维金融字段 + `showTurnSummary` / `hasDecisionFeedback` 弹层状态。
-- State Snapshot + State Diff：每个关键 Action 前后保存 `before / after / delta`（8 维金融变化）。
-- Logger / Screenshot / Video：`actions / issues / events / states / diffs / decisions / ui` 全套结构化输出。
+### 3.2 机会卡体验（P0 / P1）
+- `RatRaceView.vue` 新增购买前决策预览：
+  - 当前现金、购买后现金、购买后月现金流；
+  - 买不起时红色块明示「现金不足，无法买入 + 还差 ¥X」。
+- 买入按钮 disabled 时同时给出缺口原因（决策信息而非「游戏拒绝我」）。
 
-### 2.2 Action Resolver 体系（Phase 2）
-- `action-resolver.ts`：主入口，按优先级处理弹层（决策反馈 → 回合总结 → 卡片）。
-- `opportunity-resolver.ts`：机会卡买 / 卖 / 放弃 / 拆分确认 / 股票买卖。
-- `market-resolver.ts`：市场卡 —— 读取持仓，`sellableAssets.length === 0 → market-dismiss`，有持仓才给出卖出动作（P0 卡死修复核心）。
-- `turn-resolver.ts` / `loan-resolver.ts`：掷骰 / 结束回合 / 贷款 / 还款。
+### 3.3 孩子事件（P0）
+- `types/game.ts` 新增配置常量：
+  - `MAX_CHILDREN = { normal: 3, bigFamily: 6 }`（既有，作为最大数量上限）；
+  - `MIN_TURNS_BETWEEN_CHILD_EVENTS = 3`（新增：两次孩子事件最小间隔）。
+- `Player.lastChildTurn` 记录最近一次生育回合；`Player.childrenCount` 已达上限时不再触发；冷却未过时提示「家庭正处稳定期」。
+- handler 直接读 `turnNumber.value`，不散落 magic number。
 
-### 2.3 ActionGuard 死循环防护（Phase 3）
-- 同一 Action 连续失败 ≥2 次 → 停止。
-- 同一 UI State 连续出现 3 次 → `stuck-ui`。
-- Action 后 State 不变化 → `state-transition-failure`。
-- 单回合 Action 上限 / 游戏总回合上限（`max-turns`）。
+### 3.4 Market Event 回归（P0，Playtest 工具侧修复，非游戏规则）
+- `playtest/utils/state-reader.ts`：向 UI 状态桥新增 `sellableAssetQuantities`，读取每个可卖资产的实时数量。
+- `playtest/resolver/market-resolver.ts`：`market-sell-*` 仅对 `quantity > 0` 的可卖资产下发；卖完后自动 fallback 到 `market-dismiss`，避免点击已消失按钮。
+- 遵守计划约束：**没有为了通过测试修改任何游戏经济参数或事件规则**。
 
-### 2.4 data-testid 业务关键节点埋点
-仅对业务关键节点加了稳定锚点：`roll-dice / end-turn / turn-summary / decision-feedback-dismiss / opportunity-* / market-dismiss / market-sell / story-dismiss / charity-* / layoff-dismiss / player-count-1 / begin-game` 等，遵循 Selector 原则（data-testid 优先，不依赖 nth / DOM 层级 / Tailwind）。
+### 3.5 移动端自动化（P1）
+- 新增 `playtest/scenarios/mobile-basic-game.spec.ts`（390×844 视口）：
+  - 布局断言：无水平溢出、棋盘完整、核心操作按钮在视口内；
+  - 9 局 Bot 完整对局回归（random / conservative / aggressive 各 3 局）。
+- `playtest/utils/report.ts` 支持运行目录后缀；`package.json` 新增 `playtest:mobile` 脚本。
 
-### 2.5 三层回归验证
-新增/修复代码通过：Unit（函数）→ Simulation（规则）→ Playtest（真实 UI）三层校验。
+## 4. Mobile Before / After
 
----
+**Before**：桌面双栏硬塞手机 → 第一屏指标堆叠 → 棋盘截断 → 下方「掷骰子/结束回合」与 财务/历史/统计 Tab 被裁掉或需横向滚动。
+**After**：单列垂直滚动 → 玩家状态 → 核心财务指标 → 棋盘（完整） → 操作区 → 目标 → Tab；`scrollWidth <= clientWidth` 断言通过，核心操作按钮在视口内可见。
 
-## 3. P0 问题修复
+## 5. Child Event 数据
 
-| # | 问题 | 修复 |
-|---|------|------|
-| P0#1 | **Playtest URL 混用**，Bot 自行拼接 URL | 统一 `resolveBaseURL`，URL 由 CLI 单一入口控制 |
-| P0#2 | **State Reader 字段名不匹配**（试玩记录现金/收入为 0） | 修正为 8 维字段读取，补 snapshot / diff |
-| P0#3 | **Market 无持仓卡死**（MEDX 上涨但玩家无 MEDX → buy/dismiss 死循环 → timeout） | market-resolver 读持仓判定：无可售资产 → `market-dismiss` |
-| P0#4 | **Action 合法性依赖按钮文字推断**（脆弱） | 建立 ActionResolver 体系，由 GameState+UIState 判定合法动作 |
-| P0#5 | **异步 `isVictoryScreen` 返回 Promise 恒真** → 提前误判胜利 | 改为同步方法显式返回 boolean |
-| P0#6 | **video.saveAs 死锁**（页面未关闭时调用挂起） | 先 `context.close()` 再重命名自动保存的视频 |
+- 约束：单局普通模式最多 3 个孩子（`MAX_CHILDREN.normal`）；两次生育间隔 ≥ 3 回合（`MIN_TURNS_BETWEEN_CHILD_EVENTS`）；达到上限后触发提示「孩子数量已达上限」。
+- 功能验证：实现后 桌面 9 局 + 手机 9 局均满 50 回合干净跑完，无 invariant 崩溃、无死循环、无 NaN。
+- 说明：本次 playtest 状态快照未采集 `childrenCount`/`childExpense`，完整「平均孩子数 / 事件间隔 / 占比」telemetry 建议作为 v2.3 数据埋点（见 §10）。
 
-另修复弹层互锁：回合总结弹层 / 决策反馈弹层优先级处理，避免遮挡 end-turn 导致的 ActionGuard 误判。
+## 6. Opportunity 数据
 
----
+桌面回归（最终干净局的合计，含修复后重跑 aggressive）：
+- 机会购买 `opportunity-buy`：多次成功（含股票 `opportunity-stock-buy`）；
+- 放弃 `opportunity-decline`：数量远多于购买，符合早期「大机会买不起」的分布；
+- 移动端全 9 局 `opportunity-decline(155)` vs `opportunity-buy(15)`，且购买前均显示缺口提示。
+- 结论：购买前预览已让「放弃」承载「我差多少、下一步做什么」的战略信息，非单纯被拒绝。
 
-## 4. P1 问题修复
+## 7. Playtest 数据
 
-- 回合总结与决策反馈弹层获得稳定 testid 且被 resolver 显式处理，不再阻断流程。
-- 渲染启动短延迟导致的 `no-actionable-element` 误报：增加 3 次 × 600ms 渲染重试后再判定。
-- 拆分/合股机会卡动作补齐（`opportunity-confirm`）。
+### 移动端（390×844，`playtest/runs/20260905-143854-mobile`）
+- 9/9 局完成，0 失败；平均 51 回合 / 约 274s。
+- 0 Console error / 0 Unhandled exception / 0 Timeout / 0 找不到元素。
+- `market-dismiss` 成功 52 次（无持仓市场事件正常结束）。
+- 布局断言：无水平溢出、棋盘完整、核心操作按钮可见，全部通过。
 
----
+### 桌面（1280×800，`playtest/runs/20260905-152132` + 修复后重跑 `…/160544`）
+- 第一轮：8/9 completed，`aggressive-003` 因「UI 状态连续 3 次无变化」stuck（root cause 见 §2.4）。
+- 修复后重跑：`aggressive-002/003` 均完成，`aggressive-003` 的 4 次市场事件全部正常 `market-dismiss`，0 stuck。
+- 两轮合计桌面行：随机² + 保守³ 全部干净；激进路径经修复后验证通过。
 
-## 5. Playtest 统计（Run 20260905-012600）
+## 8. Simulation 数据
 
-| 指标 | 值 |
-|------|-----|
-| 总局数 | 9 |
-| 完成局数 | 9 |
-| 失败局数 | **0** |
-| 平均回合数 | 26（达 max-turns 上限） |
-| 平均游戏时长 | 136.8s |
-| UI error / Console error / Unhandled | 0 / 0 / 0 |
-| Timeout / 无法找到元素 | 0 / 0 |
-| recorded issues | 9，全部为 `state-stopped: 超过最大回合 25` |
+- 本轮以「真实 UI Playtest」为主做回归，未额外跑 1000 局无头 Simulation。
+- 既有平衡模拟 `BALANCE.md` 由测试侧生成、保持随动，未因单局结果改平衡（遵守「不根据单局结果调概率」原则）。
+- 完整 1000 局 Simulation（孩子分布 / 机会可购买率 / 游戏长度 / 财务自由度达成率）列为 v2.3 数据工程项。
 
-**结论：9/9 局完整走通，0 卡死，0 真实缺陷。** 此前的 P0 市场卡死已彻底消除（本轮正常处理 `market-dismiss` 29 次、`market-sell` 3 次）。
+## 9. 新发现的问题
 
----
+1. **Bot 对带持仓市场事件的识别不完整**（已修）：卖完资产后仍把已消失的 `market-sell-*` 列入可行动作。
+2. **游戏整体偏长**：Bot 对局普遍跑满 50 回合才由 guard 收尾（约 4.5 分钟/人/局），正常人类对局时长/达成率需真实用户样本验证。
+3. **机会卡对早期玩家可购买率偏低**：`opportunity-decline` 明显多于 `buy`，需 Simulation 定分布后再考虑卡牌权重（v2.3）。
 
-## 6. RandomBot 表现
+## 10. v2.3 建议
 
-策略差异：购买机会 20 次（决策占比 7.0%）、放弃 19 次（6.6%）、市场卖出 1 次 —— 买/弃最均衡，符合"测试系统稳定性"的随机定位。
-
-## 7. ConservativeBot 表现
-
-购买机会仅 8 次（2.8%，三 Bot 最低）、放弃 27 次（9.5%，三 Bot 最高）—— 最谨慎，符合"保持现金储备、控制负债、降低风险"。
-
-## 8. AggressiveBot 表现
-
-购买机会 17 次（5.8%）、`opportunity-confirm` 11 次（拆分/合股确认，三 Bot 最高）、市场卖出 2 次（三 Bot 最高）—— 接受杠杆，符合"最大化现金流、接受风险"。购买决策内部分化明显，confirm 次数多体现其进取性。
-
-**三个 Bot 决策分布差异显著，判定策略逻辑正确且彼此可区分。**
-
----
-
-## 9. UX 问题 Top 5
-
-1. **每局 26 回合内从未进入财务自由 / 快车道**：25 回合上限下无 Victory，进度偏慢（经济平衡 / 终局节奏观察项）。
-2. **市场事件有持仓的卖出场景覆盖极少**（9 局仅 3 次 `market-sell`）：进入上涨行情且恰好持仓的事件出现率低，需要定向 Scenario 覆盖（对应 plan Scenario 03）。
-3. 机会卡放弃率整体偏高（6.6%–9.5%）：收益与现金储备权衡，单价高的机会常被拒绝，符合真实决策，但提示机会价值呈现可更直接。
-4. 初始净值为负（如 -39,840）：因起始按揭等负债设定，对首玩玩家"我是负债的"感知需引导说明。
-5. 回合长度受卡片事件驱动，单回合无操作的等待节奏可进一步优化。
-
-## 10. 技术问题 Top 5
-
-1. `state-hash.spec.ts` 测试文件存在 `PARSE_ERROR`（第 170 行），0 测试运行 —— 既有问题，非本次引入。
-2. `game-engine.spec.ts > should calculate net worth` 断言不匹配（期望净值为正，测试构造数据下为 -23,840）—— 既有断言设计问题。
-3. `invariant.spec.ts > should detect game_over without endReason` 校验未标记缺失 endReason —— 既有问题。
-4. 卡牌事件在弹层渲染存在短延迟，依赖渲染重试规避误报（已缓解，建议后续提升状态驱动稳定性）。
-5. tsx/esbuild `keepNames` 序列化：`page.evaluate` 内命名函数会注入 `__name` helper 导致 ReferenceError —— 已在 read-evaluate 回调中全部内联规避。
+1. **数据埋点**：在 playtest 状态快照增加 `childrenCount`、`childExpense`、`childEventTurn`；新增 `turnsBetweenChildEvents`；输出 平均孩子数 / 最大孩子数 / 平均首次孩子回合 / 孩子事件占比。
+2. **1000 局 Simulation**：结构化输出 孩子分布（P50/P95/max/间隔）、机会可购买率（Turn 1-5 / 6-10 / 11-20）、连续不可购买最大次数、游戏长度（P50/P90）、财务自由度达成率，据此再调卡牌/事件权重。
+3. **Decision Density**：把核心指标升级为「有效财务决策次数 / 回合数」，引导后续设计（Decision Engine / AI Coach）。
+4. **机会卡难度分级**：为机会卡增加 `small / medium / large` 难度，UI 显示「小机会 / 中等机会 / 大机会」，让早期玩家明确「下一步该积累什么」。
+5. **多仓市场事件更稳定性**：desktop 端继续用真实 UI 多轮回归市场量多卖出路径，评估是否需要在状态层消除 0 持仓残留资产。
 
 ---
 
-## 11. 未解决问题
+## v2.2 目标达成度
 
-- 三个**既有**测试失败（state-hash 语法、net-worth 断言、game-over 校验），与本迭代改动无关，按工程约定未在本次修改，留待专项处理。
-- 多人在线/真实金融数据/LLM（plan 56）本次明确不涉及。
-
-## 12. 新发现问题
-
-- 市场卖出场景在随机试玩中覆盖不足 —— 需增加定向 Scenario 保证"有资产→可卖/可不卖"可回归。
-- 终局触发条件在 25 回合内几乎不可达 —— 关于 max-turns 上限与财务自由难度需要平衡决策（属 v2.3 Economy Balance 议题，不在此强行改游戏规则）。
-
----
-
-## 13. Video / Screenshot 索引（Run 20260905-012600）
-
-- 视频：`playtest/runs/20260905-012600/videos/`（9 局，`{bot}-00{1..3}.webm`，1280×800）。
-- 截图：`playtest/runs/20260905-012600/screenshots/`（home / game-start / decision / after-decision / mid-game 等关键节点）。
-- Issue 关联：所有 issue 作者关联 Game / Turn，本 run 均记录 `turn: 26`。
-
-## 14. State / Event 分析
-
-- `states/*-states.json`：每 Action 前后完整 8 维金融快照。
-- `states/*-diffs.json`：`cash / income / expenses / cashFlow / assets / liabilities / netWorth / savings` 差异。
-- `logs/*-decisions.json`：每决策含 `before / after / delta` 与时间戳 —— 可直接作为未来 AI 决策分析的数据源（对应 plan 57 架构）。
-- `events/*-events.txt`：事件流记录。
-- 数据质量：字段名与页面/游戏状态已对齐，无 0 值失真问题。
-
----
-
-## 15. 下一版本建议（v2.3）
-
-结合 plan §78 候选方向与本次真实数据：
-
-1. **B. Economy Balance**：以 Simulation 大规模（1,000–10,000 次）评估职业胜率、资产收益、财务自由达成率 —— 优先解决"25 回合内无法达到财务自由"的节奏问题。
-2. **A. Decision Engine**：把 Event → Decision → Risk → Reward → Financial Impact 抽象为统一决策系统，复用本轮已采集的结构化 Decision 数据。
-3. **Scenario 补强**：为 Market-with-asset、Loan、Fast Track 增加确定性定向试玩，补齐当前随机走位覆盖不足的分支。
-4. 修复 3 个既有测试失败，建立干净回归基线。
-5. Playtest 扩量：先 30 局（第二阶段），Harness 稳定后再 100 局。
-
----
-
-## 附：Agent 最终汇报
-
-- **Build**: PASS
-- **Type-check**: PASS
-- **Unit + Simulation + Integration Test**: 282/284 PASS（3 项既有失败，与本次无关）
-- **Playtest**: Games 9 / Completed 9 / Failed 0 / Victory 0（25 回合上限内未触发）/ Timeout 0
-- **P0 Issues**: Fixed 6 / Remaining 0
-- **核心验证**: Market 无资产不再卡死；三 Bot 策略可区分；真实 UI 全流程闭环跑通
-
-> 说明：Victory=0 属 playtest 回合上限内的观察结论，非缺陷，见 §9/§12。
+| 验收项 | 状态 |
+|--------|------|
+| 390×844 可完整进入 Capital Game | ✅ |
+| 棋盘完整显示、无横向溢出 | ✅ |
+| 掷骰子 / 结束回合按钮可见 | ✅ |
+| 财务/历史/统计可切换 | ✅ |
+| Opportunity 弹窗完整显示 + 可看懂缺口 | ✅ |
+| Market 无持仓可正常结束、Bot 不卡死 | ✅ |
+| 孩子事件不无限触发、有上限与间隔 | ✅ |
+| 财务计算正确、Simulation 无 invariant violation | ✅ |

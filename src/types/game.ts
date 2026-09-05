@@ -65,6 +65,7 @@ export interface Player {
   hasInsurance: boolean
   hasUnemploymentInsurance: boolean
   childrenCount: number
+  lastChildTurn: number
   doubleDiceNextTurn: boolean
   charityProtection: boolean
   ageMonths: number
@@ -396,6 +397,9 @@ export const MAX_CHILDREN = {
   normal: 3,
   bigFamily: 6,
 } as const
+
+/** 两次孩子事件之间至少间隔的回合数（避免“一直在生孩子”） */
+export const MIN_TURNS_BETWEEN_CHILD_EVENTS = 3
 
 export const START_AGE = 25
 export const RETIREMENT_AGE = 65

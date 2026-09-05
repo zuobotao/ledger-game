@@ -30,6 +30,7 @@ import {
   FAST_TRACK_BOARD_SIZE,
   MAX_AGE_MONTHS,
   MAX_CHILDREN,
+  MIN_TURNS_BETWEEN_CHILD_EVENTS,
   PLAYER_COLORS,
   RAT_RACE_BOARD_SIZE,
   UNEMPLOYMENT_INSURANCE_RATE,
@@ -167,6 +168,7 @@ function createPlayer(
     hasInsurance: config.insurance,
     hasUnemploymentInsurance: false,
     childrenCount: 0,
+    lastChildTurn: 0,
     doubleDiceNextTurn: false,
     charityProtection: false,
     ageMonths: 0,
@@ -1444,12 +1446,16 @@ export const useGameStore = defineStore('game', () => {
       }
       case 'child': {
         const maxChildren = config.value.bigFamily ? MAX_CHILDREN.bigFamily : MAX_CHILDREN.normal
-        if (player.childrenCount < maxChildren) {
+        const cooldownElapsed = turnNumber.value - (player.lastChildTurn || 0) >= MIN_TURNS_BETWEEN_CHILD_EVENTS
+        if (player.childrenCount >= maxChildren) {
+          setPending(null, '孩子数量已达上限。')
+        } else if (!cooldownElapsed) {
+          setPending(null, '家庭正处稳定期，暂时没有再添新丁。')
+        } else {
           player.childrenCount += 1
+          player.lastChildTurn = turnNumber.value
           recalcPlayerFinancials(player)
           setMessageToast(`孩子出生！你现在有 ${player.childrenCount} 个孩子，子女支出增加。`, 'major')
-        } else {
-          setPending(null, '孩子数量已达上限。')
         }
         break
       }

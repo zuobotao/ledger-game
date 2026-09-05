@@ -399,6 +399,14 @@ const opportunityAccentClass = computed(() => {
   min-height: 0;
 }
 
+/* 手机上棋盘按可用宽度撑满（单列布局，先保证完整可见且尽量大） */
+@media (max-width: 640px) {
+  .fast-track-board {
+    width: 100%;
+    height: auto;
+  }
+}
+
 /* 7x7 CSS Grid 棋盘容器 */
 .board-grid {
   display: grid;

@@ -188,7 +188,7 @@ export function writeReportMarkdown(report: PlaytestReport, outputPath: string):
   fs.writeFileSync(outputPath, lines.join('\n'), 'utf-8')
 }
 
-export function getRunDir(baseDir: string): string {
+export function getRunDir(baseDir: string, suffix = ''): string {
   const now = new Date()
   const timestamp =
     now.getFullYear().toString() +
@@ -199,7 +199,7 @@ export function getRunDir(baseDir: string): string {
     String(now.getMinutes()).padStart(2, '0') +
     String(now.getSeconds()).padStart(2, '0')
 
-  const runDir = path.join(baseDir, 'runs', timestamp)
+  const runDir = path.join(baseDir, 'runs', suffix ? `${timestamp}-${suffix}` : timestamp)
   fs.mkdirSync(runDir, { recursive: true })
   return runDir
 }

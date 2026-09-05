@@ -23,7 +23,8 @@
     "playtest:aggressive": "tsx playtest/run.ts --bot aggressive --games 3",
     "playtest:all": "tsx playtest/run.ts --bot all --games 3",
     "playtest:pw": "playwright test",
-    "playtest:smoke": "playwright test --grep 'smoke'"
+    "playtest:smoke": "playwright test --grep 'smoke'",
+    "playtest:mobile": "playwright test mobile-basic-game"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

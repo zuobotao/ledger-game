@@ -22,6 +22,8 @@ export interface RawPlayerSnapshot {
   savings: number
   /** 该玩家可在此市场事件中卖出的资产 id 列表 */
   sellableAssetIds?: string[]
+  /** 上述每个可卖资产的当前数量（用于过滤已卖完的资产，避免点击已消失的按钮） */
+  sellableAssetQuantities?: Record<string, number>
 }
 
 export interface StateReaderBridge {
@@ -61,16 +63,17 @@ export async function readStateBridge(page: Page): Promise<StateReaderBridge | n
         const assets = (p.assets || []).reduce((sum: number, x: any) => sum + (x.marketPrice ?? x.cost ?? 0) * (x.quantity ?? 1), 0)
         const liabilities = (p.liabilities || []).reduce((sum: number, x: any) => sum + (x.amount ?? 0), 0)
         let sellableAssetIds: string[] | undefined
+        let sellableAssetQuantities: Record<string, number> | undefined
         if (marketCard) {
-          sellableAssetIds = (p.assets || [])
-            .filter((a: any) =>
-              marketCard.targetType === 'all'
-                ? true
-                : marketCard.targetType === 'stock' && marketCard.targetSymbol
-                  ? a.type === 'stock' && a.symbol === marketCard.targetSymbol
-                  : a.type === marketCard.targetType,
-            )
-            .map((a: any) => a.id)
+          const sellable = (p.assets || []).filter((a: any) =>
+            marketCard.targetType === 'all'
+              ? true
+              : marketCard.targetType === 'stock' && marketCard.targetSymbol
+                ? a.type === 'stock' && a.symbol === marketCard.targetSymbol
+                : a.type === marketCard.targetType,
+          )
+          sellableAssetIds = sellable.map((a: any) => a.id)
+          sellableAssetQuantities = Object.fromEntries(sellable.map((a: any) => [a.id, a.quantity ?? 0]))
         }
 
         return {
@@ -84,6 +87,7 @@ export async function readStateBridge(page: Page): Promise<StateReaderBridge | n
           netWorth: assets - liabilities + (p.cash ?? 0),
           savings: p.savings ?? 0,
           sellableAssetIds,
+          sellableAssetQuantities,
         } as RawPlayerSnapshot
       })
 

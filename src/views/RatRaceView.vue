@@ -183,6 +183,24 @@ const maxOpportunityQuantity = computed(() => {
   return Math.max(1, Math.floor(player.cash / unitCost))
 })
 
+// 非股票类机会卡：本次购买决策信息（看懂为什么买不起、购买后财务影响）
+const opportunityBuyPreview = computed(() => {
+  const card = opportunityCard.value
+  const player = gameStore.currentPlayer
+  if (!card || card.type === 'stock' || card.action === 'sell' || !player) return null
+  const qty = opportunityQuantity.value
+  const unitCost = card.downPayment ?? card.cost
+  const cost = unitCost * qty
+  const affordable = player.cash >= cost
+  return {
+    cost,
+    cashAfter: player.cash - cost,
+    cashFlowAfter: player.cashFlow + (card.cashFlow ?? 0) * qty,
+    affordable,
+    shortfall: Math.max(0, cost - player.cash),
+  }
+})
+
 const isOpportunitySell = computed(() => {
   const card = opportunityCard.value
   return card?.type === 'stock' && card.action === 'sell'
@@ -582,10 +600,10 @@ const showActionPanel = computed(() => {
     </div>
 
     <!-- Game area -->
-    <div class="flex flex-1 flex-col overflow-hidden lg:flex-row">
+    <div class="flex flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
       <!-- Left side panel -->
       <aside
-        class="order-2 flex max-h-[35vh] min-h-0 shrink-0 flex-col overflow-y-auto border-t border-border bg-secondary/30 lg:max-h-none lg:order-1 lg:w-80 lg:overflow-hidden lg:border-t-0 lg:border-r xl:w-96"
+        class="order-2 flex min-h-0 flex-col border-t border-border bg-secondary/30 lg:order-1 lg:w-80 lg:overflow-hidden lg:border-t-0 lg:border-r xl:w-96"
       >
         <!-- Panel tabs -->
         <div v-if="gameStore.players.length > 1" class="px-4 pt-3 lg:px-5">
@@ -931,7 +949,7 @@ const showActionPanel = computed(() => {
       </aside>
 
       <!-- Board -->
-      <section class="relative order-1 flex flex-1 flex-col overflow-hidden min-h-0">
+      <section class="relative order-1 flex min-h-[38vh] flex-1 flex-col overflow-hidden lg:min-h-0">
         <!-- 消息提示（纯消息类，不需要确认） -->
         <GameToast :suppress="suppressUI" />
 
@@ -1123,7 +1141,10 @@ const showActionPanel = computed(() => {
                       class="mb-2"
                     />
                     <div v-else class="mb-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                      现金不足，无法买入
+                      <div>现金不足，无法买入</div>
+                      <div class="mt-0.5 font-semibold">
+                        还差 {{ formatMoney((opportunityCard.cost * 1) - (gameStore.currentPlayer?.cash ?? 0)) }}
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -1267,6 +1288,41 @@ const showActionPanel = computed(() => {
                       </span>
                     </div>
                   </template>
+                </div>
+
+                <!-- 非股票类：购买决策信息（为什么买不起 + 购买后影响） -->
+                <div
+                  v-if="!isOpportunitySell && opportunityCard.splitRatio === undefined && !isStockTradeCard && opportunityCard.type !== 'stock' && opportunityBuyPreview"
+                  class="mb-3 space-y-2 rounded-xl border p-3"
+                  :class="opportunityBuyPreview.affordable ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/10'"
+                >
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-muted-foreground">当前现金：</span>
+                    <span class="font-medium text-foreground">{{ formatMoney(gameStore.currentPlayer?.cash ?? 0) }}</span>
+                  </div>
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-muted-foreground">购买后现金：</span>
+                    <span class="font-medium" :class="opportunityBuyPreview.cashAfter < 0 ? 'text-destructive' : 'text-foreground'">
+                      {{ formatMoney(opportunityBuyPreview.cashAfter) }}
+                    </span>
+                  </div>
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-muted-foreground">购买后月现金流：</span>
+                    <span class="font-bold text-success">+{{ formatMoney(opportunityBuyPreview.cashFlowAfter) }}/月</span>
+                  </div>
+                  <div
+                    v-if="!opportunityBuyPreview.affordable"
+                    class="flex items-center justify-between rounded-lg border border-destructive/40 bg-destructive/10 px-2.5 py-1.5 text-sm font-semibold text-destructive"
+                  >
+                    <span>现金不足，无法买入</span>
+                    <span>还差 {{ formatMoney(opportunityBuyPreview.shortfall) }}</span>
+                  </div>
+                  <div
+                    v-else
+                    class="rounded-lg border border-success/30 bg-success/10 px-2.5 py-1.5 text-sm font-semibold text-success"
+                  >
+                    ✓ 现金充足，可支付首付
+                  </div>
                 </div>
 
                 <!-- 操作按钮（拆分/合股卡和交易卡除外） -->

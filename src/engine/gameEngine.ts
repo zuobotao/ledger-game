@@ -122,6 +122,7 @@ export class GameEngine {
       hasInsurance: config.insurance,
       hasUnemploymentInsurance: false,
       childrenCount: 0,
+      lastChildTurn: 0,
       doubleDiceNextTurn: false,
       charityProtection: false,
       ageMonths: 0,
