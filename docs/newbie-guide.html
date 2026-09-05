@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ledger 新手简介 · 30秒看懂怎么致富</title>
+<style>
+  :root {
+    --bg: #0b0b10;
+    --card: #15151d;
+    --card2: #1d1d28;
+    --border: #2a2a38;
+    --text: #ececf1;
+    --muted: #9a9aa8;
+    --brand: #8b5cf6;
+    --brand2: #a855f7;
+    --green: #34d399;
+    --red: #f87171;
+    --gold: #fbbf24;
+    --blue: #60a5fa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: radial-gradient(1200px 600px at 30% -10%, rgba(139,92,246,.18), transparent 60%),
+                var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 32px 20px 64px; }
+  .hero { text-align: center; padding: 28px 0 12px; }
+  .hero img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 18px; border: 1px solid var(--border); }
+  .hero h1 { font-size: 2.2rem; margin: 22px 0 6px; letter-spacing: .5px; }
+  .hero h1 span { color: var(--brand2); }
+  .tag { color: var(--muted); font-size: 1.02rem; margin-top: 0; }
+  .disclaimer {
+    font-size: .82rem; color: var(--muted); background: rgba(139,92,246,.08);
+    border: 1px solid rgba(139,92,246,.25); border-radius: 10px; padding: 10px 14px; margin: 8px 0 30px;
+  }
+  section { margin: 34px 0; }
+  h2 { font-size: 1.35rem; display: flex; align-items: center; gap: 8px; margin: 0 0 14px; }
+  h2 .n { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg,var(--brand),var(--brand2)); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:.9rem; }
+  .lead { color: var(--muted); margin-top: -6px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; margin: 10px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .concept { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; }
+  .concept h3 { margin: 0 0 6px; font-size: 1.02rem; }
+  .concept .k { font-size: .82rem; color: var(--muted); }
+  .concept .eg { font-size: .86rem; color: var(--text); background: var(--card2); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+  .pill { display:inline-block; padding: 2px 10px; border-radius: 999px; font-size: .75rem; font-weight: 600; margin-right: 4px; vertical-align: middle; }
+  .pill.how { background: rgba(139,92,246,.18); color: var(--brand2); }
+  .pill.win { background: rgba(52,211,153,.16); color: var(--green); }
+  .pill.at { background: rgba(219,39,119,.14); color: #f9a8d4; }
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; }
+  ol.steps li { position: relative; padding: 12px 0 12px 46px; border-bottom: 1px dashed var(--border); }
+  ol.steps li:last-child { border-bottom: 0; }
+  ol.steps li::before { counter-increment: s; content: counter(s); position: absolute; left: 4px; top: 12px; width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg,var(--brand),var(--brand2)); color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  ol.steps b { display:block; font-size: 1rem; }
+  .cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: 8px; }
+  .cell { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; font-size: .84rem; }
+  .cell .c { font-weight: 700; margin-bottom: 2px; font-size: .9rem; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; }
+  .tips { background: linear-gradient(135deg, rgba(139,92,246,.14), rgba(168,85,247,.06)); border: 1px solid rgba(139,92,246,.3); border-radius: 14px; padding: 16px 18px; }
+  .tips li { margin: 8px 0; }
+  .warn { font-size: .82rem; color: var(--muted); border-top: 1px solid var(--border); margin-top: 30px; padding-top: 14px; text-align: center; }
+  @media (max-width: 560px){ .hero h1{ font-size:1.6rem } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- HERO -->
+  <div class="hero">
+    <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=isometric%20game%20board%20showing%20a%20path%20from%20a%20cluttered%20cubicle%20to%20a%20sunny%20financial%20dashboard%2C%20money%20tree%20and%20rising%20coins%2C%20dark%20UI%20with%20vibrant%20purple%20and%20emerald%20accents%2C%20modern%20flat%20illustration%2C%20finance%20education%20board%20game%20aesthetic&image_size=landscape_16_9" alt="Ledger 游戏简介配图" />
+    <h1>Ledger <span>新手简介</span></h1>
+    <p class="tag">一款教你看懂钱、模拟走向财富自由的桌游 App —— 玩几分钟你就明白「现金流」是怎么回事</p>
+  </div>
+  <div class="disclaimer">本页为游戏《Ledger》的新手引导与概念简介，全部内容为教育模拟，不构成任何投资建议。</div>
+
+  <!-- 一句话 -->
+  <section>
+    <p class="lead" style="font-size:1.05rem">一句话：<b style="color:var(--text)">游戏里你要做的是——靠「买东西」攒出够多的被动收入，付得起每个月的生活开销，然后彻底不靠工资生活。</b></p>
+  </section>
+
+  <!-- 概念 -->
+  <section>
+    <h2><span class="n">1</span>先把 3 个词搞懂，你就不再迷茫</h2>
+    <div class="grid">
+      <div class="concept">
+        <h3>💸 收入 vs 支出</h3>
+        <p class="k">你一个月赚多少钱（收入）、花多少（支出），每月净剩 = <b style="color:var(--green)">现金流</b>。</p>
+        <div class="eg">👷 工资 = 主动收入，一把你停下来或失业，就没了。</div>
+      </div>
+      <div class="concept">
+        <h3>📦 资产 vs 负债</h3>
+        <p class="k">让你<b style="color:var(--green)">钱越来越多</b>的是资产；让你<b style="color:var(--red)">钱往外流</b>的是负债。</p>
+        <div class="eg">🏠 收租的房子 = 资产 &nbsp;·&nbsp; 🚗 每月还贷的车 = 负债</div>
+      </div>
+      <div class="concept">
+        <h3>🐔 被动收入</h3>
+        <p class="k">「不用干活也进账」的钱，来自你买的资产。这是你<b style="color:var(--gold)">要赢的目标</b>。</p>
+        <div class="eg">买下现金流转正的资产 → 被动收入上涨 → 财富自由</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 怎么赢 -->
+  <section>
+    <h2><span class="n">2</span>怎么算赢？</h2>
+    <div class="card">
+      <p style="margin: 0 0 6px">一步步升级，目标看得见：</p>
+      <p style="margin:0; line-height:2">
+        <span class="pill how">老鼠赛跑</span>开局在圈里打转攒资产
+        <b style="color:var(--text)">→</b>
+        <span class="pill win">被动收入 ≥ 总支出</span>财务自由，跳出圈
+        <b style="color:var(--text)">→</b>
+        <span class="pill at">快车道</span>高速积累，<b style="color:var(--gold)">实现你的梦想</b>（比如环游世界、买小岛）
+      </p>
+    </div>
+  </section>
+
+  <!-- 怎么玩 -->
+  <section>
+    <h2><span class="n">3</span>一局怎么玩？5 步上手</h2>
+    <ol class="steps">
+      <li><b>选职业</b>选一个角色：工程师、医生、兽医… 不同职业薪水高、开销也高，难度不同。</li>
+      <li><b>选梦想</b>选一个你「这辈子最想干的事」，那是你要攒到的东西。</li>
+      <li><b>掷骰子走格</b>棋盘一圈圈走，落到不同格子触发不同事情。</li>
+      <li><b>碰到机会就判断买不买</b>用现金「首付」买资产，让它给你持续带来现金流。这才是你翻身的核心动作。</li>
+      <li><b>盯住报表</b>右下角资产负债报表是你的体检报告——现金、现金流、净资产，全在这里。</li>
+    </ol>
+  </section>
+
+  <!-- 棋盘 -->
+  <section>
+    <h2><span class="n">4</span>棋盘格子什么意思？</h2>
+    <div class="cells">
+      <div class="cell"><span class="dot" style="background:#22c55e"></span><div class="c">发薪日</div>领工资，现金到账</div>
+      <div class="cell"><span class="dot" style="background:#8b5cf6"></span><div class="c">机会 / 大机会</div>有资产可以买，抓它</div>
+      <div class="cell"><span class="dot" style="background:#60a5fa"></span><div class="c">市场风云</div>行情波动，可卖资产赚差价</div>
+      <div class="cell"><span class="dot" style="background:#f59e0b"></span><div class="c">慈善</div>捐点钱换两步走保险</div>
+      <div class="cell"><span class="dot" style="background:#ef4444"></span><div class="c">裁员 / 生活意外</div>额外花钱或失业，注意风险</div>
+      <div class="cell"><span class="dot" style="background:#a855f7"></span><div class="c">历史故事</div>小事件，可能赚可能亏</div>
+    </div>
+  </section>
+
+  <!-- 新手建议 -->
+  <section>
+    <h2><span class="n">5</span>给新手的 3 句话</h2>
+    <ul class="tips">
+      <li>别只看「存款」。<b style="color:var(--text)">每月净剩多少（现金流）</b>才是关键，那才是你持续买资产的本钱。</li>
+      <li>优先买「<b style="color:var(--text)">现金流转正</b>」的机会——花点首付、换一份长期被动收入，通常是划算的。</li>
+      <li>别把现金烧光去硬买。<b style="color:var(--text)">留点儿应急钱</b>，否则碰到裁员/意外就破产了。</li>
+    </ul>
+  </section>
+
+  <div class="warn">Ledger 是一款财商教育模拟游戏：它想告诉你「让钱为你工作」才能走向财务自由。现实中那些宣称「躺着暴富」的高息借贷、赌博投机，恰恰相反——它们是让你的钱往外流的负资产。请理性看待游戏与现实。<br/><br/>本简介仅为新手引导，不构成任何投资建议。</div>
+</div>
+</body>
+</html>
