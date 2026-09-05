@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Wallet, TrendingUp, Gem, Target, Info } from 'lucide-vue-next'
+import { Wallet, TrendingUp, Gem, Target, Banknote, Baby } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import { calcFinancialFreedomRatio } from '@/engine/financialEngine'
 
@@ -57,6 +57,10 @@ const totalExpensesDisplay = computed(() => {
 function formatMoney(n: number): string {
   return `$${Math.round(n).toLocaleString()}`
 }
+
+const savingsDisplay = computed(() => formatMoney(player.value?.savings ?? 0))
+
+const childrenCount = computed(() => player.value?.childrenCount ?? 0)
 </script>
 
 <template>
@@ -69,6 +73,17 @@ function formatMoney(n: number): string {
       <div class="metric-content">
         <span class="metric-label">现金</span>
         <span class="metric-value cash">{{ cashDisplay }}</span>
+      </div>
+    </div>
+
+    <!-- 存款 -->
+    <div class="metric-item">
+      <div class="metric-icon savings">
+        <Banknote class="w-4 h-4" />
+      </div>
+      <div class="metric-content">
+        <span class="metric-label">存款</span>
+        <span class="metric-value savings">{{ savingsDisplay }}</span>
       </div>
     </div>
 
@@ -95,6 +110,17 @@ function formatMoney(n: number): string {
         <span class="metric-value" :class="netWorthPositive ? 'networth' : 'networth-negative'">
           {{ netWorthDisplay }}
         </span>
+      </div>
+    </div>
+
+    <!-- 孩子数量 -->
+    <div class="metric-item" title="家庭孩子数量（每月也会计入支出）">
+      <div class="metric-icon children">
+        <Baby class="w-4 h-4" />
+      </div>
+      <div class="metric-content">
+        <span class="metric-label">孩子</span>
+        <span class="metric-value children">{{ childrenCount }} 个</span>
       </div>
     </div>
 
@@ -177,6 +203,24 @@ function formatMoney(n: number): string {
 .metric-icon.networth-negative {
   background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
+}
+
+.metric-icon.savings {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.metric-icon.children {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+}
+
+.metric-value.savings {
+  color: #10b981;
+}
+
+.metric-value.children {
+  color: #fb923c;
 }
 
 .metric-content {

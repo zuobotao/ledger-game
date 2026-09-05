@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { createGameEngine } from '@/engine/gameEngine'
 import { createSeededRandom } from '@/engine/randomSource'
+import { calcTotalAssetValue } from '@/engine/assetEngine'
 import { CAREERS } from '@/data/careers'
 import type { GameState, GameConfig } from '@/types/game'
 
@@ -125,7 +126,9 @@ describe('GameEngine', () => {
     const career = CAREERS.find((c) => c.id === 'cleaner')!
     const player = engine.createPlayer('Test', career, createTestConfig(), false)
     const netWorth = engine.calcNetWorth(player)
-    expect(netWorth).toBeGreaterThan(0)
+    // 起始职业负债（房贷/信贷等）可导致净值为负，验证公式：净资产 = 现金 + 存款 + 总资产 - 总负债
+    const totalLiabilities = player.liabilities.reduce((s, l) => s + l.amount, 0)
+    expect(netWorth).toBe(player.cash + player.savings + calcTotalAssetValue(player.assets) - totalLiabilities)
   })
 
   it('should check fast track eligibility', () => {

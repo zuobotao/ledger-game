@@ -77,6 +77,8 @@ describe('Replay Step-by-Step Debug', () => {
 
     expect(hash1).toBe(hash2)
   })
+
+  it('should replay deterministically to the same state hash', () => {
     const seed = 100
     const engine = createGameEngine(seed)
     const logger = createEventLogManager('debug', 1000)

@@ -20,7 +20,6 @@ const store = useGameStore()
 type TabKey = 'deposit' | 'loan' | 'repay' | 'assets' | 'statement' | 'insurance'
 const activeTab = ref<TabKey>('deposit')
 
-const depositAmount = ref<number>(0)
 const loanAmount = ref<number>(0)
 const repayAmount = ref<number>(0)
 
@@ -39,11 +38,22 @@ function showSuccess(msg: string) {
 const currentSavings = computed(() => store.currentPlayer?.savings ?? 0)
 const currentCash = computed(() => store.currentPlayer?.cash ?? 0)
 
+const depositAmount = ref<number>(0)
+const withdrawAmount = ref<number>(0)
+
 function setDepositQuick(amount: number | 'all') {
   if (amount === 'all') {
     depositAmount.value = currentCash.value
   } else {
     depositAmount.value = amount
+  }
+}
+
+function setWithdrawQuick(amount: number | 'all') {
+  if (amount === 'all') {
+    withdrawAmount.value = currentSavings.value
+  } else {
+    withdrawAmount.value = amount
   }
 }
 
@@ -54,6 +64,16 @@ function handleDeposit() {
   if (ok) {
     showSuccess(`已存入 $${Math.round(amount).toLocaleString()}`)
     depositAmount.value = 0
+  }
+}
+
+function handleWithdraw() {
+  const amount = withdrawAmount.value
+  if (amount <= 0) return
+  const ok = store.withdrawFromSavings(amount)
+  if (ok) {
+    showSuccess(`已取出 $${Math.round(amount).toLocaleString()}`)
+    withdrawAmount.value = 0
   }
 }
 
@@ -384,7 +404,7 @@ function handleOverlayClick(e: MouseEvent) {
                 </div>
 
                 <div class="text-xs text-muted-foreground bg-muted/50 rounded-[var(--radius-sm)] px-3 py-2 border border-border">
-                  年利率 2%，每月结算日计息
+                  存取不产生利息，不会改变你的净资产，只改变资金位置。
                 </div>
 
                 <button
@@ -393,6 +413,58 @@ function handleOverlayClick(e: MouseEvent) {
                   @click="handleDeposit"
                 >
                   存入
+                </button>
+
+                <div class="my-4 flex items-center gap-3 text-xs text-muted-foreground">
+                  <span class="h-px flex-1 bg-border"></span>
+                  取出
+                  <span class="h-px flex-1 bg-border"></span>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-medium text-muted-foreground mb-1.5">取款金额</label>
+                  <input
+                    v-model.number="withdrawAmount"
+                    type="number"
+                    min="0"
+                    placeholder="请输入金额"
+                    class="w-full h-11 px-3 bg-background border border-input rounded-[var(--radius-sm)] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring text-base"
+                  />
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    class="px-3 py-1.5 rounded-full text-sm bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
+                    @click="setWithdrawQuick(100)"
+                  >
+                    $100
+                  </button>
+                  <button
+                    class="px-3 py-1.5 rounded-full text-sm bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
+                    @click="setWithdrawQuick(500)"
+                  >
+                    $500
+                  </button>
+                  <button
+                    class="px-3 py-1.5 rounded-full text-sm bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
+                    @click="setWithdrawQuick(1000)"
+                  >
+                    $1,000
+                  </button>
+                  <button
+                    class="px-3 py-1.5 rounded-full text-sm bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
+                    @click="setWithdrawQuick('all')"
+                  >
+                    全部
+                  </button>
+                </div>
+
+                <button
+                  class="w-full h-11 rounded-full bg-secondary text-secondary-foreground font-semibold hover:bg-accent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  :disabled="withdrawAmount <= 0 || withdrawAmount > currentSavings"
+                  @click="handleWithdraw"
+                >
+                  取出
                 </button>
               </template>
 

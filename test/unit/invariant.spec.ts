@@ -218,11 +218,11 @@ describe('validateGameState', () => {
     expect(result.violations.some((v) => v.path === 'winnerId')).toBe(true)
   })
 
-  it('should detect game_over without endReason', () => {
+  it('should detect finished without endReason', () => {
     const engine = createGameEngine(42)
     const state = createEmptyState()
     state.players = [createTestPlayer(engine)]
-    state.phase = 'game_over'
+    state.phase = 'finished'
 
     const result = validateGameState(state)
     expect(result.valid).toBe(false)

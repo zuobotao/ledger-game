@@ -305,6 +305,8 @@ export interface GameState {
   gameStartTime?: number
   ratRaceTurns?: number
   fastTrackTurns?: number
+  /** 存档 schema 版本，供未来升级迁移用 */
+  schemaVersion?: number
 }
 
 export interface MarketEventState {

@@ -212,6 +212,15 @@ const currentStockHolding = computed(() => {
   return gameStore.getStockHolding(card.symbol)
 })
 
+// 股票交易卡卖出：买入均价（加权平均成本）
+const sellAvgCost = computed(() => currentStockHolding.value?.cost ?? 0)
+// 卖出每股收益
+const sellPerShareGain = computed(() => (opportunityCard.value?.cost ?? 0) - sellAvgCost.value)
+// 本次卖出已实现收益
+const sellRealizedGain = computed(() => sellPerShareGain.value * sellQuantity.value)
+// 卖出后剩余成本（按剩余股数×均价）
+const sellRemainingCost = computed(() => sellAvgCost.value * (maxSellQuantity.value - sellQuantity.value))
+
 // 股票交易卡：是否为可交易的小机会股票卡（同时显示买卖）
 const isStockTradeCard = computed(() => {
   const card = opportunityCard.value
@@ -808,11 +817,19 @@ const showActionPanel = computed(() => {
                   </div>
                   <div class="flex justify-between">
                     <span class="text-muted-foreground">总成本</span>
-                    <span class="font-medium text-foreground tabular-nums">{{ formatMoney(asset.cost * asset.quantity) }}</span>
+                    <span class="font-medium text-foreground tabular-nums">{{ formatMoney((asset.cost ?? 0) * asset.quantity) }}</span>
                   </div>
                   <div class="flex justify-between">
                     <span class="text-muted-foreground">总市值</span>
                     <span class="font-medium text-foreground tabular-nums">{{ formatMoney((asset.marketPrice ?? asset.cost) * asset.quantity) }}</span>
+                  </div>
+                  <div v-if="asset.loanAmount !== undefined" class="flex justify-between">
+                    <span class="text-muted-foreground">贷款</span>
+                    <span class="font-medium text-foreground tabular-nums">{{ formatMoney(asset.loanAmount) }}</span>
+                  </div>
+                  <div v-if="asset.monthlyLoanPayment !== undefined" class="flex justify-between">
+                    <span class="text-muted-foreground">月供</span>
+                    <span class="font-medium text-foreground tabular-nums">{{ formatMoney(asset.monthlyLoanPayment) }}/月</span>
                   </div>
                   <div class="flex justify-between col-span-2 pt-1 border-t border-border/50">
                     <span class="text-muted-foreground">浮动盈亏</span>
@@ -1174,6 +1191,26 @@ const showActionPanel = computed(() => {
                       unit-label="股"
                       class="mb-2"
                     />
+                    <div class="mb-3 space-y-1 rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-xs">
+                      <div class="flex justify-between">
+                        <span class="text-muted-foreground">买入均价</span>
+                        <span class="font-medium tabular-nums">{{ formatMoney(sellAvgCost) }}/股</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-muted-foreground">卖出价</span>
+                        <span class="font-medium tabular-nums">{{ formatMoney(opportunityCard.cost ?? 0) }}/股</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-muted-foreground">本次收益</span>
+                        <span class="font-semibold tabular-nums" :class="sellRealizedGain >= 0 ? 'text-success' : 'text-destructive'">
+                          {{ sellRealizedGain >= 0 ? '+' : '' }}{{ formatMoney(sellRealizedGain) }}
+                        </span>
+                      </div>
+                      <div class="flex justify-between pt-1 border-t border-border/50">
+                        <span class="text-muted-foreground">剩余成本</span>
+                        <span class="font-medium tabular-nums">{{ formatMoney(sellRemainingCost) }}</span>
+                      </div>
+                    </div>
                     <button
                       type="button"
                       :disabled="maxSellQuantity === 0 || sellQuantity <= 0 || disableHumanActions"

@@ -101,6 +101,8 @@ import {
 import { defaultRandom } from '@/engine/randomSource'
 
 const STORAGE_KEY = 'ledger101-game-state'
+/** 存档 schema 版本：升级时递增并编写迁移逻辑 */
+const SAVE_SCHEMA_VERSION = 1
 
 function createId(): string {
   return defaultRandom.generateId('s-')
@@ -371,6 +373,22 @@ export const useGameStore = defineStore('game', () => {
   })
   const isGameStarted = computed(() => phase.value === 'rat_race' || phase.value === 'fast_track')
 
+  // v2.3: 首页"继续游戏"所需的存档摘要（无挂起对局时返回 null）
+  const resumableGame = computed(() => {
+    if (!isGameStarted.value || players.value.length === 0) return null
+    const p = mainPlayer.value
+    const cur = currentPlayer.value
+    return {
+      playerName: p?.name ?? '玩家',
+      turnNumber: turnNumber.value,
+      cash: p?.cash ?? 0,
+      cashFlow: p?.cashFlow ?? 0,
+      phase: phase.value,
+      playerCount: players.value.length,
+      currentPlayerName: cur?.name ?? p?.name ?? '',
+    }
+  })
+
   const currentPlayerAge = computed(() => {
     const totalMonths = gameMonth.value
     const years = calcPlayerAge(totalMonths)
@@ -546,6 +564,7 @@ export const useGameStore = defineStore('game', () => {
       gameStartTime: gameStartTime.value,
       ratRaceTurns: ratRaceTurns.value,
       fastTrackTurns: fastTrackTurns.value,
+      schemaVersion: SAVE_SCHEMA_VERSION,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }
@@ -555,6 +574,11 @@ export const useGameStore = defineStore('game', () => {
     if (!raw) return
     try {
       const state: GameState = JSON.parse(raw)
+      // v2.3: 若存档来自更新的 schema 版本（无法向后兼容），丢弃以免损坏数据
+      if (state.schemaVersion && state.schemaVersion > SAVE_SCHEMA_VERSION) {
+        localStorage.removeItem(STORAGE_KEY)
+        return
+      }
       players.value = state.players.map((p) => {
         const patched: Player = { ...p }
         patched.unemploymentTurns ??= 0
@@ -1383,9 +1407,26 @@ export const useGameStore = defineStore('game', () => {
       case 'opportunity':
       case 'small_opportunity':
       case 'big_opportunity': {
-        const isBig = landedCell.type === 'big_opportunity'
-        const deckKey = isBig ? 'bigOpportunity' : 'smallOpportunity'
-        const drawFn = isBig ? drawBigOpportunityCard : drawSmallOpportunityCard
+        let isBig = landedCell.type === 'big_opportunity'
+        let deckKey: 'bigOpportunity' | 'smallOpportunity' = isBig ? 'bigOpportunity' : 'smallOpportunity'
+        let drawFn = isBig ? drawBigOpportunityCard : drawSmallOpportunityCard
+
+        // v2.3 渐进式机会梯度：现金不足以覆盖最便宜的大机会首付时，
+        // 将大机会格替换为可为决策的小/中机会，避免"只能看着大机会离开"。
+        // 随财富跨越阶梯，真实大机会逐步解锁，形成 小→中→大 的成长曲线。
+        if (isBig) {
+          const cash = player.cash
+          const minBigDown = decks.value.bigOpportunity.reduce(
+            (m, c) => Math.min(m, c.downPayment ?? c.cost),
+            Infinity,
+          )
+          if (minBigDown !== Infinity && cash < minBigDown) {
+            isBig = false
+            deckKey = 'smallOpportunity'
+            drawFn = drawSmallOpportunityCard
+          }
+        }
+
         const { card, remaining } = drawFn(decks.value[deckKey])
         decks.value[deckKey] = remaining
         recordCardDrawn('opportunity', card)
@@ -1452,10 +1493,16 @@ export const useGameStore = defineStore('game', () => {
         } else if (!cooldownElapsed) {
           setPending(null, '家庭正处稳定期，暂时没有再添新丁。')
         } else {
+          const oldCount = player.childrenCount
+          const perChildExpense = player.career.expenses.child
           player.childrenCount += 1
           player.lastChildTurn = turnNumber.value
           recalcPlayerFinancials(player)
-          setMessageToast(`孩子出生！你现在有 ${player.childrenCount} 个孩子，子女支出增加。`, 'major')
+          recordTransaction('child', -perChildExpense, `家庭新添人口：孩子 ${oldCount} → ${player.childrenCount}`, player.id)
+          setMessageToast(
+            `👶 家庭变化\n孩子数量 ${oldCount} → ${player.childrenCount}\n每月支出 +${formatMoney(perChildExpense)}\n新的月现金流 ${formatMoney(player.cashFlow)}`,
+            'major',
+          )
         }
         break
       }
@@ -2990,6 +3037,7 @@ export const useGameStore = defineStore('game', () => {
     toggleLearningMode,
     currentPlayer,
     isGameStarted,
+    resumableGame,
     canCurrentPlayerEnterFastTrack,
     correctTotalAssets,
     correctTotalLiabilities,
