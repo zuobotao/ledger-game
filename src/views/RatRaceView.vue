@@ -16,6 +16,7 @@ import {
   BriefcaseBusiness,
   PieChart,
   HeartHandshake,
+  Menu,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import type { Asset, Liability, MarketEventCard, OpportunityCard, StoryCard } from '@/types/game'
@@ -580,42 +581,58 @@ const showActionPanel = computed(() => {
 
       <!-- 右侧：操作按钮 -->
       <div class="flex items-center gap-1.5 sm:gap-2">
-        <!-- 银行 -->
+        <!-- 移动端：三个入口收敛为单个「玩家中心」（计划 §17） -->
         <button
+          v-if="isMobile"
           type="button"
-          data-testid="bank-button"
-          :disabled="isCurrentPlayerAI"
-          class="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
-          title="银行"
-          @click="bankInitialTab = 'deposit'; showBankModal = true"
+          data-testid="mobile-player-center-button"
+          class="ml-auto flex h-9 items-center gap-1.5 rounded-full bg-secondary px-3 text-foreground hover:bg-muted"
+          :title="hasAnyInsurance ? '保险管理' : '玩家中心'"
+          @click="bankInitialTab = hasAnyInsurance ? 'insurance' : 'statement'; showBankModal = true"
         >
-          <Landmark class="h-5 w-5" />
+          <Menu class="h-5 w-5" />
+          <span class="text-xs font-semibold">玩家中心</span>
         </button>
-        <!-- 财务报表（打开财务报表弹窗，全平台可见） -->
-        <button
-          type="button"
-          data-testid="financial-statement-button"
-          class="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-muted"
-          title="财务报表"
-          @click="bankInitialTab = 'statement'; showBankModal = true"
-        >
-          <PieChart class="h-5 w-5" />
-        </button>
-        <!-- 保险（打开银行保险Tab） -->
-        <button
-          v-if="showInsuranceButton"
-          type="button"
-          :class="[
-            'flex h-9 w-9 items-center justify-center rounded-full transition',
-            hasAnyInsurance
-              ? 'bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30'
-              : 'bg-success/20 text-success hover:bg-success/30',
-          ]"
-          :title="hasAnyInsurance ? '保险管理' : '购买保险'"
-          @click="openBankInsuranceTab"
-        >
-          <Shield class="h-5 w-5" />
-        </button>
+
+        <!-- 桌面端：银行 / 财务报表 / 保险 三个独立入口 -->
+        <template v-if="!isMobile">
+          <!-- 银行 -->
+          <button
+            type="button"
+            data-testid="bank-button"
+            :disabled="isCurrentPlayerAI"
+            class="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+            title="银行"
+            @click="bankInitialTab = 'deposit'; showBankModal = true"
+          >
+            <Landmark class="h-5 w-5" />
+          </button>
+          <!-- 财务报表（打开财务报表弹窗，全平台可见） -->
+          <button
+            type="button"
+            data-testid="financial-statement-button"
+            class="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-muted"
+            title="财务报表"
+            @click="bankInitialTab = 'statement'; showBankModal = true"
+          >
+            <PieChart class="h-5 w-5" />
+          </button>
+          <!-- 保险（打开银行保险Tab） -->
+          <button
+            v-if="showInsuranceButton"
+            type="button"
+            :class="[
+              'flex h-9 w-9 items-center justify-center rounded-full transition',
+              hasAnyInsurance
+                ? 'bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30'
+                : 'bg-success/20 text-success hover:bg-success/30',
+            ]"
+            :title="hasAnyInsurance ? '保险管理' : '购买保险'"
+            @click="openBankInsuranceTab"
+          >
+            <Shield class="h-5 w-5" />
+          </button>
+        </template>
       </div>
     </header>
 

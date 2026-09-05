@@ -10,6 +10,33 @@
   scrollbar-width: none;
 }
 
+/* Desktop 长列表可拖动滚动条（计划 §16）：
+   仅在具备精细指针（鼠标/触控板）的桌面端显示明显的可拖拽 thumb，
+   移动端保留自然触摸滚动。 */
+@media (pointer: fine) {
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-gray-600, rgba(120, 120, 130, 0.55));
+    border-radius: 5px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--color-gray-500, rgba(90, 90, 100, 0.8));
+    background-clip: padding-box;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-gray-600, rgba(120, 120, 130, 0.55)) transparent;
+  }
+}
+
 /* Smooth transitions */
 button, a, [role='button'] {
   transition: all 0.18s ease;
