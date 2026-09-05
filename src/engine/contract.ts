@@ -37,6 +37,7 @@ export type GameAction =
   | HandleCharityAction
   | BuyOpportunityAction
   | SellOpportunityAction
+  | SkipStockSellAction
   | DeclineOpportunityAction
   | HandleMarketAction
   | HandleDoodadAction
@@ -115,6 +116,12 @@ export interface SellOpportunityAction {
   assetId: string
   quantity?: number
   price?: number
+}
+
+/** 股票卖出轮询中放弃本次卖出并推进到下一响应者（未持股 / 不卖时使用） */
+export interface SkipStockSellAction {
+  type: 'skip_stock_sell'
+  playerId: string
 }
 
 export interface DeclineOpportunityAction {
@@ -686,6 +693,7 @@ export const GAME_ACTION_TYPES = [
   'handle_charity',
   'buy_opportunity',
   'sell_opportunity',
+  'skip_stock_sell',
   'decline_opportunity',
   'handle_market',
   'handle_doodad',
