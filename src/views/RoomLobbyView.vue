@@ -6,7 +6,7 @@ import { useDisplayMode } from '@/composables/useDisplayMode'
 import { useMultiplayerStore } from '@/stores/multiplayer'
 import { CAREERS, getCareerById } from '@/data/careers'
 import { DREAMS } from '@/data/dreams'
-import { PLAYER_COLORS, type Career } from '@/types/game'
+import { PLAYER_COLORS, type Career, type Dream } from '@/types/game'
 import CareerSelectorModal from '@/components/CareerSelectorModal.vue'
 import DreamSelectorModal from '@/components/DreamSelectorModal.vue'
 import CareerDetailCard from '@/components/CareerDetailCard.vue'
@@ -27,6 +27,8 @@ const dreamModalOpen = ref(false)
 // 职业详情弹窗
 const careerDetailOpen = ref(false)
 const careerDetailTarget = ref<Career | null>(null)
+const dreamDetailOpen = ref(false)
+const dreamDetailTarget = ref<Dream | null>(null)
 
 const myPid = computed(() => store.session?.playerId ?? '')
 const myNickname = computed(() => store.session?.nickname ?? store.nickname ?? '')
@@ -100,6 +102,17 @@ function closeCareerDetail() {
 function showSelectedCareerDetail() {
   const career = getCareerById(selectedCareer.value)
   if (career) openCareerDetail(career)
+}
+function showSelectedDreamDetail() {
+  const dream = DREAMS.find((item) => item.id === selectedDream.value)
+  if (dream) {
+    dreamDetailTarget.value = dream
+    dreamDetailOpen.value = true
+  }
+}
+function closeDreamDetail() {
+  dreamDetailOpen.value = false
+  dreamDetailTarget.value = null
 }
 
 function toggleReady() {
@@ -266,20 +279,32 @@ watch(
 
           <!-- 梦想选择行 -->
           <label class="mb-1.5 block text-xs font-medium text-muted-foreground">梦想</label>
-          <button
-            type="button"
-            data-testid="open-dream-selector"
-            class="mb-4 flex h-11 w-full items-center justify-between rounded-xl border border-border bg-background px-3 text-left transition hover:border-primary/50"
-            @click="dreamModalOpen = true"
-          >
-            <span
-              class="min-w-0 flex-1 truncate text-sm font-medium"
-              :class="selectedDream ? 'text-foreground' : 'text-muted-foreground'"
+          <div class="mb-4 flex gap-2">
+            <button
+              type="button"
+              data-testid="open-dream-selector"
+              class="flex h-11 flex-1 items-center justify-between rounded-xl border border-border bg-background px-3 text-left transition hover:border-primary/50"
+              @click="dreamModalOpen = true"
             >
-              {{ selectedDreamName }}
-            </span>
-            <ChevronDown class="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
-          </button>
+              <span
+                class="min-w-0 flex-1 truncate text-sm font-medium"
+                :class="selectedDream ? 'text-foreground' : 'text-muted-foreground'"
+              >
+                {{ selectedDreamName }}
+              </span>
+              <ChevronDown class="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+            </button>
+            <button
+              type="button"
+              data-testid="dream-detail-current"
+              title="查看梦想详情"
+              :disabled="!selectedDream"
+              class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+              @click="showSelectedDreamDetail"
+            >
+              <Info class="h-4 w-4" />
+            </button>
+          </div>
 
           <!-- 颜色 -->
           <label class="mb-1.5 block text-xs font-medium text-muted-foreground">颜色</label>
@@ -364,6 +389,33 @@ watch(
             <X class="w-4 h-4" />
           </button>
           <CareerDetailCard v-if="careerDetailTarget" :career="careerDetailTarget" />
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- 梦想详情 Modal -->
+    <Teleport to="body">
+      <div
+        v-if="dreamDetailOpen && dreamDetailTarget"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+        @click.self="closeDreamDetail"
+      >
+        <div class="relative w-full max-w-sm rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-2xl">
+          <button
+            type="button"
+            aria-label="关闭梦想详情"
+            class="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+            @click="closeDreamDetail"
+          >
+            <X class="h-4 w-4" />
+          </button>
+          <h3 class="pr-8 text-lg font-semibold text-foreground">{{ dreamDetailTarget.name }}</h3>
+          <p class="mt-1 text-sm text-muted-foreground">{{ dreamDetailTarget.description }}</p>
+          <div class="mt-4 flex items-center justify-between rounded-xl bg-secondary/40 px-3 py-2">
+            <span class="text-xs text-muted-foreground">目标成本</span>
+            <span class="font-semibold text-success">${{ dreamDetailTarget.price.toLocaleString() }}</span>
+          </div>
+          <p class="mt-4 text-sm leading-6 text-foreground/80">{{ dreamDetailTarget.story }}</p>
         </div>
       </div>
     </Teleport>
