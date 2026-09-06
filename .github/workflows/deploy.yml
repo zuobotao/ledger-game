@@ -37,6 +37,9 @@ jobs:
         run: npm run type-check
 
       - name: Build
+        env:
+          VITE_ROOM_HTTP: ${{ vars.VITE_ROOM_HTTP }}
+          VITE_ROOM_WS: ${{ vars.VITE_ROOM_WS }}
         run: npm run build
 
       - name: Setup Pages

@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: ledger-room-server
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm run server
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.18.0
+      - key: ROOM_PORT
+        value: 10000

@@ -76,3 +76,10 @@ npm run build
 
 The server health check is `GET /health`. The browser client must never use
 `localhost` for a room server that other devices need to reach.
+
+The repository includes `render.yaml` for a Render deployment. After the service
+is created, add these GitHub Actions repository variables so Pages builds point at
+the public server:
+
+- `VITE_ROOM_HTTP`: the Render HTTPS URL, for example `https://ledger-room-server.onrender.com`
+- `VITE_ROOM_WS`: the matching WebSocket URL, for example `wss://ledger-room-server.onrender.com/ws`
