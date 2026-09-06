@@ -63,6 +63,12 @@ test.describe('多人房间 E2E', () => {
     await expect(pageB.locator('[data-testid="lobby-player"]')).toHaveCount(2, { timeout: 15_000 })
 
     // 随机按钮必须直接设置对应字段，且不能把职业和梦想按钮放错行。
+    const careerRow = pageA.locator('[data-testid="career-setup-row"]')
+    const dreamRow = pageA.locator('[data-testid="dream-setup-row"]')
+    await expect(careerRow.locator('[data-testid="random-career"]')).toHaveCount(1)
+    await expect(careerRow.locator('[data-testid="random-dream"]')).toHaveCount(0)
+    await expect(dreamRow.locator('[data-testid="random-career"]')).toHaveCount(0)
+    await expect(dreamRow.locator('[data-testid="random-dream"]')).toHaveCount(1)
     await pageA.click('[data-testid="random-career"]')
     await expect(pageA.locator('[data-testid="open-career-selector"]')).not.toContainText('请选择职业')
     await pageA.click('[data-testid="random-dream"]')

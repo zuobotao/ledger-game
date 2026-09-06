@@ -256,7 +256,7 @@ watch(
 
           <!-- 职业选择行 -->
           <label class="mb-1.5 block text-xs font-medium text-muted-foreground">职业</label>
-          <div class="mb-4 flex gap-2">
+          <div class="mb-4 flex gap-2" data-testid="career-setup-row">
             <button
               type="button"
               data-testid="open-career-selector"
@@ -295,7 +295,7 @@ watch(
 
           <!-- 梦想选择行 -->
           <label class="mb-1.5 block text-xs font-medium text-muted-foreground">梦想</label>
-          <div class="mb-4 flex gap-2">
+          <div class="mb-4 flex gap-2" data-testid="dream-setup-row">
             <button
               type="button"
               data-testid="open-dream-selector"
