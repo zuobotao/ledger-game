@@ -132,9 +132,12 @@ function showSelectedCareerDetail() {
 function showSelectedDreamDetail() {
   const dream = DREAMS.find((item) => item.id === selectedDream.value)
   if (dream) {
-    dreamDetailTarget.value = dream
-    dreamDetailOpen.value = true
+    openDreamDetail(dream)
   }
+}
+function openDreamDetail(dream: Dream) {
+  dreamDetailTarget.value = dream
+  dreamDetailOpen.value = true
 }
 function randomCareer() {
   onCareerSelected(getRandomCareer().id)
@@ -427,6 +430,7 @@ watch(
       auto-confirm
       :show-random="false"
       @confirm="onDreamSelected"
+      @detail="openDreamDetail"
     />
 
     <!-- 职业详情 Modal -->

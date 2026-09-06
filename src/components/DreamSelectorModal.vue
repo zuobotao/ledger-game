@@ -24,6 +24,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (e: 'confirm', dreamId: string): void
   (e: 'select', dream: Dream): void
+  (e: 'detail', dream: Dream): void
 }>()
 
 const localDreamId = ref(props.selectedDreamId)
@@ -102,6 +103,7 @@ function onSelect(dream: Dream) {
                 :dreams="DREAMS"
                 :show-random="showRandom"
                 @select="onSelect"
+                @detail="(dream) => emit('detail', dream)"
               />
             </div>
 

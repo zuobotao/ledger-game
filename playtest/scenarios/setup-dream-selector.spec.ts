@@ -15,6 +15,10 @@ async function assertDreamSelector(page: import('@playwright/test').Page) {
 
   await page.getByTestId('open-dream-selector-0').click()
   await expect(page.getByRole('heading', { name: '选择梦想' })).toBeVisible()
+  await page.getByTestId('dream-detail-beach-house').click()
+  await expect(page.getByTestId('dream-detail-modal')).toContainText('拥有一座面朝大海')
+  await expect(page.getByTestId('dream-detail-modal')).toContainText('推开窗就是蔚蓝大海')
+  await page.getByRole('button', { name: '关闭梦想详情' }).click()
   await page.getByTestId('dream-beach-house').click()
   await page.getByRole('button', { name: '确认选择' }).click()
   await expect(page.getByTestId('open-dream-selector-0')).toContainText('海边别墅')

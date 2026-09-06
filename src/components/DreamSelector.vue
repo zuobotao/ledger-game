@@ -17,6 +17,7 @@ import {
   Check,
   Shuffle,
   Star,
+  Info,
 } from 'lucide-vue-next'
 import type { Dream } from '@/types/game'
 import { getRandomDream } from '@/data/dreams'
@@ -30,6 +31,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [id: string]
   select: [dream: Dream]
+  detail: [dream: Dream]
 }>()
 
 // 类别标签
@@ -107,6 +109,10 @@ function selectDream(dream: Dream) {
   emit('select', dream)
 }
 
+function showDetail(dream: Dream) {
+  emit('detail', dream)
+}
+
 function formatMoney(n: number): string {
   return `$${Math.round(n).toLocaleString()}`
 }
@@ -156,10 +162,11 @@ const selectedDream = computed(() => {
     <div
       class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
     >
-      <button
+      <div
         v-for="dream in dreams"
         :key="dream.id"
-        type="button"
+        role="button"
+        tabindex="0"
         :data-testid="`dream-${dream.id}`"
         class="group relative flex flex-col items-center bg-card border rounded-[var(--radius-md)] overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
         :class="[
@@ -168,7 +175,17 @@ const selectedDream = computed(() => {
             : 'border-border hover:border-gray-500',
         ]"
         @click="selectDream(dream)"
+        @keydown.enter="selectDream(dream)"
       >
+        <button
+          type="button"
+          :data-testid="`dream-detail-${dream.id}`"
+          title="查看梦想详情"
+          class="absolute top-2 right-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          @click.stop="showDetail(dream)"
+        >
+          <Info class="h-3.5 w-3.5" />
+        </button>
         <!-- 顶部渐变色条 -->
         <div
           class="w-full h-2"
@@ -217,7 +234,7 @@ const selectedDream = computed(() => {
             {{ getCategoryLabel(dream.category) }}
           </span>
         </div>
-      </button>
+      </div>
     </div>
   </div>
 </template>

@@ -16,8 +16,9 @@ import { useGameStore } from '@/stores/game'
 import { CAREERS, getCareerById, getRandomCareer } from '@/data/careers'
 import { DREAMS, getRandomDream } from '@/data/dreams'
 import { PLAYER_COLORS, type PlayerColorId } from '@/types/game'
-import type { GameConfig, Career } from '@/types/game'
+import type { GameConfig, Career, Dream } from '@/types/game'
 import CareerDetailCard from '@/components/CareerDetailCard.vue'
+import DreamDetailCard from '@/components/DreamDetailCard.vue'
 import CareerSelectorModal from '@/components/CareerSelectorModal.vue'
 import DreamSelectorModal from '@/components/DreamSelectorModal.vue'
 
@@ -95,6 +96,8 @@ const errorMessage = ref('')
 // 职业详情 modal
 const careerDetailModalOpen = ref(false)
 const careerDetailCareer = ref<Career | null>(null)
+const dreamDetailModalOpen = ref(false)
+const dreamDetailDream = ref<Dream | null>(null)
 
 // 职业选择器 modal
 const careerSelectorOpen = ref(false)
@@ -135,6 +138,16 @@ function openCareerDetail(careerId: string) {
 function closeCareerDetail() {
   careerDetailModalOpen.value = false
   careerDetailCareer.value = null
+}
+
+function openDreamDetail(dream: Dream) {
+  dreamDetailDream.value = dream
+  dreamDetailModalOpen.value = true
+}
+
+function closeDreamDetail() {
+  dreamDetailModalOpen.value = false
+  dreamDetailDream.value = null
 }
 
 function randomCareerForPlayer(index: number) {
@@ -562,12 +575,34 @@ const dockSummary = computed(() => {
     />
 
     <!-- 梦想选择器 Modal -->
-    <DreamSelectorModal
+  <DreamSelectorModal
       v-model="dreamSelectorOpen"
       :selected-dream-id="playerSetups[dreamSelectorPlayerIndex]?.dreamId ?? ''"
       :player-name="playerSetups[dreamSelectorPlayerIndex]?.name ?? ''"
       :show-random="false"
-      @confirm="onDreamSelected"
-    />
+    @confirm="onDreamSelected"
+    @detail="openDreamDetail"
+  />
+
+  <Teleport to="body">
+    <div
+      v-if="dreamDetailModalOpen && dreamDetailDream"
+      class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      data-testid="dream-detail-modal"
+      @click.self="closeDreamDetail"
+    >
+      <div class="relative w-full max-w-sm">
+        <button
+          type="button"
+          aria-label="关闭梦想详情"
+          class="absolute -right-2 -top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 text-gray-300 shadow-lg transition hover:bg-gray-600 hover:text-white"
+          @click="closeDreamDetail"
+        >
+          <X class="h-4 w-4" />
+        </button>
+        <DreamDetailCard :dream="dreamDetailDream" />
+      </div>
+    </div>
+  </Teleport>
   </main>
 </template>
