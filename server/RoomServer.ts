@@ -115,6 +115,9 @@ export class RoomServer {
     if (!input.sessionId || !input.nickname) {
       return this.respondJson(res, 400, { error: ErrorCodes.INVALID_MESSAGE })
     }
+    if (this.sessionRegistry.getBySessionId(input.sessionId)) {
+      return this.respondJson(res, 409, { error: ErrorCodes.SESSION_EXPIRED })
+    }
     const room = this.roomManager.create({
       name: input.name,
       host: { sessionId: input.sessionId, nickname: input.nickname },
@@ -249,6 +252,10 @@ export class RoomServer {
       case 'join_room': {
         const room = this.roomManager.getByCode(msg.roomCode)
         if (!room) throw new RoomError(ErrorCodes.ROOM_NOT_FOUND, '房间不存在')
+        // Existing seats must use token-authenticated reconnect.
+        if (this.sessionRegistry.getBySessionId(msg.sessionId)) {
+          throw new RoomError(ErrorCodes.SESSION_EXPIRED, '已有会话，请使用令牌重连')
+        }
         const player = this.roomManager.join(room.id, msg.sessionId, msg.nickname)
         const rec = this.sessionRegistry.register({
           sessionId: msg.sessionId,
@@ -413,6 +420,9 @@ export class RoomServer {
       throw new RoomError(ErrorCodes.SESSION_EXPIRED, '会话已失效，请重新加入')
     }
     const rec = this.sessionRegistry.getBySessionId(sessionId)!
+    if (rec.roomId !== room.id || !room.getPlayerById(rec.playerId)) {
+      throw new RoomError(ErrorCodes.SESSION_EXPIRED, '会话不属于此房间')
+    }
     this.bind(conn, { sessionId, playerId: rec.playerId, roomId: room.id, nickname: rec.nickname })
     this.roomManager.markConnected(rec.playerId)
     // 玩家回位后先广播（恢复状态），最后下发重连快照

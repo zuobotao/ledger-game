@@ -301,3 +301,35 @@ describe('Phase 9 — 游戏结束后 Action 被拒', () => {
     expect(err.code).toBe(ErrorCodes.INVALID_ACTION)
   })
 })
+
+describe('Session ownership regression', () => {
+  it('requires credentials to reuse a registered session when joining', async () => {
+    const host = await createRoomDirect()
+    const client = await createClient()
+    sendText(client.sock, { type: 'join_room', roomCode: host.code, sessionId: host.sessionId, nickname: 'duplicate' })
+    const reply = await client.decoder.next()
+    expect(reply.type).toBe('error')
+    expect(reply.code).toBe(ErrorCodes.SESSION_EXPIRED)
+    expect(roomServer.sessionRegistry.getBySessionId(host.sessionId)?.token).toBe(host.token)
+  })
+
+  it('does not reuse a registered session through HTTP room creation', async () => {
+    const host = await createRoomDirect()
+    const response = await fetch(`http://127.0.0.1:${port}/rooms`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: host.sessionId, nickname: 'duplicate' }),
+    })
+    expect(response.status).toBe(409)
+    expect(roomServer.sessionRegistry.getBySessionId(host.sessionId)?.roomId).toBe(host.roomId)
+  })
+
+  it('rejects a valid credential for a different room', async () => {
+    const host = await createRoomDirect()
+    const other = await createRoomDirect()
+    const client = await createClient()
+    sendText(client.sock, { type: 'reconnect', sessionId: host.sessionId, roomId: other.roomId, token: host.token })
+    const reply = await client.decoder.next()
+    expect(reply.type).toBe('error')
+    expect(reply.code).toBe(ErrorCodes.SESSION_EXPIRED)
+  })
+})

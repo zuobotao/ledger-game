@@ -929,11 +929,47 @@ export const useGameStore = defineStore('game', () => {
     return msg
   }
 
-  function requireLoanForPayment(amount: number, reason: string, onResolved: () => void): boolean {
+  type PendingPaymentKind = 'doodad' | 'story' | 'charity' | 'fast_track_doodad'
+
+  function resolvePayment(amount: number, kind: PendingPaymentKind, card: DoodadCard | StoryCard | null) {
+    const player = currentPlayer.value
+    if (!player) return
+    player.cash -= amount
+    switch (kind) {
+      case 'doodad':
+        recordTransaction('doodad', -amount, card!.title, player.id)
+        setPending(null, `生活意外：${card!.title}，支出 ${formatMoney(amount)}。`)
+        break
+      case 'story': {
+        const story = card as StoryCard
+        recordTransaction('story_loss', -amount, `${story.title} - ${story.effect.description}`, player.id)
+        setPending('story', `${story.title}：${story.effect.description}`, story)
+        break
+      }
+      case 'charity':
+        player.doubleDiceNextTurn = true
+        player.charityProtection = true
+        recordTransaction('charity', -amount, '慈善捐赠')
+        setMessageToast(`你捐赠了 ${formatMoney(amount)}，下回合掷双骰，同时获得慈善保护（下次裁员免疫）。`, 'major')
+        break
+      case 'fast_track_doodad':
+        setPending(null, `资本游戏 生活意外：支出 ${formatMoney(amount)}。`)
+        break
+    }
+    turnStatus.value = 'resolving'
+    saveState()
+  }
+
+  function requireLoanForPayment(
+    amount: number,
+    reason: string,
+    kind: PendingPaymentKind,
+    card: DoodadCard | StoryCard | null = null,
+  ): boolean {
     const player = currentPlayer.value
     if (!player) return false
     if (player.cash >= amount) {
-      onResolved()
+      resolvePayment(amount, kind, card)
       return true
     }
     const shortfall = amount - player.cash
@@ -941,24 +977,17 @@ export const useGameStore = defineStore('game', () => {
     setPending(
       'need_loan',
       `${reason} 需要 ${formatMoney(amount)}，你当前现金 ${formatMoney(player.cash)}，差额 ${formatMoney(shortfall)}。是否申请银行贷款 ${formatMoney(needed)}？`,
-      null,
-      { amount, needed, onResolved: onResolved as unknown as () => void },
+      card,
+      { amount, needed, kind },
     )
+    turnStatus.value = 'resolving'
+    saveState()
     return false
   }
 
-  function applyDoodad(card: DoodadCard, player: Player): string {
-    const paid = requireLoanForPayment(card.cost, `生活意外：${card.title}`, () => {
-      player.cash -= card.cost
-      recordTransaction('doodad', -card.cost, card.title, player.id)
-      setPending(null, `生活意外：${card.title}，支出 ${formatMoney(card.cost)}。`)
-      turnStatus.value = 'resolving'
-      saveState()
-    })
-    if (!paid) {
-      pendingAction.value.card = card
-      return pendingAction.value.message
-    }
+  function applyDoodad(card: DoodadCard, _player: Player): string {
+    const paid = requireLoanForPayment(card.cost, `生活意外：${card.title}`, 'doodad', card)
+    if (!paid) return pendingAction.value.message
     return `生活意外：${card.title}，支出 ${formatMoney(card.cost)}。`
   }
 
@@ -976,17 +1005,8 @@ export const useGameStore = defineStore('game', () => {
         } else {
           // 负数：现金减少
           const absAmount = Math.abs(amount)
-          const paid = requireLoanForPayment(absAmount, `故事卡：${card.title}`, () => {
-            player.cash += amount // amount is negative
-            recordTransaction('story_loss', amount, `${card.title} - ${effect.description}`, player.id)
-            setPending('story', `${card.title}：${effect.description}`, card)
-            turnStatus.value = 'resolving'
-            saveState()
-          })
-          if (!paid) {
-            pendingAction.value.card = card
-            return pendingAction.value.message
-          }
+          const paid = requireLoanForPayment(absAmount, `故事卡：${card.title}`, 'story', card)
+          if (!paid) return pendingAction.value.message
           message = `${card.title}：${effect.description}`
         }
         break
@@ -1630,18 +1650,7 @@ export const useGameStore = defineStore('game', () => {
     const player = currentPlayer.value
     if (!player || pendingAction.value.type !== 'charity') return
     const donation = Math.round(player.totalIncome * 0.1)
-    const paid = requireLoanForPayment(donation, '慈善捐赠', () => {
-      player.cash -= donation
-      player.doubleDiceNextTurn = true
-      player.charityProtection = true
-      recordTransaction('charity', -donation, '慈善捐赠')
-      setMessageToast(`你捐赠了 ${formatMoney(donation)}，下回合掷双骰，同时获得慈善保护（下次裁员免疫）。`, 'major')
-      turnStatus.value = 'resolving'
-      saveState()
-    })
-    if (!paid) {
-      pendingAction.value.meta = { ...pendingAction.value.meta, kind: 'charity', donation }
-    }
+    requireLoanForPayment(donation, '慈善捐赠', 'charity')
   }
 
   function declineCharity() {
@@ -2024,17 +2033,16 @@ export const useGameStore = defineStore('game', () => {
     if (pendingAction.value.type !== 'need_loan') return false
     const player = currentPlayer.value
     if (!player) return false
-    const needed = (pendingAction.value.meta?.needed as number) ?? 0
-    if (needed <= 0) return false
-    const ok = takeBankLoan(needed)
-    if (!ok) return false
-    const onResolved = pendingAction.value.meta?.onResolved as (() => void) | undefined
-    if (onResolved) {
-      onResolved()
-    } else {
-      turnStatus.value = 'resolving'
-      saveState()
-    }
+    const pending = pendingAction.value
+    const amount = Number(pending.meta?.amount)
+    const card = pending.card as DoodadCard | StoryCard | null
+    // Existing saves contain the card/charity kind, but JSON omitted their callback.
+    const kind = (pending.meta?.kind ?? (card && 'effect' in card ? 'story' : card ? 'doodad' : player.phase === 'fast_track' ? 'fast_track_doodad' : null)) as PendingPaymentKind | null
+    if (!kind || !['doodad', 'story', 'charity', 'fast_track_doodad'].includes(kind)) return false
+    if (!Number.isFinite(amount) || amount <= 0 || ((kind === 'doodad' || kind === 'story') && !card)) return false
+    const needed = Math.ceil(Math.max(0, amount - player.cash) / BANK_CONFIG.loanStep) * BANK_CONFIG.loanStep
+    if (needed > 0 && !takeBankLoan(needed)) return false
+    resolvePayment(amount, kind, card)
     return true
   }
 
@@ -2513,12 +2521,7 @@ export const useGameStore = defineStore('game', () => {
       }
       case 'doodad': {
         const cost = Math.max(5000, player.cashFlow * 10)
-        const paid = requireLoanForPayment(cost, '资本游戏 生活意外', () => {
-          player.cash -= cost
-          setPending(null, `资本游戏 生活意外：支出 ${formatMoney(cost)}。`)
-          turnStatus.value = 'resolving'
-          saveState()
-        })
+        const paid = requireLoanForPayment(cost, '资本游戏 生活意外', 'fast_track_doodad')
         if (!paid) return
         break
       }

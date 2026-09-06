@@ -143,7 +143,7 @@ async function dismissDecisionFeedback(page: Page) {
 
 /** 在银行内按文本定位可点击按钮（精确匹配），始终限定在打开的模态内 */
 async function clickBankBtn(page: Page, name: string) {
-  const btn = page.locator('[data-overlay="true"]').getByRole('button', { name, exact: true })
+  const btn = page.getByRole('dialog').getByRole('button', { name, exact: true })
   await btn.waitFor({ state: 'visible', timeout: 10_000 })
   await btn.click()
   await page.waitForTimeout(250)
@@ -216,9 +216,9 @@ test.describe('Phase 8 · 完整单人财务闭环 (Desktop 1280×800)', () => {
     expect(s.netWorth).toBeCloseTo(initNetWorth, 8)
 
     // ===== 贷款 $5000 → cash↑5000，负债↑，月还款计入支出 =====
-    await clickBankBtn(page, '贷款')
+    await page.getByRole('dialog').getByRole('button', { name: '贷款', exact: true }).first().click()
     await page.fill('input[type="number"]', '5000')
-    await clickBankBtn(page, '借款')
+    await page.getByTestId('bank-loan-button').click()
     s = (await snap(page))!
     expectFinite(s, '贷款后')
     expect(s.cash).toBeCloseTo(initCash + 4400, 8)
@@ -228,10 +228,11 @@ test.describe('Phase 8 · 完整单人财务闭环 (Desktop 1280×800)', () => {
     await dismissDecisionFeedback(page)
 
     // ===== 还款 $2000 → cash↓2000，负债↓2000，支出-200 =====
-    await clickBankBtn(page, '还款')
+    await dismissDecisionFeedback(page)
+    await page.getByRole('dialog').getByRole('button', { name: '贷款', exact: true }).first().click()
     // 还款 tab 中「还款金额」输入框（避免误填其他 number 输入）
     await page.locator('label:has-text("还款金额") + input[type="number"]').fill('2000')
-    await clickBankBtn(page, '偿还银行贷款')
+    await page.getByTestId('bank-loan-repay-button').first().click()
     await dismissDecisionFeedback(page)
     s = (await snap(page))!
     expectFinite(s, '还款后')
