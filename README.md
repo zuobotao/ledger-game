@@ -56,3 +56,23 @@ npm run build
 ```sh
 npm run lint
 ```
+
+### Multiplayer room server
+
+GitHub Pages serves the browser client only. PC and mobile players can share a room
+only when the Node room server is reachable from both devices.
+
+```sh
+npm run server
+```
+
+For a public deployment, set the Vite build variables before building:
+
+```sh
+VITE_ROOM_HTTP=https://rooms.example.com \
+VITE_ROOM_WS=wss://rooms.example.com/ws \
+npm run build
+```
+
+The server health check is `GET /health`. The browser client must never use
+`localhost` for a room server that other devices need to reach.

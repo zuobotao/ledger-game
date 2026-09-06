@@ -91,6 +91,9 @@ export class RoomServer {
   // ==================== HTTP Bootstrap ====================
 
   private async handleHttpBootstrap(req: IncomingMessage, res: import('node:http').ServerResponse): Promise<void> {
+    if (req.method === 'GET' && req.url === '/health') {
+      return this.respondJson(res, 200, { ok: true, service: 'ledger-room-server' })
+    }
     // CORS 预检：前端(3000/5173…)跨源 POST /rooms 前会先发 OPTIONS
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {
