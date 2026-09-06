@@ -61,6 +61,8 @@ test.describe('多人房间 E2E', () => {
     // 双方都看到 2 名玩家
     await expect(pageA.locator('[data-testid="lobby-player"]')).toHaveCount(2, { timeout: 15_000 })
     await expect(pageB.locator('[data-testid="lobby-player"]')).toHaveCount(2, { timeout: 15_000 })
+    await expect(pageA.getByText('已准备 1 / 2')).toBeVisible()
+    await expect(pageA.locator('p.mt-1').filter({ hasText: '等待' })).toContainText('小红')
 
     // 随机按钮必须直接设置对应字段，且不能把职业和梦想按钮放错行。
     const careerRow = pageA.locator('[data-testid="career-setup-row"]')
@@ -90,6 +92,8 @@ test.describe('多人房间 E2E', () => {
     await dismissVueDevtools(pageB)
     await expect(pageB.locator('[data-testid="lobby-ready"]')).toContainText('准备')
     await pageB.click('[data-testid="lobby-ready"]')
+    await expect(pageA.getByText('已准备 2 / 2')).toBeVisible({ timeout: 15_000 })
+    await expect(pageA.locator('p').filter({ hasText: '全部玩家已准备' })).toBeVisible({ timeout: 15_000 })
 
     // 房主 Start：等待按钮可点后点击
     await dismissVueDevtools(pageA)

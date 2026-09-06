@@ -57,6 +57,29 @@ const selectedDreamName = computed(() => {
   return DREAMS.find((d) => d.id === selectedDream.value)?.name ?? selectedDream.value
 })
 
+function isPlayerReady(player: { status: string }): boolean {
+  return player.status === 'ready'
+}
+
+const readyPlayers = computed(() =>
+  store.room?.players.filter((player) => isPlayerReady(player)) ?? [],
+)
+const notReadyPlayers = computed(() =>
+  store.room?.players.filter((player) => !isPlayerReady(player)) ?? [],
+)
+const missingCareerPlayers = computed(() =>
+  store.room?.players.filter((player) => isPlayerReady(player) && !player.careerId) ?? [],
+)
+const readinessSummary = computed(() => {
+  const room = store.room
+  if (!room) return ''
+  const waiting = notReadyPlayers.value
+  if (waiting.length > 0) return `等待 ${waiting.map((player) => player.nickname).join('、')} 准备`
+  const missingCareer = missingCareerPlayers.value
+  if (missingCareer.length > 0) return `已准备，但需 ${missingCareer.map((player) => player.nickname).join('、')} 选择职业`
+  return '全部玩家已准备'
+})
+
 function getCareerName(p: { careerId?: string }): string {
   if (!p.careerId) return '未选择'
   return CAREERS.find((c) => c.id === p.careerId)?.name ?? p.careerId
@@ -185,7 +208,11 @@ watch(
           <h1 class="truncate text-lg font-semibold text-foreground">{{ store.room.name }}</h1>
           <p class="mt-0.5 text-xs text-muted-foreground">
             {{ store.room.players.length }} / {{ store.room.config.maxPlayers }} 人
+            · 已准备 {{ readyPlayers.length }} / {{ store.room.players.length }}
             · {{ store.room.status === 'paused' ? '已暂停' : store.room.status === 'playing' ? '进行中' : '等待中' }}
+          </p>
+          <p v-if="store.room.status === 'waiting'" class="mt-1 text-xs text-muted-foreground">
+            {{ readinessSummary }}
           </p>
         </div>
         <button
@@ -205,6 +232,7 @@ watch(
         <h2 class="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
           <Users class="h-4 w-4" />
           玩家（{{ store.room.players.length }}/{{ store.room.config.maxPlayers }}）
+          <span class="font-normal text-muted-foreground">· 已准备 {{ readyPlayers.length }}</span>
         </h2>
         <ul class="space-y-2" data-testid="lobby-players">
           <li
@@ -233,9 +261,9 @@ watch(
             </div>
             <span
               class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
-              :class="p.status === 'ready' ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'"
+              :class="isPlayerReady(p) && p.careerId ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'"
             >
-              {{ p.status === 'ready' ? '已准备' : '未准备' }}
+              {{ isPlayerReady(p) && p.careerId ? '已准备' : isPlayerReady(p) ? '待选职业' : '未准备' }}
             </span>
           </li>
           <li
@@ -365,7 +393,7 @@ watch(
         class="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-md transition hover:brightness-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
         @click="doStart"
       >
-        {{ store.canStart ? `开始游戏（${store.room.players.length} 人）` : '等待全部玩家准备' }}
+        {{ store.canStart ? `开始游戏（${store.room.players.length} 人）` : readinessSummary || '等待全部玩家准备' }}
       </button>
       <button
         v-else
