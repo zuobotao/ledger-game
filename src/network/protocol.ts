@@ -290,6 +290,8 @@ export interface ReconnectSnapshotMessage {
   turn?: TurnContext
   stateHash?: string
   sequence?: number
+  /** 座位号 → 局内游戏玩家 id（重连客户端据此定位「自己」；缺失会导致 isMyTurn 恒为 false） */
+  playerMap?: Record<string, string>
   /** 会话已过期被回收时：ok=false，code=SESSION_EXPIRED */
   code?: ErrorCode
 }

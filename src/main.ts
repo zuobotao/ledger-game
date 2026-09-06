@@ -7,11 +7,13 @@ import App from './App.vue'
 import router from './router'
 import { useGameStore } from '@/stores/game'
 import { useGameHistoryStore } from '@/stores/gameHistory'
+import { useMultiplayerStore } from '@/stores/multiplayer'
 
 declare global {
   interface Window {
     gameStore: ReturnType<typeof useGameStore>
     gameHistoryStore: ReturnType<typeof useGameHistoryStore>
+    multiplayerStore: ReturnType<typeof useMultiplayerStore>
   }
 }
 
@@ -27,4 +29,5 @@ app.mount('#app')
 if (import.meta.env.DEV) {
   window.gameStore = useGameStore()
   window.gameHistoryStore = useGameHistoryStore()
+  window.multiplayerStore = useMultiplayerStore()
 }

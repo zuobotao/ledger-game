@@ -155,6 +155,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
           sessionInfo.value = msg.session ?? sessionInfo.value
           if (msg.state) gameState.value = msg.state
           if (msg.turn) turn.value = msg.turn
+          if (msg.playerMap) playerMap.value = msg.playerMap
           if (msg.stateHash) stateHash.value = msg.stateHash
           if (typeof msg.sequence === 'number') sequence.value = msg.sequence
         } else {

@@ -421,6 +421,12 @@ export class RoomServer {
     // 玩家回位后，若房间处于本期因该玩家离线而暂停 → 恢复
     if (session && room.status === 'paused') this.roomManager.resumeGame(room.id)
     const snap = session?.snapshot()
+    // 座位号 → 局内玩家 id 映射，随重连快照下发，重连客户端据此恢复「自己」身份
+    const playerMap: Record<string, string> = {}
+    room.players.forEach((p, i) => {
+      const gamePlayer = snap?.state.players[i]
+      if (gamePlayer) playerMap[p.playerId] = gamePlayer.id
+    })
     conn.send(
       JSON.stringify({
         type: 'reconnect_snapshot',
@@ -431,6 +437,7 @@ export class RoomServer {
         turn: snap?.turn,
         stateHash: snap?.stateHash,
         sequence: snap?.sequence,
+        playerMap,
       }),
     )
   }
