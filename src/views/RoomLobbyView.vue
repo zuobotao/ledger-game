@@ -458,6 +458,7 @@ watch(
       <div
         v-if="dreamDetailOpen && dreamDetailTarget"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+        data-testid="dream-detail-modal"
         @click.self="closeDreamDetail"
       >
         <div class="relative w-full max-w-sm rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-2xl">
