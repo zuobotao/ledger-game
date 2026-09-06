@@ -86,6 +86,16 @@ watch(
 )
 
 const feedback = computed(() => (isSingle.value ? vm.value.lastAction : null))
+const visibleWarnings = computed(() => {
+  const warnings = feedback.value?.warnings ?? []
+  const seen = new Set<string>()
+  return warnings.filter((warning) => {
+    const key = `${warning.level}:${warning.title ?? ''}:${warning.description}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+})
 const visibleMetrics = computed(() => {
   const delta = feedback.value?.delta
   if (!delta) return []
@@ -164,7 +174,7 @@ function warningTitle(w: GameWarning): string {
           @click.self="bankOpen = false"
         >
           <div
-            class="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-background shadow-2xl"
+            class="flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-background shadow-2xl sm:max-h-[88vh]"
             role="dialog"
             aria-modal="true"
           >
@@ -183,7 +193,7 @@ function warningTitle(w: GameWarning): string {
                 <X class="h-5 w-5" />
               </button>
             </div>
-            <div class="flex-1 overflow-y-auto">
+            <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
               <BankPanel :adapter="adapter" :initial-tab="bankTab" />
             </div>
           </div>
@@ -250,14 +260,14 @@ function warningTitle(w: GameWarning): string {
             </div>
 
             <!-- 风险警告 -->
-            <div v-if="feedback.warnings?.length" class="border-b border-border p-5">
+            <div v-if="visibleWarnings.length" class="border-b border-border p-5">
               <h4 class="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <AlertTriangle class="h-3.5 w-3.5 text-amber-500" />
                 需要注意
               </h4>
               <div class="space-y-2">
                 <div
-                  v-for="(w, idx) in feedback.warnings"
+                  v-for="(w, idx) in visibleWarnings"
                   :key="idx"
                   class="flex gap-2.5 rounded-xl border border-border bg-background p-3"
                 >
