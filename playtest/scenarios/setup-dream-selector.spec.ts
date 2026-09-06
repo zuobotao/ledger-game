@@ -8,6 +8,10 @@ async function assertDreamSelector(page: import('@playwright/test').Page) {
   await expect(page.locator('[data-testid^="open-dream-selector-"]')).toHaveCount(2)
   await expect(page.locator('[data-testid^="random-dream-"]:not([data-testid="random-dream-all"])')).toHaveCount(2)
   await expect(page.getByText('选择你的梦想')).toHaveCount(0)
+  await expect(page.getByText('失业时保留工资收入，减少现金流中断')).toBeVisible()
+  await expect(page.getByText('孩子上限从 3 个提高到 6 个，家庭支出也会增加')).toBeVisible()
+  await expect(page.getByText('住房贷款月供提高 50%，增加开局负担')).toBeVisible()
+  await expect(page.getByText('用总收入作为起始现金，跳过储蓄积累阶段')).toBeVisible()
 
   await page.getByTestId('open-dream-selector-0').click()
   await expect(page.getByRole('heading', { name: '选择梦想' })).toBeVisible()

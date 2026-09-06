@@ -433,7 +433,7 @@ const dockSummary = computed(() => {
             />
             <div>
               <span class="block text-sm font-medium text-foreground">保险</span>
-              <span class="block text-xs text-muted-foreground">避免裁员</span>
+              <span class="block text-xs text-muted-foreground">失业时保留工资收入，减少现金流中断</span>
             </div>
           </label>
           <label
@@ -446,7 +446,7 @@ const dockSummary = computed(() => {
             />
             <div>
               <span class="block text-sm font-medium text-foreground">大家庭</span>
-              <span class="block text-xs text-muted-foreground">提高孩子上限</span>
+              <span class="block text-xs text-muted-foreground">孩子上限从 3 个提高到 6 个，家庭支出也会增加</span>
             </div>
           </label>
           <label
@@ -459,7 +459,7 @@ const dockSummary = computed(() => {
             />
             <div>
               <span class="block text-sm font-medium text-foreground">抵押贷款</span>
-              <span class="block text-xs text-muted-foreground">真实月供</span>
+              <span class="block text-xs text-muted-foreground">住房贷款月供提高 50%，增加开局负担</span>
             </div>
           </label>
           <label
@@ -472,7 +472,7 @@ const dockSummary = computed(() => {
             />
             <div>
               <span class="block text-sm font-medium text-foreground">速开</span>
-              <span class="block text-xs text-muted-foreground">起始储蓄 = 总收入</span>
+              <span class="block text-xs text-muted-foreground">用总收入作为起始现金，跳过储蓄积累阶段</span>
             </div>
           </label>
         </div>
