@@ -143,7 +143,10 @@ function warningTitle(w: GameWarning): string {
     </div>
 
     <!-- 资本游戏资格面板 -->
-    <div v-if="showEligibilityBar" class="shrink-0 px-3 pt-2 sm:px-6">
+    <div
+      v-if="showEligibilityBar"
+      class="sticky top-0 z-20 shrink-0 border-b border-border/70 bg-background/95 px-2 py-1 backdrop-blur-sm sm:px-3 sm:pt-2 lg:static lg:border-0 lg:bg-transparent lg:px-6 lg:py-0 lg:pt-2 lg:backdrop-blur-none"
+    >
       <FastTrackEligibilityBar :adapter="adapter" @enter="emit('enter-fast-track')" />
     </div>
 
