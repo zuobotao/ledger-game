@@ -118,15 +118,19 @@ export async function readStateBridge(page: Page): Promise<StateReaderBridge | n
         // `lastActionResult` is retained for the history panel after the
         // feedback modal is dismissed. The resolver must only prioritize the
         // feedback action while its actual button is visible in the DOM.
-        hasDecisionFeedback: Boolean(
-          store.lastActionResult &&
-          (() => {
-            const button = document.querySelector<HTMLElement>('[data-testid="decision-feedback-dismiss"]')
-            if (!button) return false
-            const style = window.getComputedStyle(button)
-            return style.display !== 'none' && style.visibility !== 'hidden' && button.getClientRects().length > 0
-          })(),
-        ),
+        hasDecisionFeedback: (() => {
+          const buttons = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="decision-feedback-dismiss"]'))
+          return buttons.some((button) => {
+            let node: HTMLElement | null = button
+            while (node) {
+              const style = window.getComputedStyle(node)
+              if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false
+              node = node.parentElement
+            }
+            const rect = button.getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0
+          })
+        })(),
       }
     })
   } catch {
