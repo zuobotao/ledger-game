@@ -194,11 +194,15 @@ test.describe('Phase 9 · 完整多人 E2E（Desktop）', () => {
     await pageB.waitForSelector('[data-testid="lobby-player"]', { timeout: 15_000 })
     await expect(pageA.locator('[data-testid="lobby-player"]')).toHaveCount(2, { timeout: 15_000 })
 
-    // ===== Ready =====
+    // ===== Ready（Phase 8：模态框选择职业/梦想，autoConfirm 选中即关闭）=====
+    await pageA.click('[data-testid="open-career-selector"]')
     await pageA.click('[data-testid="career-software-engineer"]')
+    await pageA.click('[data-testid="open-dream-selector"]')
     await pageA.click('[data-testid="dream-beach-house"]')
     await pageA.click('[data-testid="color-blue"]')
+    await pageB.click('[data-testid="open-career-selector"]')
     await pageB.click('[data-testid="career-doctor"]')
+    await pageB.click('[data-testid="open-dream-selector"]')
     await pageB.click('[data-testid="dream-charity-foundation"]')
     await pageB.click('[data-testid="color-red"]')
     await pageB.click('[data-testid="lobby-ready"]')

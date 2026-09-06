@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { X, Shuffle, Check, Briefcase, TrendingUp, TrendingDown } from 'lucide-vue-next'
+import { Shuffle, Check, Briefcase, TrendingUp, TrendingDown, Info } from 'lucide-vue-next'
 import { CAREERS, getRandomCareer } from '@/data/careers'
 import type { Career } from '@/types/game'
 
@@ -16,6 +16,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
   (e: 'select', career: Career): void
+  (e: 'detail', career: Career): void
 }>()
 
 // 难度筛选
@@ -26,6 +27,14 @@ const difficulties = [
   { id: 'medium', name: '中等' },
   { id: 'hard', name: '困难' },
   { id: 'expert', name: '专家' },
+]
+
+// 排序：推荐（按难度分组）/ 薪资 / 现金流
+const sortMode = ref<'recommended' | 'salary' | 'cashflow'>('recommended')
+const sortModes = [
+  { id: 'recommended', name: '推荐' },
+  { id: 'salary', name: '薪资' },
+  { id: 'cashflow', name: '现金流' },
 ]
 
 // 搜索
@@ -49,7 +58,7 @@ const filteredCareers = computed(() => {
   return list
 })
 
-// 按难度分组
+// 按难度分组（推荐视图）
 const groupedCareers = computed(() => {
   const groups: Record<string, Career[]> = {
     easy: [],
@@ -64,6 +73,16 @@ const groupedCareers = computed(() => {
     }
   })
   return groups
+})
+
+// 排序视图（薪资 / 现金流）
+const sortedCareers = computed(() => {
+  const key = sortMode.value === 'salary' ? 'salary' : 'cashflow'
+  return [...filteredCareers.value].sort((a, b) => {
+    const av = key === 'salary' ? a.salary : a.salary - calcTotalExpenses(a.expenses)
+    const bv = key === 'salary' ? b.salary : b.salary - calcTotalExpenses(b.expenses)
+    return bv - av
+  })
 })
 
 const difficultyColors: Record<string, string> = {
@@ -100,6 +119,10 @@ function selectRandom() {
   emit('select', career)
 }
 
+function showDetail(career: Career) {
+  emit('detail', career)
+}
+
 function isSelected(careerId: string): boolean {
   return props.modelValue === careerId
 }
@@ -132,6 +155,19 @@ function isSelected(careerId: string): boolean {
           @click="difficultyFilter = diff.id"
         >
           {{ diff.name }}
+        </button>
+      </div>
+      <!-- 排序：推荐（按难度分组）/ 薪资 / 现金流 -->
+      <div class="flex items-center gap-1 rounded-lg border border-border bg-secondary/50 p-0.5">
+        <button
+          v-for="m in sortModes"
+          :key="m.id"
+          type="button"
+          class="flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors"
+          :class="sortMode === m.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+          @click="sortMode = m.id as 'recommended' | 'salary' | 'cashflow'"
+        >
+          {{ m.name }}
         </button>
       </div>
     </div>
@@ -177,79 +213,171 @@ function isSelected(careerId: string): boolean {
 
     <!-- 职业卡片网格 -->
     <div class="space-y-4 max-h-[400px] overflow-y-auto pr-1">
-      <template v-for="diff in ['easy', 'medium', 'hard', 'expert']" :key="diff">
-        <div v-if="(groupedCareers[diff]?.length ?? 0) > 0" class="space-y-2">
-          <div class="flex items-center gap-2">
-            <span
-              class="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full border"
-              :class="difficultyColors[diff]"
-            >
-              {{ difficultyNames[diff] }}
-            </span>
-            <span class="text-[10px] text-muted-foreground">
-              {{ groupedCareers[diff]?.length ?? 0 }} 个职业
-            </span>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button
-              v-for="career in groupedCareers[diff]"
-              :key="career.id"
-              type="button"
-              class="p-3 rounded-[var(--radius-md)] border transition-all text-left group"
-              :class="
-                isSelected(career.id)
-                  ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
-                  : 'border-border bg-background hover:border-muted-foreground hover:bg-secondary/30'
-              "
-              @click="selectCareer(career)"
-            >
-              <div class="flex items-start gap-2.5">
-                <div
-                  class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                  :class="
-                    isSelected(career.id)
-                      ? 'bg-primary/20 text-primary'
-                      : 'bg-secondary text-muted-foreground group-hover:text-foreground'
-                  "
+      <!-- 推荐：按难度分组 -->
+      <template v-if="sortMode === 'recommended'">
+        <template v-for="diff in ['easy', 'medium', 'hard', 'expert']" :key="diff">
+          <div v-if="(groupedCareers[diff]?.length ?? 0) > 0" class="space-y-2">
+            <div class="flex items-center gap-2">
+              <span
+                class="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full border"
+                :class="difficultyColors[diff]"
+              >
+                {{ difficultyNames[diff] }}
+              </span>
+              <span class="text-[10px] text-muted-foreground">
+                {{ groupedCareers[diff]?.length ?? 0 }} 个职业
+              </span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div
+                v-for="career in groupedCareers[diff]"
+                :key="career.id"
+                role="button"
+                tabindex="0"
+                :data-testid="`career-${career.id}`"
+                class="relative p-3 rounded-[var(--radius-md)] border transition-all text-left group cursor-pointer"
+                :class="
+                  isSelected(career.id)
+                    ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
+                    : 'border-border bg-background hover:border-muted-foreground hover:bg-secondary/30'
+                "
+                @click="selectCareer(career)"
+                @keydown.enter="selectCareer(career)"
+              >
+                <button
+                  type="button"
+                  :data-testid="`career-detail-${career.id}`"
+                  title="查看职业详情"
+                  class="absolute top-2 right-2 w-7 h-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  @click.stop="showDetail(career)"
                 >
-                  <Briefcase class="w-4 h-4" />
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-1.5">
-                    <span
-                      class="text-sm font-semibold truncate"
-                      :class="isSelected(career.id) ? 'text-primary' : 'text-foreground'"
-                    >
-                      {{ career.name }}
-                    </span>
-                    <Check
-                      v-if="isSelected(career.id)"
-                      class="w-3.5 h-3.5 text-primary shrink-0"
-                    />
+                  <Info class="w-3.5 h-3.5" />
+                </button>
+                <div class="flex items-start gap-2.5 pr-6">
+                  <div
+                    class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                    :class="
+                      isSelected(career.id)
+                        ? 'bg-primary/20 text-primary'
+                        : 'bg-secondary text-muted-foreground group-hover:text-foreground'
+                    "
+                  >
+                    <Briefcase class="w-4 h-4" />
                   </div>
-                  <div class="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
-                    <span class="inline-flex items-center gap-0.5 text-emerald-400">
-                      <TrendingUp class="w-3 h-3" />
-                      {{ formatMoney(career.salary) }}
-                    </span>
-                    <span class="text-border">|</span>
-                    <span class="inline-flex items-center gap-0.5 text-orange-400">
-                      <TrendingDown class="w-3 h-3" />
-                      {{ formatMoney(calcTotalExpenses(career.expenses)) }}
-                    </span>
-                  </div>
-                  <div class="flex flex-wrap gap-1 mt-1.5">
-                    <span
-                      v-for="tag in career.tags?.slice(0, 2)"
-                      :key="tag"
-                      class="inline-block px-1.5 py-0.5 text-[10px] rounded bg-secondary text-muted-foreground"
-                    >
-                      {{ tag }}
-                    </span>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5">
+                      <span
+                        class="text-sm font-semibold truncate"
+                        :class="isSelected(career.id) ? 'text-primary' : 'text-foreground'"
+                      >
+                        {{ career.name }}
+                      </span>
+                      <Check v-if="isSelected(career.id)" class="w-3.5 h-3.5 text-primary shrink-0" />
+                    </div>
+                    <div class="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+                      <span class="inline-flex items-center gap-0.5 text-emerald-400">
+                        <TrendingUp class="w-3 h-3" />
+                        {{ formatMoney(career.salary) }}
+                      </span>
+                      <span class="text-border">|</span>
+                      <span class="inline-flex items-center gap-0.5 text-orange-400">
+                        <TrendingDown class="w-3 h-3" />
+                        {{ formatMoney(calcTotalExpenses(career.expenses)) }}
+                      </span>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mt-1.5">
+                      <span
+                        v-for="tag in career.tags?.slice(0, 2)"
+                        :key="tag"
+                        class="inline-block px-1.5 py-0.5 text-[10px] rounded bg-secondary text-muted-foreground"
+                      >
+                        {{ tag }}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </template>
+      </template>
+
+      <!-- 排序：薪资 / 现金流 平铺 -->
+      <template v-else>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div
+            v-for="career in sortedCareers"
+            :key="career.id"
+            role="button"
+            tabindex="0"
+            :data-testid="`career-${career.id}`"
+            class="relative p-3 rounded-[var(--radius-md)] border transition-all text-left group cursor-pointer"
+            :class="
+              isSelected(career.id)
+                ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
+                : 'border-border bg-background hover:border-muted-foreground hover:bg-secondary/30'
+            "
+            @click="selectCareer(career)"
+            @keydown.enter="selectCareer(career)"
+          >
+            <button
+              type="button"
+              :data-testid="`career-detail-${career.id}`"
+              title="查看职业详情"
+              class="absolute top-2 right-2 w-7 h-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              @click.stop="showDetail(career)"
+            >
+              <Info class="w-3.5 h-3.5" />
             </button>
+            <div class="flex items-start gap-2.5 pr-6">
+              <div
+                class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                :class="
+                  isSelected(career.id)
+                    ? 'bg-primary/20 text-primary'
+                    : 'bg-secondary text-muted-foreground group-hover:text-foreground'
+                "
+              >
+                <Briefcase class="w-4 h-4" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <span
+                    class="text-sm font-semibold truncate"
+                    :class="isSelected(career.id) ? 'text-primary' : 'text-foreground'"
+                  >
+                    {{ career.name }}
+                  </span>
+                  <span
+                    class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full border shrink-0"
+                    :class="difficultyColors[career.difficulty ?? 'medium']"
+                  >
+                    {{ difficultyNames[career.difficulty ?? 'medium'] }}
+                  </span>
+                  <Check v-if="isSelected(career.id)" class="w-3.5 h-3.5 text-primary shrink-0" />
+                </div>
+                <div class="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+                  <span class="inline-flex items-center gap-0.5 text-emerald-400">
+                    <TrendingUp class="w-3 h-3" />
+                    {{ formatMoney(career.salary) }}
+                  </span>
+                  <span class="text-border">|</span>
+                  <span class="inline-flex items-center gap-0.5 text-orange-400">
+                    <TrendingDown class="w-3 h-3" />
+                    {{ formatMoney(calcTotalExpenses(career.expenses)) }}
+                  </span>
+                </div>
+                <div class="flex flex-wrap gap-1 mt-1.5">
+                  <span
+                    v-for="tag in career.tags?.slice(0, 2)"
+                    :key="tag"
+                    class="inline-block px-1.5 py-0.5 text-[10px] rounded bg-secondary text-muted-foreground"
+                  >
+                    {{ tag }}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </template>

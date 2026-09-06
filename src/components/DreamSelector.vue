@@ -28,6 +28,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [id: string]
+  select: [dream: Dream]
 }>()
 
 // 类别标签
@@ -102,6 +103,7 @@ function isSelected(dream: Dream): boolean {
 
 function selectDream(dream: Dream) {
   emit('update:modelValue', dream.id)
+  emit('select', dream)
 }
 
 function formatMoney(n: number): string {
@@ -111,6 +113,7 @@ function formatMoney(n: number): string {
 function randomDream() {
   const dream = getRandomDream()
   emit('update:modelValue', dream.id)
+  emit('select', dream)
 }
 
 const selectedDream = computed(() => {
@@ -155,6 +158,7 @@ const selectedDream = computed(() => {
         v-for="dream in dreams"
         :key="dream.id"
         type="button"
+        :data-testid="`dream-${dream.id}`"
         class="group relative flex flex-col items-center bg-card border rounded-[var(--radius-md)] overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
         :class="[
           isSelected(dream)

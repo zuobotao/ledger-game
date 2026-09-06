@@ -299,6 +299,8 @@ export interface GameState {
   gameEndReason?: 'victory' | 'retirement' | 'bankrupt' | null
   turnStatus: TurnStatus
   lastRoll: number
+  /** 最近一次掷骰的点数明细（单机动画用；多人缺省时 UI 回退为 [lastRoll]） */
+  lastDiceValues?: number[]
   turnNumber?: number
   gameMonth?: number
   pendingAction: PendingAction

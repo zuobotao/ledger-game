@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Users, LogIn, ArrowLeft, Loader2, ServerOff } from 'lucide-vue-next'
 import { useMultiplayerStore } from '@/stores/multiplayer'
@@ -12,6 +12,21 @@ const roomName = ref('周末家庭局')
 const maxPlayers = ref(6)
 const roomCode = ref('')
 const busy = ref<'idle' | 'create' | 'join'>('idle')
+
+const joinLabel = computed(() => {
+  switch (store.joinStatus) {
+    case 'connecting':
+      return '连接中…'
+    case 'joining':
+      return '加入中…'
+    case 'bootstrapping':
+      return '确认身份…'
+    case 'syncing':
+      return '同步房间…'
+    default:
+      return '加入房间'
+  }
+})
 
 function persistNickname() {
   const n = nickname.value.trim()
@@ -31,7 +46,7 @@ async function doCreate() {
   if (ok) router.push({ name: 'room-lobby' })
 }
 
-function doJoin() {
+async function doJoin() {
   const n = nickname.value.trim()
   const code = roomCode.value.trim().toUpperCase()
   if (!n) {
@@ -44,9 +59,10 @@ function doJoin() {
   }
   busy.value = 'join'
   persistNickname()
-  store.joinRoom({ roomCode: code, nickname: n })
-  // joinRoom 通过 WS 异步回包；先进入大厅视图，由 RoomLobbyView 呈现"正在进入房间…"直到 room_snapshot 到达
-  router.push({ name: 'room-lobby' })
+  // joinRoom 只有在 socket open + bootstrap + 快照 + 找到自己 后才 resolve；失败会回填 lastError
+  const res = await store.joinRoom({ roomCode: code, nickname: n })
+  busy.value = 'idle'
+  if (res.ok) router.push({ name: 'room-lobby' })
 }
 
 onMounted(() => {
@@ -156,7 +172,7 @@ onMounted(() => {
           @click="doJoin"
         >
           <Loader2 v-if="busy === 'join'" class="h-4 w-4 animate-spin" />
-          加入房间
+          {{ busy === 'join' ? joinLabel : '加入房间' }}
         </button>
       </section>
 

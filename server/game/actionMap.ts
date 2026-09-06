@@ -88,9 +88,14 @@ function execute(store: GameStore, action: GameAction): ActionOutcome {
     }
 
     case 'handle_market': {
-      const a = action as { sellAssetIds?: string[] }
-      if (a.sellAssetIds && a.sellAssetIds.length > 0) {
-        store.sellAssetToMarket(a.sellAssetIds[0]!, a.sellAssetIds.length === 1 ? undefined : undefined)
+      const a = action as { sellAssetIds?: string[]; sellAssets?: { assetId: string; quantity: number }[] }
+      const sells = a.sellAssets && a.sellAssets.length > 0
+        ? a.sellAssets
+        : (a.sellAssetIds ?? []).map((id) => ({ assetId: id, quantity: 1 }))
+      if (sells.length > 0) {
+        for (const s of sells) {
+          if (store.sellAssetToMarket(s.assetId, s.quantity) === false) return fail()
+        }
       } else {
         store.dismissMarketEvent()
       }
@@ -175,13 +180,18 @@ function execute(store: GameStore, action: GameAction): ActionOutcome {
     case 'fast_track_dream': {
       const a = action as { accepted: boolean }
       if (a.accepted) store.buyDream()
+      else store.acknowledgeMessage()
       return { ok: true }
     }
 
     case 'fast_track_opportunity': {
-      const a = action as { accepted: boolean }
-      const ok = (store as unknown as StoreDict).buyOpportunity(1)
-      return a.accepted && ok === false ? fail() : { ok: true }
+      const a = action as { accepted: boolean; quantity?: number }
+      if (!a.accepted) {
+        store.declineOpportunity()
+        return { ok: true }
+      }
+      const ok = (store as unknown as StoreDict).buyOpportunity(a.quantity ?? 1)
+      return ok === false ? fail() : { ok: true }
     }
 
     case 'fast_track_stock_trading': {

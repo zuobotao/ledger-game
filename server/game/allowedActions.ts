@@ -45,5 +45,10 @@ export function deriveAllowedActions(store: GameStore): string[] {
   }
 
   // 无待定动作：当前回合玩家的回合起点或推进
-  return ['roll_dice', 'end_turn']
+  const actions = ['roll_dice', 'end_turn']
+  // v2.4.3 P0-C：财务自由玩家可在回合起点提交进入资本阶段意图（资格由领域状态驱动，不再依赖 View）
+  if (store.currentPlayer?.phase === 'rat_race' && store.canCurrentPlayerEnterFastTrack) {
+    actions.push('send_to_fast_track')
+  }
+  return actions
 }

@@ -134,7 +134,10 @@ export interface HandleMarketAction {
   type: 'handle_market'
   playerId: string
   card: MarketEventCard
+  /** 兼容字段：仅资产 id 列表（数量默认 1） */
   sellAssetIds?: string[]
+  /** v2.4.3：带数量的一笔或多笔卖出意图（服务端按序结算） */
+  sellAssets?: { assetId: string; quantity: number }[]
 }
 
 export interface HandleDoodadAction {
@@ -204,6 +207,8 @@ export interface FastTrackOpportunityAction {
   playerId: string
   card: OpportunityCard
   accepted: boolean
+  /** v2.4.3：资本阶段机会购买数量（默认 1） */
+  quantity?: number
 }
 
 export interface FastTrackDreamAction {

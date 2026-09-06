@@ -12,7 +12,8 @@
 
 import type { ComputedRef } from 'vue'
 import type {
-  GameEvent,
+  FinancialDelta,
+  GameWarning,
 } from '@/engine/contract'
 import type {
   GamePhase,
@@ -72,6 +73,14 @@ export interface GameplayNetworkInfo {
   roomPaused?: boolean
 }
 
+/** 最近一次操作的统一反馈（单机 lastActionResult / 多人 action_result 的公共投影） */
+export interface LastActionFeedback {
+  success: boolean
+  title: string
+  delta: FinancialDelta | null
+  warnings: GameWarning[]
+}
+
 export interface GameplayViewModel {
   gameState: GameState
   currentPlayer: Player
@@ -90,7 +99,7 @@ export interface GameplayViewModel {
   finished: boolean
   winnerId: string | null
   gameEndReason?: 'victory' | 'retirement' | 'bankrupt' | null
-  lastEvents: GameEvent[]
+  lastAction: LastActionFeedback | null
   network: GameplayNetworkInfo
 }
 
@@ -118,6 +127,11 @@ export interface PendingActionPresentation {
   /** 原始卡牌载荷（有则透传给专门的交易面板） */
   card: unknown
 }
+
+// ==================== 共享 UI 小类型（Phase 4） ====================
+
+/** 银行弹窗的 Tab（RatRaceGame 统一持有状态，BankPanel 渲染内容） */
+export type BankPanelTab = 'deposit' | 'loan' | 'insurance' | 'statement'
 
 // ==================== Command 输入（§4） ====================
 
@@ -154,6 +168,8 @@ export type ResolveActionInput =
   | { kind: 'story' }
   | { kind: 'bankrupt' }
   | { kind: 'loan_decision'; accept: boolean }
+  | { kind: 'decline_opportunity' }
+  | { kind: 'acknowledge' }
   | {
       kind: 'stock_sell'
       assetId: string
@@ -165,6 +181,7 @@ export type ResolveActionInput =
   | { kind: 'fast_track_opportunity'; accepted: boolean; quantity?: number }
   | { kind: 'fast_track_dream'; accepted: boolean }
   | { kind: 'fast_track_trade'; symbol: string; quantity: number; isBuy: boolean }
+  | { kind: 'trade'; symbol: string; quantity: number; isBuy: boolean }
   | { kind: 'enter_fast_track' }
 
 // ==================== Commands（§4） ====================

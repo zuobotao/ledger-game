@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Crown, Copy, Check, Loader2, ArrowLeft, Users, RefreshCw } from 'lucide-vue-next'
+import { Crown, Copy, Check, Loader2, ArrowLeft, Users, RefreshCw, ChevronDown, Info, X } from 'lucide-vue-next'
 import { useDisplayMode } from '@/composables/useDisplayMode'
 import { useMultiplayerStore } from '@/stores/multiplayer'
-import { CAREERS } from '@/data/careers'
+import { CAREERS, getCareerById } from '@/data/careers'
 import { DREAMS } from '@/data/dreams'
 import { PLAYER_COLORS, type Career } from '@/types/game'
+import CareerSelectorModal from '@/components/CareerSelectorModal.vue'
+import DreamSelectorModal from '@/components/DreamSelectorModal.vue'
+import CareerDetailCard from '@/components/CareerDetailCard.vue'
 
 const router = useRouter()
 const store = useMultiplayerStore()
@@ -17,7 +20,16 @@ const selectedCareer = ref('')
 const selectedDream = ref('')
 const selectedColor = ref('blue')
 
+// 选择器模态框（v2.4 Phase 8：平铺列表改为模态框，Mobile 一屏半完成 Setup）
+const careerModalOpen = ref(false)
+const dreamModalOpen = ref(false)
+
+// 职业详情弹窗
+const careerDetailOpen = ref(false)
+const careerDetailTarget = ref<Career | null>(null)
+
 const myPid = computed(() => store.session?.playerId ?? '')
+const myNickname = computed(() => store.session?.nickname ?? store.nickname ?? '')
 
 const statusLabel = computed(() => {
   switch (store.status) {
@@ -34,14 +46,15 @@ const statusLabel = computed(() => {
 
 const isConnecting = computed(() => store.status === 'connecting' || store.status === 'idle' || !store.room)
 
-function formatMoneyLocal(n: number): string {
-  return `$${Math.round(n).toLocaleString()}`
-}
-function sumExpenses(c: Career): number {
-  return Math.round(
-    Object.values(c.expenses ?? {}).reduce((a, b) => a + (Number(b) || 0), 0),
-  )
-}
+const selectedCareerName = computed(() => {
+  if (!selectedCareer.value) return '请选择职业'
+  return getCareerById(selectedCareer.value)?.name ?? selectedCareer.value
+})
+const selectedDreamName = computed(() => {
+  if (!selectedDream.value) return '请选择梦想'
+  return DREAMS.find((d) => d.id === selectedDream.value)?.name ?? selectedDream.value
+})
+
 function getCareerName(p: { careerId?: string }): string {
   if (!p.careerId) return '未选择'
   return CAREERS.find((c) => c.id === p.careerId)?.name ?? p.careerId
@@ -63,17 +76,30 @@ function applySetup() {
   store.setSetup(selectedCareer.value, selectedDream.value || undefined, selectedColor.value)
 }
 
-function onCareer(careerId: string) {
+function onCareerSelected(careerId: string) {
   selectedCareer.value = careerId
   applySetup()
 }
-function onDream(dreamId: string) {
+function onDreamSelected(dreamId: string) {
   selectedDream.value = dreamId
   applySetup()
 }
 function onColor(colorId: string) {
   selectedColor.value = colorId
   applySetup()
+}
+
+function openCareerDetail(career: Career) {
+  careerDetailTarget.value = career
+  careerDetailOpen.value = true
+}
+function closeCareerDetail() {
+  careerDetailOpen.value = false
+  careerDetailTarget.value = null
+}
+function showSelectedCareerDetail() {
+  const career = getCareerById(selectedCareer.value)
+  if (career) openCareerDetail(career)
 }
 
 function toggleReady() {
@@ -209,42 +235,55 @@ watch(
           <h2 class="mb-1 text-sm font-semibold text-foreground">我的设定</h2>
           <p class="mb-4 text-xs text-muted-foreground">选择职业与梦想，然后点击“准备”</p>
 
+          <!-- 职业选择行 -->
           <label class="mb-1.5 block text-xs font-medium text-muted-foreground">职业</label>
-          <div class="mb-4 grid grid-cols-2 gap-2" data-testid="lobby-careers">
+          <div class="mb-4 flex gap-2">
             <button
-              v-for="c in CAREERS"
-              :key="c.id"
               type="button"
-              :data-testid="`career-${c.id}`"
-              class="flex flex-col rounded-xl border px-3 py-2 text-left transition"
-              :class="selectedCareer === c.id ? 'border-primary bg-primary/10' : 'border-border bg-background hover:border-primary/50'"
-              @click="onCareer(c.id)"
+              data-testid="open-career-selector"
+              class="flex h-11 flex-1 items-center justify-between rounded-xl border border-border bg-background px-3 text-left transition hover:border-primary/50"
+              @click="careerModalOpen = true"
             >
-              <span class="text-sm font-semibold text-foreground">{{ c.name }}</span>
-              <span class="text-xs text-muted-foreground">
-                月薪 {{ formatMoneyLocal(c.salary) }} · 现金流 {{ formatMoneyLocal(c.salary - sumExpenses(c)) }}
+              <span
+                class="min-w-0 flex-1 truncate text-sm font-medium"
+                :class="selectedCareer ? 'text-foreground' : 'text-muted-foreground'"
+              >
+                {{ selectedCareerName }}
               </span>
+              <ChevronDown class="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
             </button>
-          </div>
-
-          <label class="mb-1.5 block text-xs font-medium text-muted-foreground">梦想</label>
-          <div class="mb-4 grid grid-cols-2 gap-2" data-testid="lobby-dreams">
             <button
-              v-for="d in DREAMS"
-              :key="d.id"
               type="button"
-              :data-testid="`dream-${d.id}`"
-              class="flex flex-col rounded-xl border px-3 py-2 text-left transition"
-              :class="selectedDream === d.id ? 'border-primary bg-primary/10' : 'border-border bg-background hover:border-primary/50'"
-              @click="onDream(d.id)"
+              data-testid="career-detail-current"
+              title="查看职业详情"
+              :disabled="!selectedCareer"
+              class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition hover:text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+              @click="showSelectedCareerDetail"
             >
-              <span class="text-sm font-semibold text-foreground">{{ d.name }}</span>
-              <span class="text-xs text-muted-foreground">目标资金 {{ formatMoneyLocal(d.price) }}</span>
+              <Info class="h-4 w-4" />
             </button>
           </div>
 
+          <!-- 梦想选择行 -->
+          <label class="mb-1.5 block text-xs font-medium text-muted-foreground">梦想</label>
+          <button
+            type="button"
+            data-testid="open-dream-selector"
+            class="mb-4 flex h-11 w-full items-center justify-between rounded-xl border border-border bg-background px-3 text-left transition hover:border-primary/50"
+            @click="dreamModalOpen = true"
+          >
+            <span
+              class="min-w-0 flex-1 truncate text-sm font-medium"
+              :class="selectedDream ? 'text-foreground' : 'text-muted-foreground'"
+            >
+              {{ selectedDreamName }}
+            </span>
+            <ChevronDown class="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+          </button>
+
+          <!-- 颜色 -->
           <label class="mb-1.5 block text-xs font-medium text-muted-foreground">颜色</label>
-          <div class="mb-5 flex flex-wrap gap-2" data-testid="lobby-colors">
+          <div class="flex flex-wrap gap-2" data-testid="lobby-colors">
             <button
               v-for="c in PLAYER_COLORS"
               :key="c.id"
@@ -289,5 +328,44 @@ watch(
         {{ store.ready ? '已准备（点击取消）' : '准备' }}
       </button>
     </div>
+
+    <!-- 职业选择器 Modal -->
+    <CareerSelectorModal
+      v-model="careerModalOpen"
+      :selected-career-id="selectedCareer"
+      :player-name="myNickname"
+      auto-confirm
+      @confirm="onCareerSelected"
+      @detail="openCareerDetail"
+    />
+
+    <!-- 梦想选择器 Modal -->
+    <DreamSelectorModal
+      v-model="dreamModalOpen"
+      :selected-dream-id="selectedDream"
+      :player-name="myNickname"
+      auto-confirm
+      @confirm="onDreamSelected"
+    />
+
+    <!-- 职业详情 Modal -->
+    <Teleport to="body">
+      <div
+        v-if="careerDetailOpen"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        @click.self="closeCareerDetail"
+      >
+        <div class="relative w-full max-w-sm">
+          <button
+            type="button"
+            class="absolute -top-2 -right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 text-gray-300 hover:text-white hover:bg-gray-600 transition-colors shadow-lg"
+            @click="closeCareerDetail"
+          >
+            <X class="w-4 h-4" />
+          </button>
+          <CareerDetailCard v-if="careerDetailTarget" :career="careerDetailTarget" />
+        </div>
+      </div>
+    </Teleport>
   </main>
 </template>

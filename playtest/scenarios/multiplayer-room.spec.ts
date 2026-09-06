@@ -62,11 +62,15 @@ test.describe('多人房间 E2E', () => {
     await expect(pageA.locator('[data-testid="lobby-player"]')).toHaveCount(2, { timeout: 15_000 })
     await expect(pageB.locator('[data-testid="lobby-player"]')).toHaveCount(2, { timeout: 15_000 })
 
-    // 双方选职业/梦想/颜色
+    // 双方选职业/梦想/颜色（Phase 8：平铺列表改为模态框，先打开再选择，autoConfirm 自动关闭）
+    await pageA.click('[data-testid="open-career-selector"]')
     await pageA.click('[data-testid="career-software-engineer"]')
+    await pageA.click('[data-testid="open-dream-selector"]')
     await pageA.click('[data-testid="dream-beach-house"]')
     await pageA.click('[data-testid="color-blue"]')
+    await pageB.click('[data-testid="open-career-selector"]')
     await pageB.click('[data-testid="career-doctor"]')
+    await pageB.click('[data-testid="open-dream-selector"]')
     await pageB.click('[data-testid="dream-charity-foundation"]')
     await pageB.click('[data-testid="color-red"]')
 
@@ -85,33 +89,39 @@ test.describe('多人房间 E2E', () => {
     })
     await startBtn.click()
 
-    // 双方进入游戏视图
-    await pageA.waitForSelector('[data-testid="mp-players"]', { timeout: 15_000 })
-    await pageB.waitForSelector('[data-testid="mp-players"]', { timeout: 15_000 })
+    // 双方进入游戏视图（v2.4.3：多人视图挂载共享 RatRaceGame，锚点为主操作按钮 roll-dice）
+    await pageA.waitForSelector('[data-testid="roll-dice"]', { timeout: 15_000 })
+    await pageB.waitForSelector('[data-testid="roll-dice"]', { timeout: 15_000 })
 
     // A 掷骰：轮到 A（房主为 0 号玩家），应出现掷骰按钮
     await dismissVueDevtools(pageA)
-    const rollBtn = pageA.locator('[data-testid="act-roll_dice"]')
+    const rollBtn = pageA.locator('[data-testid="roll-dice"]')
     await rollBtn.waitFor({ state: 'visible', timeout: 15_000 })
     await rollBtn.click()
     await pageA.waitForTimeout(600)
-    // 掷骰后回合推进：要么出现新的待定动作按钮，要么轮到 B，操作区始终存在
-    const actionCountAfterRoll = await pageA.locator('[data-testid="mp-actions"] button').count()
-    expect(actionCountAfterRoll).toBeGreaterThanOrEqual(0)
+    // 掷骰后回合推进：要么出现「结束回合」，要么出现待定动作面板，操作区始终存在
+    await expect(
+      pageA.locator('[data-testid="end-turn"], [data-testid="pending-action-panel"]').first(),
+    ).toBeVisible({ timeout: 15_000 })
 
     // Phase 7 验收：权威动作广播后，两个客户端显示相同的 StateHash（三端同步质量核心指标）
-    await pageA.waitForSelector('[data-testid="mp-state-hash"]', { timeout: 15_000 })
-    await pageB.waitForSelector('[data-testid="mp-state-hash"]', { timeout: 15_000 })
-    await pageA.waitForFunction(() => {
-      const el = document.querySelector('[data-testid="mp-state-hash"]')
-      return !!el && el.textContent!.trim().length === 8
-    })
-    await pageB.waitForFunction(() => {
-      const el = document.querySelector('[data-testid="mp-state-hash"]')
-      return !!el && el.textContent!.trim().length === 8
-    })
-    const hashA = ((await pageA.textContent('[data-testid="mp-state-hash"]')) ?? '').trim()
-    const hashB = ((await pageB.textContent('[data-testid="mp-state-hash"]')) ?? '').trim()
+    const readHash = (p: Page) => p.evaluate(() => (window as any).multiplayerStore?.stateHash ?? '')
+    await pageA.waitForFunction(
+      () => {
+        const s = (window as any).multiplayerStore
+        return !!(s && s.stateHash && s.stateHash.trim().length === 8)
+      },
+      { timeout: 15_000 },
+    )
+    await pageB.waitForFunction(
+      () => {
+        const s = (window as any).multiplayerStore
+        return !!(s && s.stateHash && s.stateHash.trim().length === 8)
+      },
+      { timeout: 15_000 },
+    )
+    const hashA = await readHash(pageA)
+    const hashB = await readHash(pageB)
     expect(hashA).toHaveLength(8)
     expect(hashA).toBe(hashB)
 

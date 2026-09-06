@@ -16,6 +16,11 @@ import {
   captureSessionCredential,
   type PersistedSession,
 } from '@/network/roomSession'
+import {
+  JoinStateMachine,
+  type JoinRoomResult,
+  type JoinStatus,
+} from '@/network/join'
 import type {
   ClientMessage,
   GameSessionDto,
@@ -47,6 +52,9 @@ function genSessionId(): string {
   }
 }
 
+/** 加入房间整体超时（计划 §12：timeout 属于失败条件） */
+const JOIN_TIMEOUT_MS = 10_000
+
 export const useMultiplayerStore = defineStore('multiplayer', () => {
   // ==================== 会话 & 连接 ====================
   const status = ref<ConnectionStatus>('idle')
@@ -54,6 +62,9 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
   const nickname = ref('')
   const lastError = ref<string | null>(null)
   const lastErrorCode = ref<ErrorCode | null>(null)
+
+  // ==================== 加入房间流程（计划 §11.1 状态机） ====================
+  const joinStatus = ref<JoinStatus>('idle')
 
   // ==================== 房间 ====================
   const room = ref<RoomDto | null>(null)
@@ -82,9 +93,72 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
 
   // ==================== 客户端实例（非响应式） ====================
   let client: RoomClient | null = null
+  let joinMachine: JoinStateMachine | null = null
+  let joinResolve: ((r: JoinRoomResult) => void) | null = null
+  let joinTimer: ReturnType<typeof setTimeout> | null = null
 
   function setStatus(s: ConnectionStatus) {
     status.value = s
+    // 加入流程中：socket 打开 → 视为 join_room 已发出；异常断开 → 判定失败
+    if (joinMachine?.isActive) {
+      if (s === 'open') joinMachine.onSocketOpen()
+      else if (s === 'error' || s === 'closed') failJoin('连接断开，加入失败')
+    }
+  }
+
+  function ensureJoinMachine(): JoinStateMachine {
+    if (joinMachine) return joinMachine
+    joinMachine = new JoinStateMachine({
+      onStatusChange: (s) => {
+        joinStatus.value = s
+      },
+    })
+    return joinMachine
+  }
+
+  function startJoinTimer(): void {
+    clearJoinTimer()
+    joinTimer = setTimeout(() => {
+      if (joinResolve) failJoin('加入超时，请检查房间码后重试')
+    }, JOIN_TIMEOUT_MS)
+  }
+  function clearJoinTimer(): void {
+    if (joinTimer !== null) {
+      clearTimeout(joinTimer)
+      joinTimer = null
+    }
+  }
+
+  /** 加入成功：bootstrap + snapshot + 自我身份 全部到位 */
+  function completeJoin(): void {
+    if (!joinResolve) return
+    clearJoinTimer()
+    const resolve = joinResolve
+    joinResolve = null
+    resolve({ ok: true, room: room.value ?? undefined })
+  }
+
+  /** 加入失败：记录错误、切断残留连接、以失败结果返回 */
+  function failJoin(error: string, code?: ErrorCode): void {
+    if (!joinResolve) return
+    clearJoinTimer()
+    joinMachine?.fail()
+    lastError.value = error
+    lastErrorCode.value = code ?? null
+    const resolve = joinResolve
+    joinResolve = null
+    destroyClient()
+    resolve({ ok: false, error, code })
+  }
+
+  /** 取消进行中的加入（不写错误提示，用于离开/退出场景） */
+  function abortJoin(): void {
+    if (!joinResolve) return
+    clearJoinTimer()
+    joinMachine?.reset()
+    const resolve = joinResolve
+    joinResolve = null
+    resolve({ ok: false, error: '已取消加入' })
   }
 
   function handleMessage(msg: ServerMessage) {
@@ -95,6 +169,11 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
         // 刷新我方 ready 状态（以服务器为准）
         const self = findSelf(msg.room.players)
         if (self) ready.value = self.status === 'ready'
+        // 加入流程：快照到位且能找到自己（plan §11.1）
+        if (joinMachine?.isActive) {
+          joinMachine.onSnapshot(Boolean(self))
+          if (joinMachine.current === 'joined') completeJoin()
+        }
         break
       case 'session_bootstrap': {
         const cred = captureSessionCredential(msg)
@@ -104,6 +183,15 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
           session.value = cred
         }
         room.value = msgFromBootstrap(msg) ?? room.value
+        // 加入流程：身份确认（plan §11.1）
+        if (joinMachine?.isActive) {
+          joinMachine.onBootstrap()
+          // 若快照早于 bootstrap 到达（异常顺序），身份到位后补做一次自我确认
+          if (joinMachine.isActive && room.value) {
+            joinMachine.onSnapshot(Boolean(findSelf(room.value.players)))
+          }
+          if (joinMachine.current === 'joined') completeJoin()
+        }
         break
       }
       case 'player_joined':
@@ -175,6 +263,8 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
       case 'error':
         lastError.value = msg.message
         lastErrorCode.value = msg.code
+        // 加入流程：服务端明确拒绝（房间不存在 / 已满 / 已开始…）
+        if (joinMachine?.isActive) failJoin(msg.message, msg.code)
         break
       case 'pong':
         break
@@ -311,14 +401,28 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
     }
   }
 
-  /** 通过房间码加入房间 */
-  async function joinRoom(opts: { roomCode: string; nickname: string; sessionId?: string }): Promise<void> {
+  /**
+   * 通过房间码加入房间（计划 §12：真正可 await）
+   *
+   * 返回的 Promise 只有在满足全部成功条件后才 resolve(ok=true)：
+   *   socket open → join_room 发出 → session_bootstrap → room_snapshot → 快照中找到自己
+   * 失败条件（resolve(ok=false)）：服务端错误 / 网络错误 / 超时 / 房间不存在 / 房间已满。
+   */
+  async function joinRoom(opts: { roomCode: string; nickname: string; sessionId?: string }): Promise<JoinRoomResult> {
     nickname.value = opts.nickname
     lastError.value = null
+    lastErrorCode.value = null
     const sessId = opts.sessionId ?? genSessionId()
     session.value = { sessionId: sessId, playerId: '', roomId: '', token: '', nickname: opts.nickname }
+    room.value = null
     destroyClient()
-    connect({ type: 'join_room', roomCode: opts.roomCode.trim().toUpperCase(), sessionId: sessId, nickname: opts.nickname })
+    ensureJoinMachine()
+    joinMachine!.start()
+    return new Promise<JoinRoomResult>((resolve) => {
+      joinResolve = resolve
+      connect({ type: 'join_room', roomCode: opts.roomCode.trim().toUpperCase(), sessionId: sessId, nickname: opts.nickname })
+      startJoinTimer()
+    })
   }
 
   /** 恢复本地会话：若有已持久化凭据，自动重连原房间 */
@@ -359,6 +463,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
   }
 
   function leaveRoom(): void {
+    abortJoin()
     if (client) client.send({ type: 'leave_room' })
     clearSession()
     session.value = null
@@ -378,12 +483,14 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
 
   /** 退出当前对局视图（保留连接，便于回到大厅/再次加入） */
   function dispose(): void {
+    abortJoin()
     destroyClient()
   }
 
   return {
     // state
     status,
+    joinStatus,
     session,
     nickname,
     lastError,
