@@ -9,12 +9,14 @@ interface Props {
   selectedCareerId?: string
   playerName?: string
   autoConfirm?: boolean
+  showRandom?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   selectedCareerId: '',
   playerName: '',
   autoConfirm: false,
+  showRandom: true,
 })
 
 const emit = defineEmits<{
@@ -97,7 +99,7 @@ function onSelect(career: Career) {
             <div class="flex-1 overflow-y-auto px-5 py-4">
               <CareerSelector
                 v-model="localCareerId"
-                :show-random="true"
+                :show-random="showRandom"
                 @select="onSelect"
                 @detail="(c) => emit('detail', c)"
               />

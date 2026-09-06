@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { Crown, Copy, Check, Loader2, ArrowLeft, Users, RefreshCw, ChevronDown, Info, X, Shuffle } from 'lucide-vue-next'
 import { useDisplayMode } from '@/composables/useDisplayMode'
 import { useMultiplayerStore } from '@/stores/multiplayer'
-import { CAREERS, getCareerById } from '@/data/careers'
+import { CAREERS, getCareerById, getRandomCareer } from '@/data/careers'
 import { DREAMS, getRandomDream } from '@/data/dreams'
 import { PLAYER_COLORS, type Career, type Dream } from '@/types/game'
 import CareerSelectorModal from '@/components/CareerSelectorModal.vue'
@@ -112,6 +112,9 @@ function showSelectedDreamDetail() {
     dreamDetailTarget.value = dream
     dreamDetailOpen.value = true
   }
+}
+function randomCareer() {
+  onCareerSelected(getRandomCareer().id)
 }
 function closeDreamDetail() {
   dreamDetailOpen.value = false
@@ -280,6 +283,16 @@ watch(
             </button>
             <button
               type="button"
+              data-testid="random-career"
+              title="随机选择职业"
+              class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-background px-3 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+              @click="randomCareer"
+            >
+              <Shuffle class="h-3.5 w-3.5" />
+              随机
+            </button>
+            <button
+              type="button"
               data-testid="random-dream"
               title="随机选择梦想"
               class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-background px-3 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"
@@ -373,6 +386,7 @@ watch(
       :selected-career-id="selectedCareer"
       :player-name="myNickname"
       auto-confirm
+      :show-random="false"
       @confirm="onCareerSelected"
       @detail="openCareerDetail"
     />
