@@ -50,6 +50,11 @@ test.describe('多人房间 E2E', () => {
     const code = ((await pageA.textContent('[data-testid="lobby-copy-code"]')) ?? '').trim()
     expect(code).toHaveLength(6)
 
+    // 直接刷新大厅页也必须恢复本地会话，不能停在“正在进入房间”。
+    await pageA.reload()
+    await expect(pageA.locator('[data-testid="lobby-player"]')).toHaveCount(1, { timeout: 15_000 })
+    await expect(pageA.getByText('正在进入房间…')).toHaveCount(0)
+
     // B 通过房间码加入
     await pageB.goto('/ledger-game/#/multiplayer')
     await pageB.waitForSelector('[data-testid="mp-nickname"]')

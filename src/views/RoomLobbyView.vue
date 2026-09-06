@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Crown, Copy, Check, Loader2, ArrowLeft, Users, RefreshCw, ChevronDown, Info, X, Shuffle } from 'lucide-vue-next'
 import { useDisplayMode } from '@/composables/useDisplayMode'
@@ -46,7 +46,13 @@ const statusLabel = computed(() => {
   }
 })
 
-const isConnecting = computed(() => store.status === 'connecting' || store.status === 'idle' || !store.room)
+const isJoinPending = computed(() => ['connecting', 'joining', 'bootstrapping', 'syncing'].includes(store.joinStatus))
+const isConnecting = computed(() => {
+  if (store.room || store.lastError) return false
+  // 初次加入由 join 状态机驱动；刷新房间后由 WebSocket 重连状态驱动。
+  return isJoinPending.value || store.status === 'connecting' || store.status === 'open'
+})
+const hasNoRoom = computed(() => !store.room && !isConnecting.value)
 
 const selectedCareerName = computed(() => {
   if (!selectedCareer.value) return '请选择职业'
@@ -164,6 +170,19 @@ function leave() {
   router.push({ name: 'home' })
 }
 
+function retryConnection() {
+  store.resetError()
+  if (store.autoReconnect()) return
+  router.push({ name: 'multiplayer' })
+}
+
+onMounted(() => {
+  // 直接刷新 /lobby 时不会经过 MultiplayerHomeView，必须在大厅自身恢复本地会话。
+  // 从多人首页正常跳转时连接已经启动，避免重复发送 reconnect。
+  if (store.room || store.status === 'connecting' || store.status === 'open' || isJoinPending.value) return
+  store.autoReconnect()
+})
+
 watch(
   () => store.room?.status,
   (s) => {
@@ -178,10 +197,32 @@ watch(
   <main :data-mode="isMobile ? 'mobile' : 'desktop'">
     <div v-if="isConnecting" class="flex min-h-screen flex-col items-center justify-center gap-4 px-6">
       <Loader2 class="h-8 w-8 animate-spin text-primary" />
-      <p class="text-sm text-muted-foreground">正在进入房间…</p>
-      <button type="button" data-testid="lobby-back" class="text-sm text-muted-foreground underline" @click="router.push({ name: 'home' })">
+      <p class="text-sm text-muted-foreground">{{ isJoinPending ? '正在进入房间…' : '正在恢复房间…' }}</p>
+      <button type="button" data-testid="lobby-back" class="text-sm text-muted-foreground underline" @click="leave">
         返回首页
       </button>
+    </div>
+
+    <div v-else-if="hasNoRoom" class="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
+      <div class="max-w-sm rounded-2xl border border-destructive/30 bg-destructive/10 px-5 py-4">
+        <p data-testid="lobby-error" class="text-sm leading-relaxed text-destructive">
+          {{ store.lastError ?? '房间会话不存在，请重新加入房间。' }}
+        </p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button
+          v-if="store.session"
+          type="button"
+          data-testid="lobby-retry"
+          class="inline-flex h-10 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground"
+          @click="retryConnection"
+        >
+          重新连接
+        </button>
+        <button type="button" data-testid="lobby-back" class="text-sm text-muted-foreground underline" @click="leave">
+          返回首页
+        </button>
+      </div>
     </div>
 
     <div v-else-if="store.room" class="mx-auto min-h-screen max-w-xl px-4 py-6" :class="isMobile ? 'pb-32' : 'pb-10'">

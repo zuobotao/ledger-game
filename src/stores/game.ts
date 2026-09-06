@@ -657,6 +657,11 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  /** 从本地存档重新读取一次，供首页跨窗口恢复时使用。 */
+  function reloadState() {
+    loadState()
+  }
+
   function startGame(
     setupConfig: GameConfig,
     playerSetups: {
@@ -3159,6 +3164,7 @@ export const useGameStore = defineStore('game', () => {
     startGame,
     resetGame,
     saveState,
+    reloadState,
     ratRaceRollDice,
     fastTrackRollDice,
     buyOpportunity,

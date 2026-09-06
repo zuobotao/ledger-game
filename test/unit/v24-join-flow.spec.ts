@@ -243,4 +243,43 @@ describe('joinRoom — 可 await 的加入流程（计划 §12）', () => {
     expect(store.room?.players.some((p) => p.playerId === 'p-1')).toBe(true)
     expect(store.status).toBe('open')
   })
+
+  it('刷新恢复超时后结束等待并提供可见错误', () => {
+    vi.useFakeTimers()
+    localStorage.setItem(
+      'ledger.room.session',
+      JSON.stringify({ sessionId: 'sess-1', playerId: 'p-1', roomId: 'room-1', token: 'tok-1', nickname: '小红' }),
+    )
+    const store = useMultiplayerStore()
+
+    expect(store.autoReconnect()).toBe(true)
+    expect(store.status).toBe('connecting')
+    vi.advanceTimersByTime(10_001)
+
+    expect(store.status).toBe('closed')
+    expect(store.room).toBeNull()
+    expect(store.lastError).toContain('恢复房间超时')
+  })
+
+  it('刷新恢复被服务端拒绝后停止重连并清理失效会话', () => {
+    localStorage.setItem(
+      'ledger.room.session',
+      JSON.stringify({ sessionId: 'sess-1', playerId: 'p-1', roomId: 'room-1', token: 'tok-1', nickname: '小红' }),
+    )
+    const store = useMultiplayerStore()
+    expect(store.autoReconnect()).toBe(true)
+    const ws = FakeWebSocket.instances[0]!
+    openSocket(ws)
+
+    push(ws, {
+      type: 'reconnect_snapshot',
+      ok: false,
+      code: ErrorCodes.SESSION_EXPIRED,
+      error: '会话已过期，请重新加入房间',
+    })
+
+    expect(store.lastError).toBe('会话已过期，请重新加入房间')
+    expect(store.session).toBeNull()
+    expect(localStorage.getItem('ledger.room.session')).toBeNull()
+  })
 })

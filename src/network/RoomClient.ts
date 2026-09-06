@@ -78,12 +78,15 @@ export class RoomClient {
     ws.onerror = () => this.setStatus('error')
     ws.onclose = () => {
       const hadToken = Boolean(this.pending.length)
+      const unexpected = !this.manualClosed
       this.setStatus('closed')
       this.stopHeartbeat()
       if (!this.manualClosed && this.retry) {
         window.setTimeout(() => this.connect(), 800)
       }
-      this.unexpectedCloseHandler?.(hadToken)
+      // 主动断开不应触发调用方的自动重连，否则离开房间/清理会话时
+      // 会在后台重新建立连接，表现为页面一直卡在“进入房间”。
+      if (unexpected) this.unexpectedCloseHandler?.(hadToken)
       this.ws = null
     }
   }

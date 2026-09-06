@@ -10,6 +10,8 @@ const store = useGameStore()
 
 const resumeInfo = computed(() => store.resumableGame)
 const showOverwriteWarning = ref(false)
+const isContinuing = ref(false)
+const continueError = ref<string | null>(null)
 
 function goToSetup() {
   // v2.3: 存在挂起对局时，先弹出覆盖确认
@@ -20,10 +22,28 @@ function goToSetup() {
   router.push({ name: 'setup' })
 }
 
-function continueGame() {
-  const phase = resumeInfo.value?.phase
-  const target = phase === 'fast_track' ? 'fast-track' : 'rat-race'
-  router.push({ name: target })
+async function continueGame() {
+  continueError.value = null
+  // 游戏可能在另一个同源窗口中推进；点击时重新读取最新快照。
+  store.reloadState()
+  const snapshot = resumeInfo.value
+  if (!snapshot || !store.isGameStarted || !store.currentPlayer) {
+    continueError.value = '当前窗口没有可恢复的有效进度，请重新开始游戏。'
+    return
+  }
+
+  const target = snapshot.phase === 'fast_track' ? 'fast-track' : 'rat-race'
+  isContinuing.value = true
+  try {
+    await router.push({ name: target })
+    if (router.currentRoute.value.name !== target) {
+      continueError.value = '恢复游戏失败，请刷新页面后重试。'
+    }
+  } catch {
+    continueError.value = '恢复游戏失败，请刷新页面后重试。'
+  } finally {
+    isContinuing.value = false
+  }
 }
 
 function confirmNewGame() {
@@ -110,12 +130,16 @@ function goToMultiplayer() {
           <button
             type="button"
             data-testid="continue-game-btn"
+            :disabled="isContinuing"
             class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-md transition hover:brightness-[0.96]"
             @click="continueGame"
           >
             <Play class="h-4 w-4" />
-            继续游戏
+            {{ isContinuing ? '正在恢复…' : '继续游戏' }}
           </button>
+          <p v-if="continueError" data-testid="continue-game-error" class="mt-3 text-center text-xs text-destructive">
+            {{ continueError }}
+          </p>
         </div>
 
         <div class="flex flex-col items-center justify-center gap-4 sm:flex-row">

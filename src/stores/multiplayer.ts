@@ -96,6 +96,8 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
   let joinMachine: JoinStateMachine | null = null
   let joinResolve: ((r: JoinRoomResult) => void) | null = null
   let joinTimer: ReturnType<typeof setTimeout> | null = null
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  let reconnectAttemptActive = false
 
   function setStatus(s: ConnectionStatus) {
     status.value = s
@@ -127,6 +129,26 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
       clearTimeout(joinTimer)
       joinTimer = null
     }
+  }
+
+  function clearReconnectTimer(): void {
+    if (reconnectTimer !== null) {
+      clearTimeout(reconnectTimer)
+      reconnectTimer = null
+    }
+    reconnectAttemptActive = false
+  }
+
+  function startReconnectTimer(): void {
+    clearReconnectTimer()
+    reconnectAttemptActive = true
+    reconnectTimer = setTimeout(() => {
+      if (!reconnectAttemptActive) return
+      clearReconnectTimer()
+      lastError.value = '恢复房间超时，请检查网络后重试'
+      lastErrorCode.value = null
+      destroyClient()
+    }, JOIN_TIMEOUT_MS)
   }
 
   /** 加入成功：bootstrap + snapshot + 自我身份 全部到位 */
@@ -238,6 +260,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
         if (msg.success) lastError.value = null
         break
       case 'reconnect_snapshot':
+        clearReconnectTimer()
         if (msg.ok) {
           room.value = msg.room ?? room.value
           sessionInfo.value = msg.session ?? sessionInfo.value
@@ -249,6 +272,12 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
         } else {
           lastError.value = msg.error ?? '会话无效'
           lastErrorCode.value = msg.code ?? null
+          // 会话已被服务端回收时，继续自动重连只会造成死循环。
+          if (msg.code === 'SESSION_EXPIRED' || msg.code === 'ROOM_NOT_FOUND' || msg.code === 'ROOM_CLOSED') {
+            clearSession()
+            session.value = null
+            destroyClient()
+          }
         }
         break
       case 'game_finished':
@@ -261,6 +290,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
         finishedEventCount.value = msg.eventCount ?? 0
         break
       case 'error':
+        if (reconnectAttemptActive) clearReconnectTimer()
         lastError.value = msg.message
         lastErrorCode.value = msg.code
         // 加入流程：服务端明确拒绝（房间不存在 / 已满 / 已开始…）
@@ -428,9 +458,17 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
   /** 恢复本地会话：若有已持久化凭据，自动重连原房间 */
   function autoReconnect(): boolean {
     const saved = loadSession()
-    if (!saved) return false
+    if (!saved) {
+      lastError.value = '没有可恢复的房间会话，请重新加入房间'
+      lastErrorCode.value = null
+      return false
+    }
+    lastError.value = null
+    lastErrorCode.value = null
     session.value = saved
     nickname.value = saved.nickname
+    room.value = null
+    startReconnectTimer()
     connect({ type: 'reconnect', sessionId: saved.sessionId, roomId: saved.roomId, token: saved.token })
     return true
   }
@@ -464,6 +502,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
 
   function leaveRoom(): void {
     abortJoin()
+    clearReconnectTimer()
     if (client) client.send({ type: 'leave_room' })
     clearSession()
     session.value = null

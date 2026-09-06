@@ -116,6 +116,18 @@ describe('保存 / 继续（v2.3）', () => {
     expect(typeof info!.cashFlow).toBe('number')
   })
 
+  it('reloadState 读取同源窗口写入的最新存档', () => {
+    const store = start()
+    const key = 'ledger101-game-state'
+    const state = JSON.parse(localStorage.getItem(key)!)
+    state.players[0].cash = 12345
+    localStorage.setItem(key, JSON.stringify(state))
+
+    expect(store.currentPlayer?.cash).not.toBe(12345)
+    store.reloadState()
+    expect(store.currentPlayer?.cash).toBe(12345)
+  })
+
   it('更高 schemaVersion 的存档被安全丢弃（不做坏迁移）', () => {
     // 手工写入一个未来版本的存档
     const store = start()
