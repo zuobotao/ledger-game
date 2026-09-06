@@ -10,9 +10,7 @@ import {
   ArrowLeft,
   X,
   Info,
-  Sparkles,
   Shuffle,
-  Bot,
 } from 'lucide-vue-next'
 import { useGameStore } from '@/stores/game'
 import { CAREERS, getCareerById, getRandomCareer } from '@/data/careers'
@@ -20,8 +18,8 @@ import { DREAMS, getRandomDream } from '@/data/dreams'
 import { PLAYER_COLORS, type PlayerColorId } from '@/types/game'
 import type { GameConfig, Career } from '@/types/game'
 import CareerDetailCard from '@/components/CareerDetailCard.vue'
-import DreamSelector from '@/components/DreamSelector.vue'
 import CareerSelectorModal from '@/components/CareerSelectorModal.vue'
+import DreamSelectorModal from '@/components/DreamSelectorModal.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -74,17 +72,6 @@ const playerSetups = reactive<PlayerSetup[]>(
 
 const activeSetups = computed(() => playerSetups.slice(0, config.playerCount))
 
-// 当前选中的玩家索引（用于梦想选择）
-const activePlayerIndex = ref(0)
-const activeDreamId = computed({
-  get: () => playerSetups[activePlayerIndex.value]?.dreamId ?? '',
-  set: (val: string) => {
-    if (playerSetups[activePlayerIndex.value]) {
-      playerSetups[activePlayerIndex.value]!.dreamId = val
-    }
-  },
-})
-
 watch(
   () => config.playerCount,
   (count) => {
@@ -95,9 +82,6 @@ watch(
           name: `玩家 ${i + 1}`,
         }
       }
-    }
-    if (activePlayerIndex.value >= count) {
-      activePlayerIndex.value = 0
     }
   },
 )
@@ -115,6 +99,8 @@ const careerDetailCareer = ref<Career | null>(null)
 // 职业选择器 modal
 const careerSelectorOpen = ref(false)
 const careerSelectorPlayerIndex = ref(0)
+const dreamSelectorOpen = ref(false)
+const dreamSelectorPlayerIndex = ref(0)
 
 function openCareerSelector(index: number) {
   careerSelectorPlayerIndex.value = index
@@ -124,6 +110,17 @@ function openCareerSelector(index: number) {
 function onCareerSelected(careerId: string) {
   if (playerSetups[careerSelectorPlayerIndex.value]) {
     playerSetups[careerSelectorPlayerIndex.value]!.careerId = careerId
+  }
+}
+
+function openDreamSelector(index: number) {
+  dreamSelectorPlayerIndex.value = index
+  dreamSelectorOpen.value = true
+}
+
+function onDreamSelected(dreamId: string) {
+  if (playerSetups[dreamSelectorPlayerIndex.value]) {
+    playerSetups[dreamSelectorPlayerIndex.value]!.dreamId = dreamId
   }
 }
 
@@ -266,6 +263,15 @@ const dockSummary = computed(() => {
           <Briefcase class="w-5 h-5 text-muted-foreground" />
           <Palette class="w-5 h-5 text-muted-foreground" />
           <h2 class="text-sm font-semibold uppercase tracking-wide">玩家设置</h2>
+          <button
+            type="button"
+            data-testid="random-dream-all"
+            class="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            @click="randomDreamForAll"
+          >
+            <Shuffle class="w-3.5 h-3.5" />
+            梦想全部随机
+          </button>
         </div>
         <div class="space-y-3">
           <div
@@ -380,84 +386,32 @@ const dockSummary = computed(() => {
                 </span>
               </div>
             </div>
-            <!-- 梦想显示 -->
+            <!-- 梦想选择 -->
             <div class="sm:col-span-12">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Sparkles class="w-3.5 h-3.5" />
-                  <span>梦想：</span>
-                  <span class="text-foreground font-medium">
-                    {{ getDreamName(setup.dreamId) }}
-                  </span>
-                </div>
+              <label class="block text-xs font-medium text-muted-foreground mb-1.5">梦想</label>
+              <div class="flex gap-2">
                 <button
                   type="button"
-                  class="text-xs text-primary hover:text-primary/80 transition-colors"
-                  @click="activePlayerIndex = index"
+                  :data-testid="`open-dream-selector-${index}`"
+                  class="flex-1 h-10 px-3 bg-background border border-input rounded-[var(--radius-md)] text-foreground text-left text-sm hover:border-ring hover:ring-2 hover:ring-ring/20 transition-colors flex items-center justify-between"
+                  @click="openDreamSelector(index)"
                 >
-                  选择梦想
+                  <span class="truncate">{{ getDreamName(setup.dreamId) }}</span>
+                  <ChevronDown class="w-4 h-4 text-muted-foreground shrink-0" />
+                </button>
+                <button
+                  type="button"
+                  :data-testid="`random-dream-${index}`"
+                  title="随机梦想"
+                  class="flex-shrink-0 w-10 h-10 inline-flex items-center justify-center rounded-[var(--radius-md)] border border-input bg-background text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  @click="randomDreamForPlayer(index)"
+                >
+                  <Shuffle class="w-4 h-4" />
                 </button>
               </div>
             </div>
           </div>
         </div>
-      </section>
-
-      <hr class="border-border" />
-
-      <!-- Step 3: 选择梦想 -->
-      <section class="space-y-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2 text-foreground">
-            <Sparkles class="w-5 h-5 text-muted-foreground" />
-            <h2 class="text-sm font-semibold uppercase tracking-wide">选择梦想</h2>
-          </div>
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            @click="randomDreamForAll"
-          >
-            <Shuffle class="w-3.5 h-3.5" />
-            全部随机
-          </button>
-        </div>
-
-        <!-- 玩家切换 tabs -->
-        <div
-          v-if="config.playerCount > 1"
-          class="flex flex-wrap gap-2"
-        >
-          <button
-            v-for="(setup, index) in activeSetups"
-            :key="index"
-            type="button"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium transition-colors"
-            :class="[
-              activePlayerIndex === index
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-            ]"
-            @click="activePlayerIndex = index"
-          >
-            <span
-              class="w-2 h-2 rounded-full"
-              :style="{
-                backgroundColor:
-                  setup.colorId === 'random'
-                    ? '#9ca3af'
-                    : PLAYER_COLORS.find((c) => c.id === setup.colorId)?.value ?? '#9ca3af',
-              }"
-            ></span>
-            <Bot v-if="setup.isAI" class="w-3 h-3 opacity-70" />
-            {{ setup.name }}
-          </button>
-        </div>
-
-        <!-- 梦想选择器 -->
-        <DreamSelector
-          v-model="activeDreamId"
-          :dreams="DREAMS"
-        />
       </section>
 
       <hr class="border-border" />
@@ -603,7 +557,17 @@ const dockSummary = computed(() => {
       v-model="careerSelectorOpen"
       :selected-career-id="playerSetups[careerSelectorPlayerIndex]?.careerId ?? ''"
       :player-name="playerSetups[careerSelectorPlayerIndex]?.name ?? ''"
+      :show-random="false"
       @confirm="onCareerSelected"
+    />
+
+    <!-- 梦想选择器 Modal -->
+    <DreamSelectorModal
+      v-model="dreamSelectorOpen"
+      :selected-dream-id="playerSetups[dreamSelectorPlayerIndex]?.dreamId ?? ''"
+      :player-name="playerSetups[dreamSelectorPlayerIndex]?.name ?? ''"
+      :show-random="false"
+      @confirm="onDreamSelected"
     />
   </main>
 </template>
