@@ -379,11 +379,18 @@ function boardSlots() {
 
 .mobile-board-pane {
   position: relative;
-  flex: 1 1 auto;
+  /* Keep the board pane from being compressed by the mobile player sidebar. */
+  flex: 0 0 auto;
   min-height: 0;
   width: 100%;
   padding: 8px;
   box-sizing: border-box;
   height: min(52svh, 520px);
+}
+
+@media (max-height: 500px) and (max-width: 1024px) and (orientation: landscape) {
+  .mobile-board-pane {
+    height: min(70svh, 520px);
+  }
 }
 </style>

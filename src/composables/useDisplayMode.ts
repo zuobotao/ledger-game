@@ -8,14 +8,22 @@ import { computed, ref } from 'vue'
 
 export type DisplayMode = 'mobile' | 'desktop'
 
-/** 视口宽度 <= 768px 判定为移动端 */
+/**
+ * 竖屏按宽度判定，横屏手机按高度补充判定。
+ *
+ * 仅用宽度会把横屏手机（例如 844×390）误判成桌面布局，导致侧栏和棋盘
+ * 争抢有限的垂直空间。限制横屏补充条件的最大宽度，避免窄高的桌面窗口
+ * 被误切到移动端。
+ */
 export const MOBILE_BREAKPOINT = 768
 
 const mode = ref<DisplayMode>('desktop')
 
 const query =
   typeof window !== 'undefined'
-    ? window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`)
+    ? window.matchMedia(
+        `(max-width: ${MOBILE_BREAKPOINT}px), (max-height: 500px) and (max-width: 1024px)`,
+      )
     : null
 
 let initialized = false

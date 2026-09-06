@@ -460,11 +460,19 @@ const cardTypeAccentClass = computed(() => {
   }
 }
 
+/* Treat landscape phones as mobile even though their viewport is wider than 640px. */
+@media (max-height: 500px) and (max-width: 1024px) and (orientation: landscape) {
+  .rat-race-board {
+    width: 100%;
+    height: auto;
+  }
+}
+
 /* 7x7 CSS Grid 棋盘容器 */
 .board-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  grid-template-rows: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: repeat(7, minmax(0, 1fr));
   gap: 4px;
   width: 100%;
   height: 100%;

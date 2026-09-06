@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onBeforeUnmount } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Move } from 'lucide-vue-next'
 import { getCellCenterPx } from '@/engine/boardLayout'
 
@@ -26,14 +26,34 @@ const props = withDefaults(
 )
 
 const scrollEl = ref<HTMLElement | null>(null)
+// The board keeps its square aspect ratio, but should use the largest size that
+// fits in the mobile viewport.  A very narrow/short container keeps the old
+// pannable fallback so the board never becomes unusably small.
+const effectiveBoardSize = ref(Math.max(180, props.boardSize - 16))
+let resizeObserver: ResizeObserver | null = null
 let raf = 0
+
+function fitBoardToViewport() {
+  const el = scrollEl.value
+  if (!el) return
+
+  const availableWidth = el.clientWidth - 16
+  const availableHeight = el.clientHeight - 16
+  const maxBoardSize = props.boardSize - 16
+  const canFit = availableWidth >= 180 && availableHeight >= 180
+
+  effectiveBoardSize.value = canFit
+    ? Math.max(180, Math.min(maxBoardSize, availableWidth, availableHeight))
+    : Math.max(180, maxBoardSize)
+  nextTick(() => centerOn(props.activeIndex))
+}
 
 function centerOn(index: number) {
   cancelAnimationFrame(raf)
   raf = requestAnimationFrame(() => {
     const el = scrollEl.value
     if (!el) return
-    const { x, y } = getCellCenterPx(index, props.boardSize, props.cellGap)
+    const { x, y } = getCellCenterPx(index, effectiveBoardSize.value, props.cellGap)
     const tx = Math.max(0, x - el.clientWidth / 2)
     const ty = Math.max(0, y - el.clientHeight / 2)
     el.scrollTo({ left: tx, top: ty, behavior: 'smooth' })
@@ -42,13 +62,32 @@ function centerOn(index: number) {
 
 watch(() => props.activeIndex, centerOn, { immediate: true })
 
-onBeforeUnmount(() => cancelAnimationFrame(raf))
+watch(() => props.boardSize, fitBoardToViewport)
+
+onMounted(() => {
+  fitBoardToViewport()
+  if (typeof ResizeObserver !== 'undefined' && scrollEl.value) {
+    resizeObserver = new ResizeObserver(fitBoardToViewport)
+    resizeObserver.observe(scrollEl.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  cancelAnimationFrame(raf)
+  resizeObserver?.disconnect()
+})
 </script>
 
 <template>
   <div class="mobile-board-scroller">
     <div ref="scrollEl" class="board-scroll">
-      <div class="board-stage" :style="{ width: `${boardSize}px`, height: `${boardSize}px` }">
+      <div
+        class="board-stage"
+        :style="{
+          width: `${effectiveBoardSize + 16}px`,
+          height: `${effectiveBoardSize + 16}px`,
+        }"
+      >
         <slot />
       </div>
     </div>
@@ -102,5 +141,12 @@ onBeforeUnmount(() => cancelAnimationFrame(raf))
   font-size: 0.6875rem;
   line-height: 1rem;
   color: hsl(var(--color-muted-foreground));
+}
+
+/* Landscape phones have less vertical room after the game header and metrics. */
+@media (max-height: 500px) and (max-width: 1024px) and (orientation: landscape) {
+  .mobile-board-scroller {
+    min-height: 220px;
+  }
 }
 </style>

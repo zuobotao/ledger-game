@@ -70,7 +70,7 @@ async function runGame(
  * 手机端首屏布局断言：
  * 进入 Capital Game 后，
  * - 不存在水平溢出（document scrollWidth <= clientWidth）
- * - 棋盘完整可见
+ * - 棋盘在自己的容器内完整可见
  * - 掷骰子 / 结束回合按钮可见且未遮挡
  * 该测试不跑完整对局，只验证移动端核心可玩性。
  */
@@ -96,24 +96,38 @@ async function assertMobileLayout(page: any) {
   expect(overflow.scrollWidth, `mobile-horizontal-overflow ${overflow.scrollWidth} > ${overflow.clientWidth}`)
     .toBeLessThanOrEqual(overflow.clientWidth)
 
-  // 2. 棋盘完整可见，且移动端采用「缓冲区内双向测滚」承接大棋盘（不放溢到页面）
+  // 2. 棋盘在容器内完整可见（极窄屏幕才回退到容器内滚动）
   const board = page.locator('.rat-race-board').first()
   await expect(board).toBeVisible()
   const boardBox = await board.boundingBox()
   expect(boardBox && boardBox.y >= 0, 'board visible in viewport').toBeTruthy()
-  // 移动端棋盘保持合理尺寸（可能超出视口宽度），由棋盘容器内部滚动承接，而非整页横向溢出
+  // 移动端棋盘不应把横向溢出传递到整页；正常手机尺寸应直接完整呈现
   const scroller = await page.evaluate(() => {
     const el = document.querySelector<HTMLElement>('.board-scroll')
     if (!el) return null
-    return { scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }
+    return {
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+    }
   })
-  expect(scroller, 'mobile board wrapped in pannable scroller (.board-scroll)').toBeTruthy()
+  expect(scroller, 'mobile board wrapped in adaptive container (.board-scroll)').toBeTruthy()
   if (scroller) {
-    expect(scroller.scrollWidth, 'board pannable within its own container').toBeGreaterThanOrEqual(scroller.clientWidth)
+    expect(scroller.scrollWidth, 'board stays within its own container').toBeLessThanOrEqual(scroller.clientWidth + 1)
   }
-  // 移动端棋盘本体应大于视口（未被打小成与屏等宽的小正方形）
+  // 棋盘应保持可用尺寸，同时完整落在滚动容器内
   if (boardBox) {
-    expect(boardBox.width, 'mobile board keeps a usable size (not squished to viewport)').toBeGreaterThan(overflow.clientWidth * 0.8)
+    expect(boardBox.width, 'mobile board keeps a usable size').toBeGreaterThan(180)
+    expect(boardBox.width, 'mobile board is square').toBeCloseTo(boardBox.height, 0)
+    const scrollerBox = await page.locator('.board-scroll').boundingBox()
+    expect(scrollerBox, 'board scroller is measurable').toBeTruthy()
+    if (scrollerBox) {
+      expect(boardBox.x).toBeGreaterThanOrEqual(scrollerBox.x)
+      expect(boardBox.y).toBeGreaterThanOrEqual(scrollerBox.y)
+      expect(boardBox.x + boardBox.width).toBeLessThanOrEqual(scrollerBox.x + scrollerBox.width + 1)
+      expect(boardBox.y + boardBox.height).toBeLessThanOrEqual(scrollerBox.y + scrollerBox.height + 1)
+    }
   }
 
   // 3. 核心操作按钮在视口内可见（滚回顶部后）
@@ -135,6 +149,16 @@ async function assertMobileLayout(page: any) {
 
 test.describe('Mobile Playtest: Layout (390x844)', () => {
   test('no horizontal overflow and core actions visible', async ({ page, baseURL }) => {
+    await page.goto(`${baseURL}/`)
+    await page.waitForLoadState('networkidle')
+    await assertMobileLayout(page)
+  })
+})
+
+test.describe('Mobile Playtest: Landscape Layout (844x390)', () => {
+  test.use({ viewport: { width: 844, height: 390 } })
+
+  test('no horizontal overflow and board remains complete', async ({ page, baseURL }) => {
     await page.goto(`${baseURL}/`)
     await page.waitForLoadState('networkidle')
     await assertMobileLayout(page)
