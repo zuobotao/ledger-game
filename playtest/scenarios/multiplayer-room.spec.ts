@@ -62,6 +62,12 @@ test.describe('多人房间 E2E', () => {
     await expect(pageA.locator('[data-testid="lobby-player"]')).toHaveCount(2, { timeout: 15_000 })
     await expect(pageB.locator('[data-testid="lobby-player"]')).toHaveCount(2, { timeout: 15_000 })
 
+    // 随机按钮必须直接设置对应字段，且不能把职业和梦想按钮放错行。
+    await pageA.click('[data-testid="random-career"]')
+    await expect(pageA.locator('[data-testid="open-career-selector"]')).not.toContainText('请选择职业')
+    await pageA.click('[data-testid="random-dream"]')
+    await expect(pageA.locator('[data-testid="open-dream-selector"]')).not.toContainText('请选择梦想')
+
     // 双方选职业/梦想/颜色（Phase 8：平铺列表改为模态框，先打开再选择，autoConfirm 自动关闭）
     await pageA.click('[data-testid="open-career-selector"]')
     await pageA.click('[data-testid="career-software-engineer"]')

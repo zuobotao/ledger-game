@@ -291,16 +291,6 @@ watch(
               <Shuffle class="h-3.5 w-3.5" />
               随机
             </button>
-            <button
-              type="button"
-              data-testid="random-dream"
-              title="随机选择梦想"
-              class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-background px-3 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"
-              @click="randomDream"
-            >
-              <Shuffle class="h-3.5 w-3.5" />
-              随机
-            </button>
           </div>
 
           <!-- 梦想选择行 -->
@@ -329,6 +319,16 @@ watch(
               @click="showSelectedDreamDetail"
             >
               <Info class="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              data-testid="random-dream"
+              title="随机选择梦想"
+              class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-background px-3 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+              @click="randomDream"
+            >
+              <Shuffle class="h-3.5 w-3.5" />
+              随机
             </button>
           </div>
 
