@@ -43,6 +43,17 @@ describe('Loan Operations', () => {
     ])
     const result = store.takeBankLoan(0)
     expect(result).toBe(false)
+    expect(store.lastLoanError).toContain('不能低于')
+  })
+
+  it('should explain when requested amount exceeds the available loan limit', () => {
+    const store = useGameStore()
+    store.startGame(createConfig(), [
+      { name: 'Cleaner', colorId: 'red', careerId: 'cleaner', dreamId: '' },
+    ])
+    const result = store.takeBankLoan(999_000)
+    expect(result).toBe(false)
+    expect(store.lastLoanError).toContain('超过当前可贷上限')
   })
 
   it('should allow repaying a bank loan', () => {

@@ -137,10 +137,16 @@ export function createSingleGameplayAdapter(store: SingleGameStore): GameplayAda
     },
     async takeLoan(input) {
       if (pendingType() === 'need_loan') {
-        return toResult(store.confirmLoanForPending(), 'ACTION_NOT_ALLOWED', '无法办理贷款')
+        const ok = store.confirmLoanForPending()
+        return ok
+          ? commandOk()
+          : commandFail('ACTION_NOT_ALLOWED', store.lastLoanError || '无法办理贷款')
       }
       if (!input?.amount) return commandFail('INVALID_QUANTITY', '请指定贷款金额')
-      return toResult(store.takeBankLoan(input.amount), 'ACTION_NOT_ALLOWED', '贷款申请被拒绝')
+      const ok = store.takeBankLoan(input.amount)
+      return ok
+        ? commandOk()
+        : commandFail('ACTION_NOT_ALLOWED', store.lastLoanError || '贷款申请被拒绝')
     },
     async repayLoan(input) {
       return toResult(store.repayBankLoan(input.liabilityId, input.amount), 'ACTION_NOT_ALLOWED', '还款失败')

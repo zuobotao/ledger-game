@@ -236,6 +236,8 @@ export const useGameStore = defineStore('game', () => {
   const gameStartTime = ref(0)
   const ratRaceTurns = ref(0)
   const fastTrackTurns = ref(0)
+  /** 最近一次贷款申请失败的可读原因，供共享玩法 UI 展示。 */
+  const lastLoanError = ref('')
 
   // ====== v2.1: 决策反馈系统 ======
   // 最近一次重要动作的结果（含财务变化），UI 用它展示决策反馈
@@ -2084,9 +2086,27 @@ export const useGameStore = defineStore('game', () => {
 
   function takeBankLoan(amount: number): boolean {
     const player = currentPlayer.value
-    if (!player || amount < BANK_CONFIG.minLoanAmount) return false
+    lastLoanError.value = ''
+    if (!player) {
+      lastLoanError.value = '当前没有可办理贷款的玩家。'
+      return false
+    }
+    if (!Number.isFinite(amount) || amount < BANK_CONFIG.minLoanAmount) {
+      lastLoanError.value = `贷款金额不能低于 $${BANK_CONFIG.minLoanAmount.toLocaleString()}。`
+      return false
+    }
     const rounded = Math.floor(amount / BANK_CONFIG.loanStep) * BANK_CONFIG.loanStep
-    if (rounded > maxBankLoanAmount(player)) return false
+    const maxLoan = maxBankLoanAmount(player)
+    if (rounded <= 0) {
+      lastLoanError.value = `贷款金额必须按 $${BANK_CONFIG.loanStep.toLocaleString()} 的倍数申请。`
+      return false
+    }
+    if (rounded > maxLoan) {
+      lastLoanError.value = maxLoan > 0
+        ? `申请金额超过当前可贷上限 $${maxLoan.toLocaleString()}。`
+        : '当前没有可用贷款额度：已达到收入倍数上限。'
+      return false
+    }
 
     const before = clonePlayer(player)
     player.cash += rounded
@@ -3155,6 +3175,7 @@ export const useGameStore = defineStore('game', () => {
     dismissDoodad,
     dismissStoryCard,
     takeBankLoan,
+    lastLoanError,
     repayBankLoan,
     repayAllBankLoans,
     depositToSavings,
