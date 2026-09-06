@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Crown, Copy, Check, Loader2, ArrowLeft, Users, RefreshCw, ChevronDown, Info, X } from 'lucide-vue-next'
+import { Crown, Copy, Check, Loader2, ArrowLeft, Users, RefreshCw, ChevronDown, Info, X, Shuffle } from 'lucide-vue-next'
 import { useDisplayMode } from '@/composables/useDisplayMode'
 import { useMultiplayerStore } from '@/stores/multiplayer'
 import { CAREERS, getCareerById } from '@/data/careers'
-import { DREAMS } from '@/data/dreams'
+import { DREAMS, getRandomDream } from '@/data/dreams'
 import { PLAYER_COLORS, type Career, type Dream } from '@/types/game'
 import CareerSelectorModal from '@/components/CareerSelectorModal.vue'
 import DreamSelectorModal from '@/components/DreamSelectorModal.vue'
@@ -85,6 +85,9 @@ function onCareerSelected(careerId: string) {
 function onDreamSelected(dreamId: string) {
   selectedDream.value = dreamId
   applySetup()
+}
+function randomDream() {
+  onDreamSelected(getRandomDream().id)
 }
 function onColor(colorId: string) {
   selectedColor.value = colorId
@@ -275,6 +278,16 @@ watch(
             >
               <Info class="h-4 w-4" />
             </button>
+            <button
+              type="button"
+              data-testid="random-dream"
+              title="随机选择梦想"
+              class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-background px-3 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+              @click="randomDream"
+            >
+              <Shuffle class="h-3.5 w-3.5" />
+              随机
+            </button>
           </div>
 
           <!-- 梦想选择行 -->
@@ -370,6 +383,7 @@ watch(
       :selected-dream-id="selectedDream"
       :player-name="myNickname"
       auto-confirm
+      :show-random="false"
       @confirm="onDreamSelected"
     />
 

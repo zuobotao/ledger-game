@@ -24,6 +24,7 @@ import { getRandomDream } from '@/data/dreams'
 const props = defineProps<{
   modelValue: string | null
   dreams: Dream[]
+  showRandom?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -141,6 +142,7 @@ const selectedDream = computed(() => {
         请选择一个梦想
       </div>
       <button
+        v-if="props.showRandom !== false"
         type="button"
         class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
         @click="randomDream"

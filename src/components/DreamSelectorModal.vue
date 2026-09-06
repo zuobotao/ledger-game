@@ -10,12 +10,14 @@ interface Props {
   selectedDreamId?: string
   playerName?: string
   autoConfirm?: boolean
+  showRandom?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   selectedDreamId: '',
   playerName: '',
   autoConfirm: false,
+  showRandom: true,
 })
 
 const emit = defineEmits<{
@@ -98,6 +100,7 @@ function onSelect(dream: Dream) {
               <DreamSelector
                 v-model="localDreamId"
                 :dreams="DREAMS"
+                :show-random="showRandom"
                 @select="onSelect"
               />
             </div>
