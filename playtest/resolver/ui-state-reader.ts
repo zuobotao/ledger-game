@@ -24,8 +24,13 @@ export async function scanDomActions(page: Page, testids: string[]): Promise<Dom
       const count = await locator.count()
       present = count > 0
       if (present) {
-        const first = locator.first()
-        enabled = await first.isVisible() && await first.isEnabled()
+        for (let index = 0; index < count; index += 1) {
+          const candidate = locator.nth(index)
+          if (await candidate.isVisible() && await candidate.isEnabled()) {
+            enabled = true
+            break
+          }
+        }
       }
     } catch {
       // element missing

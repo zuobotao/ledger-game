@@ -59,9 +59,31 @@ describe('playtest action resolver', () => {
       getByTestId(testid: string) {
         const locator = {
           count: async () => testid === 'market-dismiss' ? 1 : 0,
-          first() { return locator },
+          nth() { return locator },
           isVisible: async () => true,
           isEnabled: async () => true,
+        }
+        return locator
+      },
+    } as any
+
+    const actions = await resolveActions(page, bridge({ marketEventState: null }))
+    expect(actions.map((action) => action.type)).toContain('market-dismiss')
+  })
+
+  it('accepts the visible responsive copy when the first matching node is hidden', async () => {
+    const page = {
+      getByTestId(testid: string) {
+        const locators = [
+          { visible: false, enabled: false },
+          { visible: testid === 'market-dismiss', enabled: testid === 'market-dismiss' },
+        ]
+        const locator = {
+          count: async () => locators.length,
+          nth(index: number) {
+            const item = locators[index]!
+            return { isVisible: async () => item.visible, isEnabled: async () => item.enabled }
+          },
         }
         return locator
       },
