@@ -41,6 +41,7 @@
 | `3d6c79a` | 房间意外断线重连 | 旧 socket 关闭时先从客户端解绑，再触发重连；忽略过期 socket 的事件，重连沿用 10 秒超时边界，避免界面无期限停在恢复状态 |
 | `9f3f455` | 浏览器刷新后恢复多人对局 | 对局路由刷新自动重连；大厅刷新在 `playing` 房间快照与游戏状态快照分先后到达后自动跳回对局；新增 store 顺序回归与双浏览器刷新路径 |
 | `4b76b77` | 移动端股票购买信息 | 待处理动作层限定在棋盘区域高度内，内容过长时在面板内滚动，资产名称、教育说明、买入价和确认按钮均可见且不被资格栏遮挡 |
+| `待推送` | 市场弹层状态桥兜底 | 市场弹层按钮已经出现在 DOM、但状态桥短暂缺少 `pendingAction` 时，动作解析器仍能识别并点击“结束”；纯逻辑回归 3/3 通过 |
 | 待补 | 全流程剩余分支与部署复验 | 当前基础/随机 Bot 长链路仍在市场事件后复现卡住，见下方未闭环项 |
 
 ## 本轮验证记录
@@ -57,7 +58,8 @@
 - Vitest：`npx vitest run test/unit/v24-join-flow.spec.ts`，11/11 通过，覆盖 `room_snapshot(status=playing)` 先到、`reconnect_snapshot(state)` 后到的恢复顺序。
 - `npm run build`：类型检查与 Vite 生产构建通过。Playwright `multiplayer-room.spec.ts` 已加入对局页与 `/lobby` 硬刷新回归，但当前受沙箱禁止监听 `0.0.0.0:8787` 的 `listen EPERM` 阻断，未计入通过。
 - Playwright：`mobile-opportunity-details.spec.ts` 在 390×844 真机尺寸先复现资产标题被资格栏覆盖，修复后确认标题、教育说明、买入价和确认按钮可见；标题中心点由自身接收指针事件。`npm run build` 通过。
-- 随机 Bot 长链路：市场事件卖出后，截图中 `market-dismiss` 按钮可见，但动作桥未继续执行，回合守卫在第 48 回合停止。证据保存在 `playtest/runs/20260906-224642/` 与对应 Playwright trace；该项仍需下一轮定位 `canAct`/动作扫描状态。
+- Vitest：市场状态桥短暂缺少 `pendingAction` 时，动作解析器仍保留可见的 `market-dismiss`；状态正常结束时回退到 `end-turn`，3/3 通过。
+- 随机 Bot 长链路：修复前在市场事件后回合 41 停止；加入状态桥兜底后单局仍在回合 39 的另一市场状态停止，说明长链路还存在新的状态同步分支，证据保存在 `playtest/runs/20260908-065010-mobile/`，暂不计入通过。
 
 ## 下一轮排队需求
 
