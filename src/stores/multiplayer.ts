@@ -476,6 +476,9 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
   function attemptReconnect(): void {
     const s = session.value
     if (!s || !s.token) return
+    // 意外断线后的重连与页面刷新恢复共享超时边界，避免连接未建立时
+    // 界面长期停留在“正在进入房间”。
+    startReconnectTimer()
     connect({ type: 'reconnect', sessionId: s.sessionId, roomId: s.roomId, token: s.token })
   }
 

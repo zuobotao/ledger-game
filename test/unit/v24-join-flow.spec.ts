@@ -261,6 +261,30 @@ describe('joinRoom — 可 await 的加入流程（计划 §12）', () => {
     expect(store.lastError).toContain('恢复房间超时')
   })
 
+  it('已连接房间意外断线后，重连同样在超时后结束等待', () => {
+    vi.useFakeTimers()
+    localStorage.setItem(
+      'ledger.room.session',
+      JSON.stringify({ sessionId: 'sess-1', playerId: 'p-1', roomId: 'room-1', token: 'tok-1', nickname: '小红' }),
+    )
+    const store = useMultiplayerStore()
+    expect(store.autoReconnect()).toBe(true)
+
+    const first = FakeWebSocket.instances[0]!
+    openSocket(first)
+    push(first, { type: 'reconnect_snapshot', ok: true, room: makeRoomDto('p-1') })
+
+    // 模拟网络中断。RoomClient 会触发 store.attemptReconnect() 并建立 replacement socket。
+    first.close()
+    const replacement = FakeWebSocket.instances[1]!
+    expect(replacement).toBeDefined()
+    openSocket(replacement)
+
+    vi.advanceTimersByTime(10_001)
+    expect(store.status).toBe('closed')
+    expect(store.lastError).toContain('恢复房间超时')
+  })
+
   it('刷新恢复被服务端拒绝后停止重连并清理失效会话', () => {
     localStorage.setItem(
       'ledger.room.session',

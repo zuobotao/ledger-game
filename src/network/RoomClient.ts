@@ -62,12 +62,14 @@ export class RoomClient {
     this.pending = attach ? [attach] : []
 
     ws.onopen = () => {
+      if (this.ws !== ws) return
       this.setStatus('open')
       this.flushPending()
       // 连接建立后启动心跳
       this.startHeartbeat()
     }
     ws.onmessage = (ev: MessageEvent<string>) => {
+      if (this.ws !== ws) return
       try {
         const parsed = JSON.parse(ev.data as string) as ServerMessage
         this.messageHandler?.(parsed)
@@ -75,10 +77,16 @@ export class RoomClient {
         /* 忽略非 JSON 帧 */
       }
     }
-    ws.onerror = () => this.setStatus('error')
+    ws.onerror = () => {
+      if (this.ws === ws) this.setStatus('error')
+    }
     ws.onclose = () => {
+      // 旧 socket 的 close 可能在重连已经创建新 socket 后才到达。
+      // 它不能覆盖新连接的状态，也不能把新引用清空。
+      if (this.ws !== ws) return
       const hadToken = Boolean(this.pending.length)
       const unexpected = !this.manualClosed
+      this.ws = null
       this.setStatus('closed')
       this.stopHeartbeat()
       if (!this.manualClosed && this.retry) {
@@ -87,7 +95,6 @@ export class RoomClient {
       // 主动断开不应触发调用方的自动重连，否则离开房间/清理会话时
       // 会在后台重新建立连接，表现为页面一直卡在“进入房间”。
       if (unexpected) this.unexpectedCloseHandler?.(hadToken)
-      this.ws = null
     }
   }
 
