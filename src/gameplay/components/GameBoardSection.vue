@@ -321,7 +321,7 @@ function boardSlots() {
     <Transition name="slide-up">
       <div
         v-if="showActionPanel"
-        class="pointer-events-none absolute bottom-0 left-0 right-0 z-40 px-3 pb-3 sm:px-6 sm:pb-4"
+        class="pointer-events-none absolute inset-y-0 left-0 right-0 z-40 flex items-end px-3 pb-3 sm:px-6 sm:pb-4"
       >
         <div
           data-testid="pending-action-scroll"
