@@ -184,9 +184,9 @@ onMounted(() => {
 })
 
 watch(
-  () => store.room?.status,
-  (s) => {
-    if (s === 'playing' && store.sessionInfo && store.gameState) {
+  () => [store.room?.status, store.sessionInfo, store.gameState] as const,
+  ([status, sessionInfo, gameState]) => {
+    if (status === 'playing' && sessionInfo && gameState) {
       router.push({ name: 'multiplayer-game' })
     }
   },

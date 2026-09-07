@@ -117,6 +117,17 @@ test.describe('多人房间 E2E', () => {
     await pageA.waitForSelector('[data-testid="roll-dice"]', { timeout: 15_000 })
     await pageB.waitForSelector('[data-testid="roll-dice"]', { timeout: 15_000 })
 
+    // 对局路由硬刷新必须自动重连并恢复权威状态。
+    await pageB.reload()
+    await pageB.waitForSelector('[data-testid="mp-players"]', { timeout: 15_000 })
+
+    // 大厅路由硬刷新会先收到 playing room_snapshot，再收到带 gameState 的 reconnect_snapshot；
+    // 第二个快照到达后应自动跳回对局，不能停在大厅等待页。
+    await pageA.goto('/ledger-game/#/lobby')
+    await pageA.reload()
+    await pageA.waitForURL(/#\/multiplayer-game$/, { timeout: 15_000 })
+    await pageA.waitForSelector('[data-testid="mp-players"]', { timeout: 15_000 })
+
     // A 掷骰：轮到 A（房主为 0 号玩家），应出现掷骰按钮
     await dismissVueDevtools(pageA)
     const rollBtn = pageA.locator('[data-testid="roll-dice"]')

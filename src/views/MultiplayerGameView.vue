@@ -9,7 +9,7 @@
  * 多人专属会话信息（房间码 / 连接状态 / 离开）作为顶部细条保留在本视图；
  * 玩法区与 Single 使用同一套渲染，仅通过 MultiplayerGameplayAdapter 访问服务器权威状态。
  */
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, Loader2, Trophy } from 'lucide-vue-next'
 import { useMultiplayerStore } from '@/stores/multiplayer'
@@ -21,6 +21,11 @@ const router = useRouter()
 const store = useMultiplayerStore()
 
 const adapter = createMultiplayerGameplayAdapter(store)
+onMounted(() => {
+  // 直接刷新对局路由时 store 会重新创建，必须恢复本地会话才能收到游戏快照。
+  if (store.gameState || store.status === 'connecting' || store.status === 'open') return
+  store.autoReconnect()
+})
 onBeforeUnmount(() => adapter.dispose())
 
 // ============ 会话信息 ============

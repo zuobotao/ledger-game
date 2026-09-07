@@ -306,4 +306,45 @@ describe('joinRoom — 可 await 的加入流程（计划 §12）', () => {
     expect(store.session).toBeNull()
     expect(localStorage.getItem('ledger.room.session')).toBeNull()
   })
+
+  it('房间进入 playing 后再收到 gameState 时仍完成恢复状态', () => {
+    localStorage.setItem(
+      'ledger.room.session',
+      JSON.stringify({ sessionId: 'sess-1', playerId: 'p-1', roomId: 'room-1', token: 'tok-1', nickname: '小红' }),
+    )
+    const store = useMultiplayerStore()
+    expect(store.autoReconnect()).toBe(true)
+    const ws = FakeWebSocket.instances[0]!
+    openSocket(ws)
+
+    const playingRoom = { ...makeRoomDto('p-1'), status: 'playing' as const }
+    push(ws, { type: 'room_snapshot', room: playingRoom })
+    expect(store.room?.status).toBe('playing')
+    expect(store.gameState).toBeNull()
+
+    push(ws, {
+      type: 'reconnect_snapshot',
+      ok: true,
+      room: playingRoom,
+      session: {
+        id: 'session-1',
+        sessionId: 'sess-1',
+        roomId: 'room-1',
+        seed: 1,
+        version: '2.4.3',
+        turnNumber: 1,
+        currentPlayerId: 'game-p-1',
+        status: 'playing',
+        startedAt: 0,
+      },
+      state: { players: [], currentPlayerIndex: 0 } as never,
+      playerMap: { 'p-1': 'game-p-1' },
+      sequence: 4,
+      stateHash: 'abcd1234',
+    })
+
+    expect(store.gameState).not.toBeNull()
+    expect(store.sessionInfo?.turnNumber).toBe(1)
+    expect(store.playerMap['p-1']).toBe('game-p-1')
+  })
 })
