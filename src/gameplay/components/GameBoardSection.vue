@@ -324,7 +324,8 @@ function boardSlots() {
         class="pointer-events-none absolute bottom-0 left-0 right-0 z-40 px-3 pb-3 sm:px-6 sm:pb-4"
       >
         <div
-          class="pointer-events-auto mx-auto max-w-[680px] rounded-2xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur-md"
+          data-testid="pending-action-scroll"
+          class="pointer-events-auto mx-auto max-h-[calc(100%-1rem)] max-w-[680px] overflow-y-auto overscroll-contain rounded-2xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur-md"
         >
           <div class="flex items-start gap-3">
             <AlertCircle v-if="!showBoardCard" class="mt-0.5 h-5 w-5 text-primary" />

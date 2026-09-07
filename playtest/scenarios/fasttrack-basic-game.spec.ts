@@ -168,6 +168,10 @@ async function driveFastTrack(
           break
         case 'fast_track_stock_trading':
           handled.stockTrade++
+          // 购买面板内容较长时，股票名称/价格不能被棋盘容器裁掉。
+          await expect(page.getByTestId('pending-action-scroll')).toBeVisible()
+          await expect(page.getByText('数量：')).toBeVisible()
+          await expect(page.getByText('当前现金：')).toBeVisible()
           // 买入 1 股 NOVA
           await clickEnabled(page, /NOVA/)
           await page.waitForTimeout(160)

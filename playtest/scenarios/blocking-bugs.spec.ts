@@ -29,3 +29,58 @@ test('跨窗口打开首页时，继续游戏有反馈并进入有效存档', as
 
   await context.close()
 })
+
+test.describe('资本游戏购买面板', () => {
+  test.use({ viewport: { width: 1280, height: 800 } })
+
+  test('股票购买信息保持可见，内容超高时在面板内滚动', async ({ page, baseURL }) => {
+    const state = structuredClone(fixture)
+    state.phase = 'fast_track'
+    state.players[0].phase = 'fast_track'
+    state.turnStatus = 'resolving'
+    state.pendingAction = {
+      type: 'fast_track_stock_trading',
+      card: null,
+      message: '股票交易：自由买卖股票，把握市场机会。',
+    }
+
+    await page.addInitScript((seed) => {
+      localStorage.setItem('ledger101-game-state', JSON.stringify(seed))
+    }, state)
+    await page.goto(`${baseURL}/#/fast-track`)
+
+    const panel = page.getByTestId('pending-action-scroll')
+    await expect(panel).toBeVisible()
+    await expect(panel).toHaveCSS('overflow-y', 'auto')
+    await panel.getByRole('button', { name: /NOVA/ }).click()
+    await expect(panel.getByText('数量：')).toBeVisible()
+    await expect(panel.getByText('当前现金：')).toBeVisible()
+    await expect(panel.getByText('NOVA')).toBeVisible()
+  })
+})
+
+test.describe('资本游戏购买面板移动端', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test('购买说明和数量控件在手机端可见', async ({ page, baseURL }) => {
+    const state = structuredClone(fixture)
+    state.phase = 'fast_track'
+    state.players[0].phase = 'fast_track'
+    state.turnStatus = 'resolving'
+    state.pendingAction = {
+      type: 'fast_track_stock_trading',
+      card: null,
+      message: '股票交易：自由买卖股票，把握市场机会。',
+    }
+    await page.addInitScript((seed) => {
+      localStorage.setItem('ledger101-game-state', JSON.stringify(seed))
+    }, state)
+    await page.goto(`${baseURL}/#/fast-track`)
+
+    const panel = page.getByTestId('pending-action-scroll')
+    await expect(panel).toBeVisible()
+    await panel.getByRole('button', { name: /NOVA/ }).click()
+    await expect(panel.getByText('数量：')).toBeVisible()
+    await expect(panel.getByText('当前现金：')).toBeVisible()
+  })
+})
