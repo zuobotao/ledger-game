@@ -17,6 +17,7 @@ import { test, expect } from '@playwright/test'
 import path from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { readStateBridge } from '../utils/state-reader'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE = JSON.parse(
@@ -37,22 +38,17 @@ async function seedGame(page: import('@playwright/test').Page) {
 }
 
 async function bridgeState(page: import('@playwright/test').Page) {
-  return page
-    .evaluate(() => {
-      const store = (window as any).gameStore
-      if (!store) return null
-      const pa = store.pendingAction
-      return {
-        turn: store.turnNumber ?? 0,
-        phase: store.phase ?? '',
-        turnStatus: store.turnStatus ?? '',
-        pendingAction: pa && pa.type ? String(pa.type) : null,
-        showTurnSummary: store.showTurnSummary ?? false,
-        hasDecisionFeedback: store.lastActionResult ? true : false,
-        cash: store.players?.[store.currentPlayerIndex ?? 0]?.cash ?? 0,
-      }
-    })
-    .catch(() => null)
+  const state = await readStateBridge(page)
+  if (!state) return null
+  return {
+    turn: state.turn,
+    phase: state.phase,
+    turnStatus: state.turnStatus,
+    pendingAction: state.pendingAction,
+    showTurnSummary: state.showTurnSummary,
+    hasDecisionFeedback: state.hasDecisionFeedback,
+    cash: state.players[state.currentPlayerIndex]?.cash ?? 0,
+  }
 }
 
 /** 达标后回合总结 Overlay 会自动弹出（真实的「进入资本游戏」Offer）；先关闭以露出资格面板 CTA */
@@ -85,6 +81,7 @@ interface FastTrackRun {
   nonFinite: boolean
   handled: { opportunity: number; stockTrade: number; dream: number; market: number; roll: number; end: number }
   iterations: number
+  completed: boolean
   startTurn: number
   endTurn: number
 }
@@ -120,6 +117,7 @@ async function driveFastTrack(
   let startTurn = 0
   let lastTurn = -1
   let nonFinite = false
+  let completed = false
 
   while (iterations < maxActions) {
     iterations++
@@ -130,10 +128,16 @@ async function driveFastTrack(
       if (await hasNonFinite()) nonFinite = true
       if (startTurn === 0) startTurn = b.turn
       if (b.turn !== lastTurn) lastTurn = b.turn
-      if (b.phase === 'finished' || b.turnStatus === 'finished') break
+      if (b.phase === 'finished' || b.turnStatus === 'finished') {
+        completed = true
+        break
+      }
       if (lastTurn - startTurn >= minTurns && b.turnStatus === 'idle') {
         // 已推进足够回合且回到可掷骰状态，收尾
-        if (handled.opportunity + handled.stockTrade + handled.dream >= 1) break
+        if (handled.opportunity + handled.stockTrade + handled.dream >= 1) {
+          completed = true
+          break
+        }
       }
 
       const key = `${b.turn}|${b.turnStatus}|${b.pendingAction}|${b.showTurnSummary}`
@@ -170,11 +174,12 @@ async function driveFastTrack(
           handled.stockTrade++
           // 购买面板内容较长时，股票名称/价格不能被棋盘容器裁掉。
           await expect(page.getByTestId('pending-action-scroll')).toBeVisible()
-          await expect(page.getByText('数量：')).toBeVisible()
-          await expect(page.getByText('当前现金：')).toBeVisible()
+          await expect(page.getByText('新星科技 · 科技')).toBeVisible()
           // 买入 1 股 NOVA
           await clickEnabled(page, /NOVA/)
           await page.waitForTimeout(160)
+          await expect(page.getByText('数量：')).toBeVisible()
+          await expect(page.getByText('当前现金：')).toBeVisible()
           await clickEnabled(page, /确认买入/)
           await page.waitForTimeout(220)
           // 落袋：切到卖出并卖回 NOVA
@@ -188,7 +193,7 @@ async function driveFastTrack(
           break
         case 'market':
           handled.market++
-          await clickEnabled(page, /放弃|完成|知道了|跳过/)
+          await clickEnabled(page, /放弃|完成|结束|知道了|跳过/)
           break
         default:
           break
@@ -206,7 +211,7 @@ async function driveFastTrack(
     }
   }
 
-  return { consoleErrors, nonFinite, handled, iterations, startTurn, endTurn: lastTurn }
+  return { consoleErrors, nonFinite, handled, iterations, completed, startTurn, endTurn: lastTurn }
 }
 
 test.describe('FastTrack 专项 · Desktop (1280×800)', () => {
@@ -265,6 +270,7 @@ test.describe('FastTrack 专项 · Desktop (1280×800)', () => {
     expect(run.nonFinite, '出现 NaN/非有限值').toBe(false)
     expect(run.consoleErrors, '出现控制台错误').toEqual([])
     expect(errors, '出现控制台错误(全量)').toEqual([])
+    expect(run.completed, '快车道流程耗尽动作上限，存在未关闭的交互或状态卡点').toBe(true)
     // 至少推进了若干回合
     expect(run.endTurn - run.startTurn).toBeGreaterThanOrEqual(1)
     // 至少处理过一次快车道决策（机会 / 股票交易 / 梦想）
@@ -325,6 +331,7 @@ test.describe('FastTrack 专项 · Mobile (390×844)', () => {
     expect(run.nonFinite, '出现 NaN/非有限值').toBe(false)
     expect(run.consoleErrors, '出现控制台错误').toEqual([])
     expect(errors, '出现控制台错误(全量)').toEqual([])
+    expect(run.completed, '移动端快车道流程耗尽动作上限，存在未关闭的交互或状态卡点').toBe(true)
     expect(run.endTurn - run.startTurn).toBeGreaterThanOrEqual(1)
     expect(run.handled.opportunity + run.handled.stockTrade + run.handled.dream).toBeGreaterThanOrEqual(1)
     expect(run.handled.roll).toBeGreaterThanOrEqual(1)
