@@ -142,6 +142,18 @@ async function assertMobileLayout(page: any) {
   if (firstAction) {
     const box = await firstAction.boundingBox()
     expect(box && box.y + box.height <= 844, 'action button not off-screen').toBeTruthy()
+    const layout = await firstAction.evaluate((el) => {
+      const section = el.closest('section')
+      const rect = el.getBoundingClientRect()
+      const sectionRect = section?.getBoundingClientRect()
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+      return {
+        sectionContainsAction: Boolean(sectionRect && sectionRect.bottom >= rect.bottom - 1),
+        actionReceivesPointer: hit === el || el.contains(hit),
+      }
+    })
+    expect(layout.sectionContainsAction, 'board section must reserve space for the primary action').toBe(true)
+    expect(layout.actionReceivesPointer, 'primary action must not be covered by the mobile sidebar').toBe(true)
   }
 
   await page.screenshot({ path: path.join(RUN_DIR, 'mobile-layout-check.png') })

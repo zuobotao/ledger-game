@@ -218,7 +218,7 @@ function boardSlots() {
 </script>
 
 <template>
-  <section class="relative order-1 flex min-h-[38vh] flex-1 flex-col overflow-hidden lg:min-h-0">
+  <section class="game-board-section relative order-1 flex min-h-[38vh] flex-1 flex-col overflow-visible lg:min-h-0 lg:overflow-hidden">
     <!-- 纯消息 toast -->
     <div
       v-if="toastVisible"
@@ -389,9 +389,26 @@ function boardSlots() {
   height: min(52svh, 520px);
 }
 
+/* Mobile layout must reserve room for the board and the primary action together.
+ * Without this, the flex parent shrinks the section to the board height and
+ * overflow-hidden clips the roll/end-turn button behind the financial sidebar. */
+@media (max-width: 1023px) {
+  .game-board-section {
+    flex: 0 0 auto;
+    min-height: calc(min(52svh, 520px) + 4.5rem);
+  }
+}
+
 @media (max-height: 500px) and (max-width: 1024px) and (orientation: landscape) {
+  .game-board-section {
+    flex: 0 0 100%;
+    height: 100%;
+    min-height: 100%;
+  }
+
   .mobile-board-pane {
-    height: min(70svh, 520px);
+    flex: 1 1 auto;
+    height: calc(100% - 4.5rem);
   }
 }
 </style>
