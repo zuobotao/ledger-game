@@ -127,26 +127,24 @@ async function openBankTab(page: Page, tabText: string) {
 
 /** 贷款/还款/买入等会弹出决策反馈 Overlay；先点「知道了」关闭它，露出银行模态 */
 async function dismissDecisionFeedback(page: Page) {
-  const overlay = page.locator('.decision-feedback-overlay')
-  if ((await overlay.count()) && (await overlay.first().isVisible().catch(() => false))) {
-    const ok = overlay.getByRole('button', { name: /知道了/ }).first()
-    if ((await ok.count()) && (await ok.isVisible().catch(() => false))) {
-      await ok.click().catch(() => {})
-      await page.waitForTimeout(400)
-    } else {
-      // 兜底：Escape / 点遮罩
-      await page.keyboard.press('Escape').catch(() => {})
-      await page.waitForTimeout(300)
-    }
+  const ok = page.getByTestId('decision-feedback-dismiss')
+  await ok.first().waitFor({ state: 'visible', timeout: 1200 }).catch(() => {})
+  if (await ok.first().isVisible().catch(() => false)) {
+    await ok.first().click().catch(() => {})
+    await page.waitForTimeout(400)
   }
 }
 
 /** 在银行内按文本定位可点击按钮（精确匹配），始终限定在打开的模态内 */
 async function clickBankBtn(page: Page, name: string) {
-  const btn = page.getByRole('dialog').getByRole('button', { name, exact: true })
+  const btn = page.getByRole('dialog').getByRole('button', { name, exact: true }).first()
   await btn.waitFor({ state: 'visible', timeout: 10_000 })
   await btn.click()
   await page.waitForTimeout(250)
+}
+
+function bankDialog(page: Page) {
+  return page.getByRole('dialog')
 }
 
 /** 关闭银行模态（点击遮罩或关闭图标） */
@@ -197,7 +195,7 @@ test.describe('Phase 8 · 完整单人财务闭环 (Desktop 1280×800)', () => {
 
     // ===== 存款 $1000 → cash↓1000 savings↑1000，净资产不变 =====
     await openBankTab(page, '存款')
-    await page.fill('input[type="number"]', '1000')
+    await bankDialog(page).getByTestId('bank-deposit-input').fill('1000')
     await clickBankBtn(page, '存入')
     s = (await snap(page))!
     expectFinite(s, '存款后')
@@ -206,8 +204,7 @@ test.describe('Phase 8 · 完整单人财务闭环 (Desktop 1280×800)', () => {
     expect(s.netWorth).toBeCloseTo(initNetWorth, 8)
 
     // ===== 取款 $400 → cash↑400 savings↓400，净资产不变 =====
-    // 存款 tab 内有 2 个 number 输入：第 1 个是存款金额，第 2 个是取款金额
-    await page.locator('input[type="number"]').nth(1).fill('400')
+    await bankDialog(page).getByTestId('bank-withdraw-input').fill('400')
     await clickBankBtn(page, '取出')
     s = (await snap(page))!
     expectFinite(s, '取款后')
@@ -216,9 +213,9 @@ test.describe('Phase 8 · 完整单人财务闭环 (Desktop 1280×800)', () => {
     expect(s.netWorth).toBeCloseTo(initNetWorth, 8)
 
     // ===== 贷款 $5000 → cash↑5000，负债↑，月还款计入支出 =====
-    await page.getByRole('dialog').getByRole('button', { name: '贷款', exact: true }).first().click()
-    await page.fill('input[type="number"]', '5000')
-    await page.getByTestId('bank-loan-button').click()
+    await clickBankBtn(page, '贷款')
+    await bankDialog(page).getByTestId('bank-loan-input').fill('5000')
+    await bankDialog(page).getByTestId('bank-loan-button').click()
     s = (await snap(page))!
     expectFinite(s, '贷款后')
     expect(s.cash).toBeCloseTo(initCash + 4400, 8)
@@ -229,10 +226,10 @@ test.describe('Phase 8 · 完整单人财务闭环 (Desktop 1280×800)', () => {
 
     // ===== 还款 $2000 → cash↓2000，负债↓2000，支出-200 =====
     await dismissDecisionFeedback(page)
-    await page.getByRole('dialog').getByRole('button', { name: '贷款', exact: true }).first().click()
-    // 还款 tab 中「还款金额」输入框（避免误填其他 number 输入）
-    await page.locator('label:has-text("还款金额") + input[type="number"]').fill('2000')
-    await page.getByTestId('bank-loan-repay-button').first().click()
+    await clickBankBtn(page, '贷款')
+    // 还款 tab 中的稳定输入标识，避免依赖布局相邻选择器
+    await bankDialog(page).getByTestId('bank-loan-repay-input').first().fill('2000')
+    await bankDialog(page).getByTestId('bank-loan-repay-button').first().click()
     await dismissDecisionFeedback(page)
     s = (await snap(page))!
     expectFinite(s, '还款后')
@@ -244,8 +241,10 @@ test.describe('Phase 8 · 完整单人财务闭环 (Desktop 1280×800)', () => {
     // ===== 还清学生贷款 $6000 → 负债-6000、支出-100（recurring expense 降）=====
     // 先还清具体负债再完整走完剩余环节；比现金充裕，不影响后续保险
     // 一次性还清区有多个负债行，需定位「学生贷款」那一行的「还清」按钮
-    const schoolRow = page.locator('div.rounded-xl', { hasText: '学生贷款' }).first()
-    await schoolRow.getByRole('button', { name: '还清', exact: true }).click()
+    await page.getByTestId('bank-close').click()
+    await page.getByTestId('side-tab-balance').click()
+    const schoolRow = page.locator('[data-liability-name="学生贷款"]')
+    await schoolRow.getByTestId('liability-payoff-button').click()
     await page.waitForTimeout(250)
     await dismissDecisionFeedback(page)
     s = (await snap(page))!
@@ -256,14 +255,15 @@ test.describe('Phase 8 · 完整单人财务闭环 (Desktop 1280×800)', () => {
     expect(s.totalExpenses).toBeCloseTo(initExpenses + 500 - 100, 8)
 
     // ===== 裁员保险（一次性购买，终身有效）→ hasInsurance true =====
-    await clickBankBtn(page, '保险')
-    await clickBankBtn(page, '购买')
+    await openBankTab(page, '保险')
+    await bankDialog(page).getByTestId('buy-health-insurance').click()
+    await dismissDecisionFeedback(page)
     s = (await snap(page))!
     expectFinite(s, '买裁员保险后')
     expect(s.hasInsurance).toBe(true)
 
     // ===== 失业保险（月缴）→ hasUnemploymentInsurance true =====
-    await clickBankBtn(page, '参保')
+    await bankDialog(page).getByTestId('toggle-unemployment-insurance').click()
     s = (await snap(page))!
     expectFinite(s, '参保后')
     expect(s.hasUnemploymentInsurance).toBe(true)

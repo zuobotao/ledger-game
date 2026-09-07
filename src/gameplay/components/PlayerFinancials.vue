@@ -188,7 +188,12 @@ defineSlots<{
     <section class="rounded-2xl border border-border bg-background p-4 shadow-sm">
       <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">负债</h3>
       <ul v-if="p.liabilities.length" class="space-y-2 text-sm">
-        <li v-for="loan in p.liabilities" :key="loan.id" class="flex flex-col gap-1">
+        <li
+          v-for="loan in p.liabilities"
+          :key="loan.id"
+          class="flex flex-col gap-1"
+          :data-liability-name="loan.name"
+        >
           <div class="flex items-center justify-between">
             <span class="text-muted-foreground">{{ loan.name }}</span>
             <span class="font-medium">{{ formatMoney(loan.amount) }}</span>

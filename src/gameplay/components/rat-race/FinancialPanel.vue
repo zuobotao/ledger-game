@@ -11,11 +11,14 @@ import type { GameplayAdapter } from '@/gameplay/gameplayAdapter'
 import { formatMoney } from '@/gameplay/presentation'
 import PlayerFinancials from '@/gameplay/components/PlayerFinancials.vue'
 
-const props = defineProps<{
-  adapter: GameplayAdapter
-  /** 是否显示负债偿还操作（银行弹窗的财务报表 Tab 传 false） */
-  showActions?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    adapter: GameplayAdapter
+    /** 是否显示负债偿还操作（银行弹窗的财务报表 Tab 传 false） */
+    showActions?: boolean
+  }>(),
+  { showActions: true },
+)
 
 const vm = computed(() => props.adapter.viewModel.value)
 const viewing = computed(() => vm.value.viewingPlayer)
@@ -88,6 +91,7 @@ async function onPayoffLiability(loan: LoanView) {
             v-else-if="!isMultiplayer"
             type="button"
             class="rounded-md bg-secondary px-2 py-1 text-xs font-semibold hover:bg-muted"
+            data-testid="liability-payoff-button"
             @click="onPayoffLiability(loan)"
           >
             还清
