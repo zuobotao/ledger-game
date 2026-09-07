@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test'
 import type { PlaytestAction } from './playtest-action'
 import type { RawGameState } from '../utils/state-reader'
 import { scanDomActions } from './ui-state-reader'
-import { resolveMarket } from './market-resolver'
+import { marketDismissAction, resolveMarket } from './market-resolver'
 import { resolveOpportunity } from './opportunity-resolver'
 import { resolveLoan, resolveCharity, resolveKnownDismiss } from './loan-resolver'
 import { rollDiceAction, endTurnAction, turnSummaryContinueAction, decisionFeedbackDismissAction } from './turn-resolver'
@@ -19,13 +19,18 @@ import { rollDiceAction, endTurnAction, turnSummaryContinueAction, decisionFeedb
  */
 export async function resolveActions(page: Page, bridge: RawGameState): Promise<PlaytestAction[]> {
   const candidates = computeCandidates(bridge)
+  // 市场面板由共享 UI 的 gameState 投影渲染，状态桥在一次响应中可能短暂缺少
+  // marketEventState。若按钮已经真实出现在 DOM，仍应允许机器人完成该动作。
+  const marketFallback = marketDismissAction()
 
   // 收集所有 data-testid 并一次性扫描
-  const testids = [...new Set(candidates.filter((a) => a.testid).map((a) => a.testid!))]
+  const testids = [...new Set(
+    [...candidates, marketFallback].filter((a) => a.testid).map((a) => a.testid!),
+  )]
   const statuses = await scanDomActions(page, testids)
   const statusByTestid = new Map(statuses.map((s) => [s.testid, s]))
 
-  return candidates
+  const resolved = candidates
     .map((a) => {
       if (!a.testid) return a
       const status = statusByTestid.get(a.testid)
@@ -33,9 +38,16 @@ export async function resolveActions(page: Page, bridge: RawGameState): Promise<
       return { ...a, enabled: status.enabled }
     })
     .filter((a) => a.enabled)
+
+  const marketStatus = statusByTestid.get(marketFallback.testid!)
+  if (!resolved.some((a) => a.testid === marketFallback.testid) && marketStatus?.enabled) {
+    resolved.push(marketFallback)
+  }
+
+  return resolved
 }
 
-function computeCandidates(bridge: RawGameState): PlaytestAction[] {
+export function computeCandidates(bridge: RawGameState): PlaytestAction[] {
   // 决策反馈弹层优先：卖出/买入后弹出的「知道了」，不关闭会阻挡一切后续交互
   if (bridge.hasDecisionFeedback) {
     return [decisionFeedbackDismissAction()]
@@ -49,10 +61,18 @@ function computeCandidates(bridge: RawGameState): PlaytestAction[] {
   const pending = bridge.pendingAction
   const turnStatus = bridge.turnStatus
 
+  // 市场弹层的视觉状态由 marketEventState 驱动。价格变动后，pendingAction
+  // 可能先被清空再写回；只看 pendingAction 会让真实可见的“结束”按钮被漏掉。
+  const marketActive = Boolean(
+    bridge.marketEventState?.card && bridge.marketEventState.phase !== 'done',
+  )
+
+  if (pending === 'market' || marketActive) {
+    return resolveMarket(bridge)
+  }
+
   if (pending) {
     switch (pending) {
-      case 'market':
-        return resolveMarket(bridge)
       case 'opportunity':
       case 'fast_track_opportunity':
         return resolveOpportunity()

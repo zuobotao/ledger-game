@@ -11,17 +11,19 @@ import type { RawGameState } from '../utils/state-reader'
  * 完全依赖 gameStore 的 marketEventState（responderIndex）+ 各玩家 sellableAssetIds，
  * 不靠按钮文字猜测。
  */
+export function marketDismissAction(): PlaytestAction {
+  return {
+    type: 'market-dismiss',
+    label: '结束',
+    target: 'market-event',
+    enabled: true,
+    testid: 'market-dismiss',
+    roleName: /结束|下一位玩家/,
+  }
+}
+
 export function resolveMarket(bridge: RawGameState): PlaytestAction[] {
-  const actions: PlaytestAction[] = [
-    {
-      type: 'market-dismiss',
-      label: '结束',
-      target: 'market-event',
-      enabled: true,
-      testid: 'market-dismiss',
-      roleName: /结束|下一位玩家/,
-    },
-  ]
+  const actions: PlaytestAction[] = [marketDismissAction()]
 
   const responderIndex = bridge.marketEventState?.responderIndex ?? null
   const responder = responderIndex !== null ? bridge.players[responderIndex] : null
