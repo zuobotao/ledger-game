@@ -236,6 +236,7 @@ export const useGameStore = defineStore('game', () => {
   const gameStartTime = ref(0)
   const ratRaceTurns = ref(0)
   const fastTrackTurns = ref(0)
+  const savedAt = ref<number | null>(null)
   /** 最近一次贷款申请失败的可读原因，供共享玩法 UI 展示。 */
   const lastLoanError = ref('')
 
@@ -399,6 +400,7 @@ export const useGameStore = defineStore('game', () => {
       phase: phase.value,
       playerCount: players.value.length,
       currentPlayerName: cur?.name ?? p?.name ?? '',
+      savedAt: savedAt.value,
     }
   })
 
@@ -588,8 +590,10 @@ export const useGameStore = defineStore('game', () => {
       ratRaceTurns: ratRaceTurns.value,
       fastTrackTurns: fastTrackTurns.value,
       stockPrices: stockPrices.value,
+      savedAt: Date.now(),
       schemaVersion: SAVE_SCHEMA_VERSION,
     }
+    savedAt.value = state.savedAt ?? null
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }
 
@@ -651,6 +655,7 @@ export const useGameStore = defineStore('game', () => {
         }
       }
       stockPrices.value = restoredPrices
+      savedAt.value = state.savedAt ?? null
       players.value.forEach(recalcPlayerFinancials)
     } catch {
       localStorage.removeItem(STORAGE_KEY)
@@ -699,6 +704,7 @@ export const useGameStore = defineStore('game', () => {
     gameStartTime.value = Date.now()
     ratRaceTurns.value = 0
     fastTrackTurns.value = 0
+    savedAt.value = null
     pendingAction.value = { type: null, card: null, message: '' }
     marketEvent.value = null
     marketEventState.value = null
@@ -3218,6 +3224,7 @@ export const useGameStore = defineStore('game', () => {
     gameStartTime,
     ratRaceTurns,
     fastTrackTurns,
+    savedAt,
     // v2.1: 决策反馈
     lastActionResult,
     recordActionResult,

@@ -33,7 +33,8 @@ onBeforeUnmount(() => adapter.dispose())
 const isSpectator = computed(() => route.query.spectator === 'true')
 
 function goHome() {
-  gameStore.resetGame()
+  // 中途离开保留当前进度，首页可继续游戏；只有结束页的“开始新游戏”才清除存档。
+  gameStore.saveState()
   router.push({ name: 'home' })
 }
 

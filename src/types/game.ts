@@ -314,6 +314,8 @@ export interface GameState {
   fastTrackTurns?: number
   /** 交易标的当前价格表（必须持久化，否则重载后交易价归零） */
   stockPrices?: Record<string, number>
+  /** 最近一次本地自动保存时间（毫秒时间戳） */
+  savedAt?: number
   /** 存档 schema 版本，供未来升级迁移用 */
   schemaVersion?: number
 }

@@ -63,6 +63,16 @@ function goToHistory() {
   router.push({ name: 'history' })
 }
 
+function formatSavedAt(timestamp: number | null): string {
+  if (!timestamp) return '刚刚保存'
+  return `保存于 ${new Intl.DateTimeFormat('zh-CN', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(timestamp)}`
+}
+
 function goToMultiplayer() {
   router.push({ name: 'multiplayer' })
 }
@@ -125,6 +135,10 @@ function goToMultiplayer() {
             <div class="flex justify-between">
               <span class="text-muted-foreground">Cash Flow</span>
               <span class="font-semibold text-success">+{{ formatMoney(resumeInfo.cashFlow) }}/月</span>
+            </div>
+            <div class="col-span-2 flex justify-between text-xs">
+              <span class="text-muted-foreground">本地存档</span>
+              <span class="text-muted-foreground">{{ formatSavedAt(resumeInfo.savedAt) }}</span>
             </div>
           </div>
           <button

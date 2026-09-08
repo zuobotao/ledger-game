@@ -104,6 +104,8 @@ describe('保存 / 继续（v2.3）', () => {
     const raw = localStorage.getItem('ledger101-game-state')!
     expect(raw).toBeTruthy()
     expect(JSON.parse(raw).schemaVersion).toBeGreaterThanOrEqual(1)
+    expect(JSON.parse(raw).savedAt).toBeTypeOf('number')
+    expect(store.resumableGame?.savedAt).toBe(JSON.parse(raw).savedAt)
   })
 
   it('开始游戏后 resumableGame 提供继续游戏摘要', () => {
@@ -126,6 +128,20 @@ describe('保存 / 继续（v2.3）', () => {
     expect(store.currentPlayer?.cash).not.toBe(12345)
     store.reloadState()
     expect(store.currentPlayer?.cash).toBe(12345)
+  })
+
+  it('reloadState 保留本地存档时间，便于首页确认恢复的是最新进度', () => {
+    const store = start()
+    const firstSavedAt = store.resumableGame?.savedAt
+    expect(firstSavedAt).toBeTypeOf('number')
+
+    store.saveState?.()
+    const secondSavedAt = store.resumableGame?.savedAt
+    expect(secondSavedAt).toBeGreaterThanOrEqual(firstSavedAt ?? 0)
+
+    setActivePinia(createPinia())
+    const fresh = useGameStore()
+    expect(fresh.resumableGame?.savedAt).toBe(secondSavedAt)
   })
 
   it('更高 schemaVersion 的存档被安全丢弃（不做坏迁移）', () => {

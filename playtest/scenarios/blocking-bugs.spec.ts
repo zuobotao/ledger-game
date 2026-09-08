@@ -30,6 +30,26 @@ test('跨窗口打开首页时，继续游戏有反馈并进入有效存档', as
   await context.close()
 })
 
+test('单机中途返回首页后保留存档，并显示保存时间和回合', async ({ page, baseURL }) => {
+  await page.addInitScript((seed) => {
+    localStorage.setItem('ledger101-game-state', JSON.stringify(seed))
+  }, fixture)
+  await page.goto(`${baseURL}/#/rat-race`)
+  await expect(page.getByTestId('roll-dice')).toBeVisible()
+
+  const summary = page.locator('.game-summary-overlay')
+  if (await summary.isVisible().catch(() => false)) {
+    await summary.locator('.close-btn').click()
+  }
+
+  await page.getByTestId('game-back-button').click()
+  await expect(page).toHaveURL(/#\/$/)
+  await expect(page.getByTestId('continue-game')).toBeVisible()
+  await expect(page.getByTestId('continue-game')).toContainText('第 1 回合')
+  await expect(page.getByTestId('continue-game')).toContainText('本地存档')
+  await expect(page.getByTestId('continue-game')).toContainText('保存于')
+})
+
 test.describe('资本游戏购买面板', () => {
   test.use({ viewport: { width: 1280, height: 800 } })
 
