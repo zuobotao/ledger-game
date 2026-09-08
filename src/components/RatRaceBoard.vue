@@ -43,12 +43,13 @@ const cellColorClass: Record<string, string> = {
   amber: 'bg-amber-500',
 }
 
-// 格子名称缩写映射（移动端使用）
+// 格子名称映射（移动端也保留完整语义）
 const cellShortName: Record<string, string> = {
   机会: '机会',
-  小机会: '小机',
-  大机会: '大机',
-  生活意外: '意外',
+  // 移动端也保留完整语义，避免玩家看到无法理解的“小机/大机”。
+  小机会: '小机会',
+  大机会: '大机会',
+  生活意外: '生活意外',
   慈善: '慈善',
   发工资: '工资',
   市场风云: '市场',
@@ -245,7 +246,7 @@ const cardTypeAccentClass = computed(() => {
         <div class="cell-name font-semibold leading-tight">
           <!-- 桌面端：全名 -->
           <span class="hidden sm:inline">{{ cell.name }}</span>
-          <!-- 移动端：缩写名 -->
+          <!-- 移动端：保留完整名称，避免“小机/大机”造成歧义 -->
           <span class="sm:hidden">{{ cellShortName[cell.name] ?? cell.name }}</span>
         </div>
         <!-- 玩家棋子 -->
@@ -556,6 +557,8 @@ const cardTypeAccentClass = computed(() => {
 .cell-name {
   margin-top: 2px;
   font-size: 9px;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
 @media (min-width: 640px) {

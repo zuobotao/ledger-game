@@ -39,5 +39,7 @@ test('移动端财务侧栏可独立滚动，棋盘格子保留可读语义', as
   const cell = page.getByTestId('board-cell-0')
   await expect(cell).toHaveAttribute('aria-label', /小机会.*机会/)
   await expect(cell).toHaveAttribute('title', /小机会.*机会/)
+  await expect(cell).toContainText('小机会')
+  await expect(page.getByTestId('board-cell-2')).toContainText('大机会')
   await expect(page.getByTestId('board-cell-1')).toHaveAttribute('aria-label', /历史故事.*历史故事/)
 })

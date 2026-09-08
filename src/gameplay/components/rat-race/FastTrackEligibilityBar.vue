@@ -27,10 +27,6 @@ const eligibility = computed(() =>
 
 const playerName = computed(() => player.value?.name ?? '玩家')
 
-const statusText = computed(() =>
-  eligibility.value?.eligible ? '已具备进入资本游戏资格' : '尚未具备资本游戏资格',
-)
-
 const expanded = ref(false)
 const showDetails = computed(() => expanded.value || (eligibility.value?.eligible === true && !isMobile.value))
 
@@ -78,8 +74,8 @@ watch(
               <template v-if="eligibility">
                 {{
                   eligibility.eligible
-                    ? statusText
-                    : `被动收入 $${Math.round(eligibility.passiveIncome).toLocaleString()} / 支出 $${Math.round(eligibility.totalExpenses).toLocaleString()} / 还差 $${Math.round(eligibility.gap).toLocaleString()}/月`
+                    ? '被动收入已覆盖支出，可进入资本游戏'
+                    : `还需增加被动收入 $${Math.round(eligibility.gap).toLocaleString()}/月`
                 }}
               </template>
               <template v-else>—</template>

@@ -176,10 +176,21 @@ function randomColorForPlayer(index: number) {
   playerSetups[index]!.colorId = getRandomColorId()
 }
 
-function randomDreamForAll() {
+function randomAllForAll() {
+  const usedNames = new Set<string>()
+  const usedColors = new Set<string>()
   for (let i = 0; i < config.playerCount; i++) {
-    const dream = getRandomDream()
-    playerSetups[i]!.dreamId = dream.id
+    const setup = playerSetups[i]!
+    const nameCandidates = randomPlayerNames.filter((name) => !usedNames.has(name))
+    const namePool = nameCandidates.length > 0 ? nameCandidates : randomPlayerNames
+    setup.name = namePool[Math.floor(Math.random() * namePool.length)] ?? `玩家 ${i + 1}`
+    usedNames.add(setup.name)
+    setup.careerId = getRandomCareer().id
+    setup.dreamId = getRandomDream().id
+    setup.isAI = Math.random() < 0.35
+    setup.aiDifficulty = (['easy', 'medium', 'hard'] as const)[Math.floor(Math.random() * 3)] ?? 'medium'
+    setup.colorId = getRandomColorId(usedColors)
+    usedColors.add(setup.colorId)
   }
 }
 
@@ -237,6 +248,10 @@ function getCareerDisplayName(careerId: string): string {
 }
 
 // v2.3 Mobile UX：底部固定操作区的「已选择」摘要
+const configuredPlayerCount = computed(() =>
+  activeSetups.value.filter((setup) => setup.name.trim().length > 0).length,
+)
+
 const dockSummary = computed(() => {
   if (activeSetups.value.length === 1) {
     const s = activeSetups.value[0]
@@ -244,7 +259,7 @@ const dockSummary = computed(() => {
     const dream = s.dreamId ? getDreamName(s.dreamId) : '未选梦想'
     return `${getCareerDisplayName(s.careerId)} · ${dream}`
   }
-  return `${activeSetups.value.length} 名玩家已就绪`
+  return `${configuredPlayerCount.value}/${activeSetups.value.length} 名玩家已配置`
 })
 </script>
 
@@ -295,11 +310,14 @@ const dockSummary = computed(() => {
           <button
             type="button"
             data-testid="random-dream-all"
+            data-action="random-all"
+            aria-label="所有信息全部随机"
+            title="随机姓名、职业、梦想、玩家类型和颜色"
             class="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            @click="randomDreamForAll"
+            @click="randomAllForAll"
           >
             <Shuffle class="w-3.5 h-3.5" />
-            梦想全部随机
+            全部随机
           </button>
         </div>
         <div class="space-y-3">
@@ -563,6 +581,7 @@ const dockSummary = computed(() => {
           <div class="min-w-0 flex-1 md:hidden">
             <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">已选择</p>
             <p class="truncate text-sm font-medium text-foreground">{{ dockSummary }}</p>
+            <p class="truncate text-[10px] text-muted-foreground">姓名已填写即可开始，其他字段可随机</p>
           </div>
           <!-- 桌面端：返回首页 -->
           <button
