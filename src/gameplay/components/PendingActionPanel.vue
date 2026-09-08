@@ -1149,6 +1149,7 @@ const typeBadge = computed(() => {
       </div>
       <div v-else class="text-xs text-muted-foreground">你不持有该股票，无法卖出。</div>
       <button
+        data-testid="stock-sell-dismiss"
         type="button"
         :disabled="disabled"
         class="mt-3 w-full rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-40"

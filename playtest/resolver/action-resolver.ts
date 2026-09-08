@@ -61,6 +61,19 @@ export function computeCandidates(bridge: RawGameState): PlaytestAction[] {
   const pending = bridge.pendingAction
   const turnStatus = bridge.turnStatus
 
+  // 股票卖出机会是覆盖在市场事件之上的独立面板，必须先处理它；
+  // 否则市场“结束”按钮仍在 DOM 中，但会被上层弹层拦截点击。
+  if (pending === 'stock_sell_opportunity') {
+    return [{
+      type: 'stock-sell-dismiss',
+      label: '结束',
+      target: 'stock_sell_opportunity',
+      enabled: true,
+      testid: 'stock-sell-dismiss',
+      roleName: /结束/,
+    }]
+  }
+
   // 市场弹层的视觉状态由 marketEventState 驱动。价格变动后，pendingAction
   // 可能先被清空再写回；只看 pendingAction 会让真实可见的“结束”按钮被漏掉。
   const marketActive = Boolean(
