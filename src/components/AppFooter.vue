@@ -119,6 +119,9 @@ function goTo(route: string) {
           本游戏仅作教育与娱乐模拟，数据均为虚构，不构成任何投资建议。
         </p>
       </div>
+      <p class="mt-3 text-xs text-muted-foreground/60">
+        单机存档保存在浏览器本地；多人房间会传输昵称和房间状态给房间服务。当前没有账户功能，也不承诺云端历史。
+      </p>
     </div>
   </footer>
 </template>

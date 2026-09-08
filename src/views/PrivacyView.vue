@@ -39,10 +39,10 @@ function goBack() {
 
           <div class="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4">
             <p class="m-0 font-semibold text-primary">
-              简而言之：Ledger 不收集您的任何个人数据。
+              简而言之：单机存档留在您的浏览器本地，多人房间需要连接房间服务。
             </p>
             <p class="mb-0 mt-2 text-sm text-muted-foreground">
-              所有游戏数据仅保存在您的浏览器本地，永远不会发送到任何服务器。
+              加入多人房间时，您的昵称和房间状态会传输给房间服务。Ledger 当前没有账户功能，也不承诺提供云端历史。
             </p>
           </div>
 
@@ -53,31 +53,18 @@ function goBack() {
           </p>
 
           <h2>2. 我们收集的信息</h2>
-          <h3>2.1 不收集个人信息</h3>
-          <p><strong>Ledger 不收集以下任何信息：</strong></p>
+          <h3>2.1 单机与多人使用</h3>
+          <p><strong>单机模式的游戏状态、设置和历史记录保存在您的浏览器本地。</strong></p>
           <ul>
-            <li>您的姓名、电子邮件地址或电话号码</li>
-            <li>您的物理位置或 IP 地址</li>
-            <li>您的身份或个人标识符</li>
-            <li>您的财务信息或银行详细信息</li>
-            <li>您的支付信息</li>
-            <li>任何个人身份信息（PII）</li>
+            <li>使用 <code>localStorage</code> 保存游戏状态、设置和多人会话凭据</li>
+            <li>使用 <code>IndexedDB</code> 保存本地历史对局</li>
+            <li>清除浏览器存储会删除这些本地数据</li>
           </ul>
-
-          <h3>2.2 仅本地存储</h3>
-          <p>
-            所有游戏数据<strong>仅存储在您的浏览器本地</strong>，使用：
-          </p>
+          <p><strong>多人模式会连接房间服务。</strong>加入或恢复房间时，服务会处理昵称、房间标识、连接会话凭据及房间/对局状态，用于创建房间、同步玩家和推进对局。</p>
           <ul>
-            <li><code>localStorage</code> — 用于游戏状态和设置</li>
-            <li><code>IndexedDB</code> — 用于游戏历史记录</li>
-          </ul>
-          <p>这些数据：</p>
-          <ul>
-            <li>永远不会离开您的设备</li>
-            <li>永远不会发送到任何服务器</li>
-            <li>永远不会与第三方共享</li>
-            <li>完全由您控制</li>
+            <li>请勿在昵称中填写真实姓名、联系方式或其他敏感信息</li>
+            <li>多人房间数据不是单机本地存档的替代品</li>
+            <li>当前不提供账户功能、登录功能或云端历史记录承诺</li>
           </ul>
           <p>
             您可以随时通过清除 Ledger 网站的浏览器存储来删除这些数据。
@@ -104,19 +91,18 @@ function goBack() {
             <li>任何用户活动指标</li>
           </ul>
 
-          <h2>4. 第三方服务</h2>
-          <h3>4.1 不共享数据</h3>
+          <h2>4. 房间服务</h2>
           <p>
-            我们不与第三方共享任何数据，因为我们不收集任何数据。
+            多人房间依赖房间服务进行连接和同步。房间服务会收到实现多人游戏所需的昵称、房间状态和对局状态。服务的可用性、保留时间和处理方式可能随部署环境而变化；本页面不承诺云端保存历史对局。
           </p>
 
-          <h3>4.2 第三方库</h3>
+          <h3>4.1 第三方库</h3>
           <p>
             Ledger 使用开源软件库。这些库：
           </p>
           <ul>
             <li>在您的浏览器本地运行</li>
-            <li>不收集或传输您的数据</li>
+            <li>其行为受各自的许可和隐私说明约束</li>
             <li>列于 <code>THIRD_PARTY_NOTICES.md</code> 中</li>
           </ul>
 
@@ -135,11 +121,9 @@ function goBack() {
 
           <h2>5. 数据保留</h2>
           <p>
-            由于我们不在服务器上存储任何数据，因此不保留任何数据。
+            单机数据<strong>仅存储在您的设备上</strong>，并持续存在，直到：
           </p>
-          <p>
-            您的游戏数据<strong>仅存储在您的设备上</strong>，并持续存在，直到：
-          </p>
+          <p>多人房间状态由房间服务临时处理。我们不承诺云端历史对局、跨设备同步或长期保留。</p>
           <ul>
             <li>您从游戏中删除它</li>
             <li>您清除浏览器存储</li>
@@ -148,18 +132,18 @@ function goBack() {
 
           <h2>6. 您的数据权利</h2>
           <p>
-            由于我们不在服务器上持有您的任何数据，您拥有完全的控制权：
+            单机数据由您的浏览器保存和管理。多人房间数据由房间服务按其运行方式处理：
           </p>
           <ul>
             <li><strong>访问：</strong>您的游戏数据在浏览器本地存储中</li>
             <li><strong>删除：</strong>清除浏览器存储，或使用游戏内的"清除历史记录"功能</li>
-            <li><strong>导出：</strong>游戏历史存储在本地，您可以在游戏中查看</li>
+            <li><strong>导出：</strong>目前可在本地查看历史对局；不承诺提供云端历史导出</li>
           </ul>
 
           <h2>7. 儿童隐私</h2>
           <p>
             Ledger 是面向大众的教育游戏。我们不会有意收集儿童的个人信息。
-            由于我们完全不收集数据，儿童可以安全使用游戏，不会收集任何个人信息。
+            多人房间会处理玩家输入的昵称和房间状态，请避免输入儿童或其他人的真实个人信息。
           </p>
 
           <h2>8. 安全性</h2>
@@ -167,10 +151,9 @@ function goBack() {
             虽然通过互联网传输的数据不能保证 100% 安全，但 Ledger 的架构最大限度地降低了风险：
           </p>
           <ul>
-            <li>没有数据发送到服务器</li>
-            <li>所有数据都保留在您的本地浏览器中</li>
-            <li>不需要用户账户或身份验证</li>
-            <li>不收集或存储个人数据</li>
+            <li>单机存档保留在您的本地浏览器中</li>
+            <li>多人房间通过房间服务同步昵称和房间状态</li>
+            <li>当前没有账户功能或云端历史承诺</li>
           </ul>
 
           <h2>9. 本政策的变更</h2>
@@ -194,16 +177,16 @@ function goBack() {
 
           <h2>English Summary</h2>
           <p>
-            <strong>No personal data collected:</strong> Ledger is a client-side browser game. No personal data is collected.
+            <strong>Local single-player saves:</strong> Single-player saves and history stay in your browser.
           </p>
           <p>
-            <strong>Local storage only:</strong> All game data is stored locally in your browser (localStorage / IndexedDB).
+            <strong>Multiplayer:</strong> Joining a room sends your nickname and room state to the room service.
           </p>
           <p>
             <strong>No tracking:</strong> No analytics tools or tracking technologies are used.
           </p>
           <p>
-            <strong>No third-party sharing:</strong> No data is shared with third parties because no data is collected.
+            <strong>No account or cloud history promise:</strong> Account features are not available, and cloud history is not promised.
           </p>
           <p>
             <strong>Your rights:</strong> You can delete all game data at any time by clearing your browser storage.

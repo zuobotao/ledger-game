@@ -8,33 +8,23 @@
 
 Your privacy is important to us. This Privacy Policy explains what information Ledger ("the Game" or "the Service") collects, how it's used, and your rights regarding your data.
 
-**Short version: Ledger is a client-side browser game. We do not collect, store, or transmit your personal data to any server.**
+**Short version: Single-player saves stay in your browser. Multiplayer rooms send your nickname and room state to the room service. Ledger currently has no account feature and does not promise cloud history.**
 
 ---
 
 ## 1. Information We Collect
 
-### 1.1 No Personal Information Collected
+### 1.1 Single-player and multiplayer
 
-Ledger **does not collect** any of the following:
-- Your name, email address, or phone number
-- Your physical location or IP address
-- Your identity or personal identifiers
-- Your financial information or bank details
-- Your payment information
-- Any personally identifiable information (PII)
+Single-player game state, settings, and history stay in your browser. Multiplayer rooms process the nickname you enter and the room/game state needed to connect and synchronize the game. Do not put real names, contact details, or other sensitive information in a nickname.
 
-### 1.2 Local Storage Only
+### 1.2 Local Storage
 
 All game data is stored **locally in your browser** using:
 - `localStorage` — for game state and settings
 - `IndexedDB` — for game history records
 
-This data:
-- Never leaves your device
-- Is never sent to any server
-- Is never shared with third parties
-- Is fully under your control
+Single-player data remains local. Multiplayer room data is sent to the room service for the multiplayer session.
 
 You can delete this data at any time by clearing your browser's storage for the Ledger website.
 
@@ -59,11 +49,11 @@ Ledger does not use any third-party analytics tools. We do not track:
 
 ---
 
-## 3. Third-Party Services
+## 3. Room Service and Third-Party Services
 
-### 3.1 No Third-Party Data Sharing
+### 3.1 Room service
 
-We do not share any data with third parties because we do not collect any data.
+The room service receives multiplayer nicknames, room identifiers, session credentials, and room/game state needed to create rooms, reconnect players, and synchronize turns. We do not promise cloud saves, cross-device sync, or long-term history retention.
 
 ### 3.2 Third-Party Libraries
 
@@ -88,29 +78,29 @@ See `docs/legal/AI_DATA_POLICY.md` for more details.
 
 ## 4. Data Retention
 
-Since we don't collect any data on our servers, we don't retain any data.
-
-Your game data is stored **only on your device** and persists until:
+Single-player data is stored **only on your device** and persists until:
 - You delete it from within the game
 - You clear your browser storage
-- You uninstall the browser or clear browsing data
+  - You uninstall the browser or clear browsing data
+
+Multiplayer room state is handled by the room service for the session. Cloud history retention is not promised.
 
 ---
 
 ## 5. Your Data Rights
 
-Since we don't hold any of your data on servers, you have complete control:
+For single-player data, your browser provides the controls:
 
 - **Access**: Your game data is in your browser's local storage
 - **Deletion**: Clear your browser storage for the Ledger website, or use the in-game "clear history" feature
 - **Export**: Game history is stored locally — you can view it within the game
-- **Portability**: Since we have no server, there's no data to port
+- **Portability**: Cloud export and cloud history are not currently provided
 
 ---
 
 ## 6. Children's Privacy
 
-Ledger is a general audience educational game. We do not knowingly collect personal information from children. Since we collect no data at all, children can use the game safely without any personal information being gathered.
+Ledger is a general audience educational game. Multiplayer rooms process the nickname and room state provided by the player. Avoid entering real personal information, including a child's name or contact details.
 
 ---
 
@@ -118,10 +108,10 @@ Ledger is a general audience educational game. We do not knowingly collect perso
 
 While no data transmission over the internet can be guaranteed 100% secure, Ledger's architecture minimizes risk:
 
-- No data is sent to servers
-- All data stays in your local browser
-- No user accounts or authentication required
-- No personal data is collected or stored
+- Single-player saves stay in the local browser
+- Multiplayer rooms send nicknames and room state to the room service
+- No account feature is currently available
+- Cloud history is not promised
 
 ---
 
@@ -149,9 +139,9 @@ If you have questions about this Privacy Policy, please:
 
 以下为隐私政策要点摘要（以英文完整版为准）：
 
-- **不收集个人信息**：Ledger 是纯前端浏览器游戏，不收集任何个人数据。
-- **本地存储**：所有游戏数据仅保存在你的浏览器本地（localStorage / IndexedDB）。
+- **单机存档**：单机游戏状态和历史仅保存在你的浏览器本地（localStorage / IndexedDB）。
+- **多人房间**：加入房间会向房间服务发送昵称和房间状态。
+- **账户与云端历史**：当前没有账户功能，也不承诺云端历史。
 - **不使用 Cookie 追踪**：不使用任何分析工具或追踪技术。
-- **不与第三方共享**：因为不收集数据，所以也没有数据可共享。
 - **AI 功能**：当前版本的 AI 逻辑完全在本地运行，不调用外部 API。
 - **你的权利**：你可以随时通过清除浏览器存储来删除所有游戏数据。

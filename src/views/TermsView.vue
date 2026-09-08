@@ -60,7 +60,15 @@ function goBack() {
             Ledger <strong>不是</strong>金融咨询服务、经纪商、银行或投资平台。
           </p>
 
-          <h2>3. 教育与娱乐性质</h2>
+          <h2>3. 数据与多人房间</h2>
+          <p>
+            单机存档和历史记录保存在您的浏览器本地。多人房间需要连接房间服务；加入房间时，您输入的昵称以及房间状态和对局状态会传输给该服务，用于连接、同步和推进游戏。
+          </p>
+          <p>
+            Ledger 当前没有账户功能，也不承诺云端保存、跨设备同步或长期保留历史对局。请勿在昵称中填写真实姓名、联系方式或其他敏感信息。
+          </p>
+
+          <h2>4. 教育与娱乐性质</h2>
           <p>
             Ledger 仅用于教育和娱乐目的。
           </p>
@@ -71,7 +79,7 @@ function goBack() {
             <li>游戏不跟踪或反映真实金融市场</li>
           </ul>
 
-          <h2>4. 不构成投资建议</h2>
+          <h2>5. 不构成投资建议</h2>
           <p>
             <strong>Ledger 中的任何内容均不构成金融、投资、税务、会计或法律建议。</strong>
           </p>
@@ -85,7 +93,7 @@ function goBack() {
             实际财务问题请咨询合格的财务顾问、会计师或法律专业人士。
           </p>
 
-          <h2>5. 不作担保</h2>
+          <h2>6. 不作担保</h2>
           <p>
             本服务按"原样"和"可用"基础提供，不提供任何明示或暗示的担保，
             包括但不限于对适销性、特定用途适用性、所有权和非侵权性的暗示担保。
@@ -97,7 +105,7 @@ function goBack() {
             <li>服务不含病毒或其他有害成分</li>
           </ul>
 
-          <h2>6. 模拟限制</h2>
+          <h2>7. 模拟限制</h2>
           <p>
             Ledger 中使用的财务模型经过简化，仅用于教育目的。它们不：
           </p>
@@ -109,7 +117,7 @@ function goBack() {
             <li>提供现实的财务规划</li>
           </ul>
 
-          <h2>7. 第三方服务</h2>
+          <h2>8. 第三方服务</h2>
           <p>
             Ledger 可能集成或引用第三方服务、库或 API。
             使用此类第三方服务需遵守其各自的条款和隐私政策。
@@ -121,7 +129,7 @@ function goBack() {
             <li>第三方服务的可用性或可靠性</li>
           </ul>
 
-          <h2>8. 知识产权</h2>
+          <h2>9. 知识产权</h2>
           <h3>8.1 Ledger 内容</h3>
           <p>
             Ledger 的源代码、游戏设计、卡牌内容、UI 设计、视觉素材和文档
@@ -134,7 +142,7 @@ function goBack() {
             完整归属和许可详情请见 <code>THIRD_PARTY_NOTICES.md</code>。
           </p>
 
-          <h2>9. 可接受的使用</h2>
+          <h2>10. 可接受的使用</h2>
           <p>您同意不会：</p>
           <ul>
             <li>将服务用于任何非法目的</li>
@@ -145,7 +153,7 @@ function goBack() {
             <li>以可能损坏、禁用或损害服务的方式使用服务</li>
           </ul>
 
-          <h2>10. 责任限制</h2>
+          <h2>11. 责任限制</h2>
           <p>
             在适用法律允许的最大范围内，Ledger 项目贡献者不对任何间接、附带、特殊、后果性或惩罚性损害，
             或任何利润、收入、数据或使用损失承担责任。
@@ -154,7 +162,7 @@ function goBack() {
             在任何情况下，Ledger 项目贡献者的总累计责任均不应超过您为使用服务支付的金额（如有）。
           </p>
 
-          <h2>11. 服务变更</h2>
+          <h2>12. 服务变更</h2>
           <p>我们保留以下权利：</p>
           <ul>
             <li>随时修改或中止服务</li>
@@ -166,7 +174,7 @@ function goBack() {
             继续使用服务即表示您接受更新后的条款。
           </p>
 
-          <h2>12. 联系我们</h2>
+          <h2>13. 联系我们</h2>
           <p>
             关于本服务条款的问题，请在 Ledger 的 GitHub 仓库中提出 Issue。
           </p>
@@ -176,6 +184,9 @@ function goBack() {
           <h2>English Summary</h2>
           <p>
             <strong>Service Nature:</strong> Ledger is an educational and entertainment simulation game. It does not constitute investment advice.
+          </p>
+          <p>
+            <strong>Data:</strong> Single-player saves stay in the browser. Multiplayer sends nicknames and room state to the room service. No account or cloud history is promised.
           </p>
           <p>
             <strong>No Warranty:</strong> The game is provided "as is" without any express or implied warranty.

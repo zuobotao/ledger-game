@@ -21,6 +21,8 @@ Ledger is a **financial decision simulation game** designed for educational and 
 - Practice investment decision-making in a simulated environment
 - Save game progress locally in the browser
 
+Single-player saves and history stay in the browser. Multiplayer rooms send the nickname and room/game state needed to the room service for connection and synchronization. Ledger currently has no account feature and does not promise cloud history or cross-device sync.
+
 Ledger is **NOT** a financial advisory service, brokerage, bank, or investment platform.
 
 ---
