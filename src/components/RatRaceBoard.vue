@@ -45,16 +45,28 @@ const cellColorClass: Record<string, string> = {
 
 // 格子名称缩写映射（移动端使用）
 const cellShortName: Record<string, string> = {
-  机会: '机',
+  机会: '机会',
   小机会: '小机',
   大机会: '大机',
-  生活意外: '意',
-  慈善: '慈',
+  生活意外: '意外',
+  慈善: '慈善',
   发工资: '工资',
   市场风云: '市场',
   孩子: '孩',
-  裁员: '裁',
-  历史故事: '史',
+  裁员: '裁员',
+  历史故事: '历史',
+}
+
+const cellHint: Record<string, string> = {
+  small_opportunity: '可查看小额资产机会',
+  big_opportunity: '可查看大额资产机会',
+  story: '学习一段历史故事',
+  charity: '选择是否捐赠并获得保护',
+  payday: '领取工资并结算支出',
+  market: '查看市场价格变化',
+  doodad: '支付一笔生活意外支出',
+  child: '增加家庭支出',
+  layoff: '可能失去一轮工资',
 }
 
 // 获取格子的样式绑定对象
@@ -225,6 +237,9 @@ const cardTypeAccentClass = computed(() => {
           cell.type === 'big_opportunity' ? 'big-opportunity-cell' : '',
         ]"
         :style="getCellStyle(cell.index)"
+        :title="`${cell.name}：${cellHint[cell.type] ?? '查看本格说明'}`"
+        :aria-label="`${cell.name}，${cellHint[cell.type] ?? '查看本格说明'}`"
+        :data-testid="`board-cell-${cell.index}`"
       >
         <div class="cell-color-bar rounded-full" :class="cellColorClass[cell.color]" />
         <div class="cell-name font-semibold leading-tight">

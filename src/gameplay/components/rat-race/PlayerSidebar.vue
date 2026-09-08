@@ -101,7 +101,7 @@ function formatMoneyFn(n: number): string {
 
 <template>
   <aside
-    class="order-2 flex min-h-0 flex-col border-t border-border bg-secondary/30 lg:order-1 lg:w-80 lg:overflow-hidden lg:border-r lg:border-t-0 xl:w-96"
+    class="player-sidebar order-2 flex min-h-0 flex-col border-t border-border bg-secondary/30 lg:order-1 lg:w-80 lg:overflow-hidden lg:border-r lg:border-t-0 xl:w-96"
   >
     <!-- 玩家切换（单机多人局） -->
     <div v-if="showSwitcher" class="relative px-4 pt-3 lg:px-5">
@@ -308,7 +308,7 @@ function formatMoneyFn(n: number): string {
     </div>
 
     <!-- Panel content -->
-    <div class="flex-1 overflow-y-auto px-4 py-4 lg:px-5">
+    <div class="player-sidebar-panel flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 lg:px-5" data-testid="player-sidebar-panel">
       <FinancialPanel v-if="sidePanelTab === 'balance'" :adapter="adapter" />
       <HistoryPanel v-else-if="sidePanelTab === 'history'" :adapter="adapter" />
       <StatsPanel v-else :adapter="adapter" />
@@ -377,6 +377,17 @@ function formatMoneyFn(n: number): string {
 .goal-section + .goal-section {
   @apply mt-3 border-t border-border/50 pt-3;
 }
+
+/* 手机上把财务、历史、统计收进一个明确的滚动面板，避免内容被外层棋盘页面吞掉。 */
+@media (max-width: 1023px) {
+  .player-sidebar {
+    flex: 0 0 min(68svh, 620px);
+    max-height: calc(100svh - 8rem);
+    overflow: hidden;
+  }
+}
+
+
 
 .fast-track-icon {
   @apply text-amber-400;

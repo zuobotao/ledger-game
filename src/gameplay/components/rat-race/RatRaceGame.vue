@@ -152,7 +152,7 @@ function warningTitle(w: GameWarning): string {
     </div>
 
     <!-- Game area -->
-    <div class="flex flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+    <div class="mobile-game-area flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain lg:flex-row lg:overflow-hidden" data-testid="mobile-game-area">
       <PlayerSidebar :adapter="adapter" :spectator="spectator">
         <template #sidebar-extra>
           <slot name="sidebar-extra" />
