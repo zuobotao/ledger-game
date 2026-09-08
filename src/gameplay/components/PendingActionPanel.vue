@@ -177,6 +177,11 @@ function onDeclineOpportunity() {
   tradeMode.value = 'buy'
 }
 
+function onAuctionOpportunity() {
+  run(props.commands.resolvePendingAction({ kind: 'auction_opportunity' }))
+  oppQty.value = 1
+}
+
 // ==================== 快车道机会卡 ====================
 
 const ftOppCard = computed<OpportunityCard | null>(() =>
@@ -722,6 +727,17 @@ const typeBadge = computed(() => {
             @click="onDeclineOpportunity"
           >
             放弃
+          </button>
+          <button
+            v-if="vm.gameState.players.length > 1 && !isOppSell"
+            data-testid="opportunity-auction"
+            type="button"
+            :disabled="disabled"
+            class="flex-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm font-semibold text-amber-600 hover:bg-amber-500/20 disabled:opacity-40"
+            title="由其他玩家按现金安全垫和机会收益自动竞价"
+            @click="onAuctionOpportunity"
+          >
+            多人竞价
           </button>
         </div>
       </template>

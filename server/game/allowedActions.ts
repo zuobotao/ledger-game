@@ -19,7 +19,7 @@ export function deriveAllowedActions(store: GameStore): string[] {
 
   switch (pending) {
     case 'opportunity':
-      return ['buy_opportunity', 'decline_opportunity']
+      return ['buy_opportunity', 'auction_opportunity', 'decline_opportunity']
     case 'market':
       return ['handle_market']
     case 'doodad':

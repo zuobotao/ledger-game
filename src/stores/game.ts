@@ -2000,6 +2000,81 @@ export const useGameStore = defineStore('game', () => {
     return true
   }
 
+  /**
+   * 多人机会竞价：机会发现者把当前机会交给其他玩家自动竞价。
+   * 竞价采用一次密封报价模型，报价同时考虑现金安全垫、机会现金流和负债压力，
+   * 避免引入等待其他客户端逐个响应的死锁；成交后机会归竞得者，成交款归发现者。
+   */
+  function auctionOpportunity(): boolean {
+    const seller = currentPlayer.value
+    const card = pendingAction.value.card as OpportunityCard | null
+    if (!seller || players.value.length < 2 || pendingAction.value.type !== 'opportunity' || !card) return false
+    if (card.action === 'sell' || card.splitRatio !== undefined) return false
+
+    const unitCost = getCardCost(card)
+    if (unitCost <= 0) return false
+
+    const candidates = players.value
+      .map((player, index) => ({ player, index }))
+      .filter(({ player }) => player.id !== seller.id && !player.isBankrupt)
+      .map(({ player, index }) => {
+        const reserve = Math.max(player.totalExpenses * 2, 500)
+        const spendable = Math.max(0, player.cash - reserve)
+        const annualCashFlowValue = Math.max(0, card.cashFlow) * 12
+        const totalLiabilities = player.liabilities.reduce((sum, liability) => sum + liability.amount, 0)
+        const leveragePenalty = Math.min(unitCost * 0.2, totalLiabilities * 0.001)
+        const willingness = Math.min(
+          spendable,
+          unitCost + annualCashFlowValue * 0.35 - leveragePenalty,
+        )
+        return { player, index, reserve, willingness }
+      })
+      .filter((candidate) => candidate.willingness >= unitCost)
+      .sort((a, b) => b.willingness - a.willingness)
+
+    const winner = candidates[0]
+    if (!winner) {
+      setPending(null, `机会「${card.title}」已进入多人竞价，但暂时没有玩家能在保留应急现金后参与。`)
+      turnStatus.value = 'resolving'
+      saveState()
+      return true
+    }
+
+    const secondPrice = candidates[1]?.willingness ?? unitCost
+    const bid = Math.max(unitCost, Math.min(winner.willingness, Math.ceil(secondPrice / 100) * 100))
+    const auctionCard: OpportunityCard = { ...card }
+    if (card.downPayment !== undefined && card.totalValue !== undefined) {
+      auctionCard.downPayment = bid
+      auctionCard.totalValue = Math.max(card.totalValue, bid)
+    } else {
+      auctionCard.cost = bid
+    }
+
+    const originalIndex = currentPlayerIndex.value
+    const originalCard = pendingAction.value.card
+    pendingAction.value = { ...pendingAction.value, card: auctionCard }
+    currentPlayerIndex.value = winner.index
+    const purchased = buyOpportunity(1)
+    currentPlayerIndex.value = originalIndex
+
+    if (!purchased) {
+      pendingAction.value = { ...pendingAction.value, card: originalCard }
+      return false
+    }
+
+    seller.cash += bid
+    recalcPlayerFinancials(seller)
+    recordTransaction('other', bid, `机会竞价成交：${card.title} → ${winner.player.name}`, seller.id, {
+      assetName: card.title,
+      assetType: card.type,
+      amount: bid,
+    })
+    setPending(null, `机会竞价完成：${winner.player.name} 以 ${formatMoney(bid)} 获得「${card.title}」，你获得成交款。`)
+    turnStatus.value = 'resolving'
+    saveState()
+    return true
+  }
+
   function declineOpportunity() {
     const card = pendingAction.value.card as OpportunityCard | null
     const isFtOpportunity = pendingAction.value.type === 'fast_track_opportunity'
@@ -3175,6 +3250,7 @@ export const useGameStore = defineStore('game', () => {
     ratRaceRollDice,
     fastTrackRollDice,
     buyOpportunity,
+    auctionOpportunity,
     sellOpportunityStock,
     tradeBuyStock,
     tradeSellStock,

@@ -198,6 +198,8 @@ export function createMultiplayerGameplayAdapter(store: MultiplayerStore): Gamep
           : { type: 'decline_opportunity', playerId: myPid(), card: pendingCard<OpportunityCard>() }
       case 'decline_opportunity':
         return { type: 'decline_opportunity', playerId: myPid(), card: pendingCard<OpportunityCard>() }
+      case 'auction_opportunity':
+        return { type: 'auction_opportunity', playerId: myPid() }
       case 'acknowledge': {
         // 通用「知道了」：按当前服务器 pending 类型映射到对应意图
         const t = store.gameState?.pendingAction?.type

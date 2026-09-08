@@ -187,6 +187,8 @@ export function createSingleGameplayAdapter(store: SingleGameStore): GameplayAda
             : toResult(store.declineLoanForPending(), 'ACTION_NOT_ALLOWED', '操作失败')
         case 'decline_opportunity':
           return toResult(store.declineOpportunity(), 'ACTION_NOT_ALLOWED', '放弃失败')
+        case 'auction_opportunity':
+          return toResult(store.auctionOpportunity(), 'ACTION_NOT_ALLOWED', '暂时无法发起竞价')
         case 'acknowledge':
           if (store.pendingAction?.type === 'fast_track_stock_trading') {
             store.closeStockTrading()

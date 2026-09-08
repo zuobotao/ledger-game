@@ -82,6 +82,11 @@ function execute(store: GameStore, action: GameAction): ActionOutcome {
       return ok === false ? fail() : { ok: true }
     }
 
+    case 'auction_opportunity': {
+      const ok = store.auctionOpportunity()
+      return ok === false ? fail() : { ok: true }
+    }
+
     case 'decline_opportunity': {
       store.declineOpportunity()
       return { ok: true }

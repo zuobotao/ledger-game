@@ -36,6 +36,7 @@ export type GameAction =
   | HandlePaydayAction
   | HandleCharityAction
   | BuyOpportunityAction
+  | AuctionOpportunityAction
   | SellOpportunityAction
   | SkipStockSellAction
   | DeclineOpportunityAction
@@ -108,6 +109,12 @@ export interface BuyOpportunityAction {
   playerId: string
   card: OpportunityCard
   quantity?: number
+}
+
+/** 多人模式把当前机会交给其他玩家竞价，机会发现者获得成交款。 */
+export interface AuctionOpportunityAction {
+  type: 'auction_opportunity'
+  playerId: string
 }
 
 export interface SellOpportunityAction {

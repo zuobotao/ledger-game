@@ -171,6 +171,7 @@ export type ResolveActionInput =
   | { kind: 'bankrupt' }
   | { kind: 'loan_decision'; accept: boolean }
   | { kind: 'decline_opportunity' }
+  | { kind: 'auction_opportunity' }
   | { kind: 'acknowledge' }
   | {
       kind: 'stock_sell'

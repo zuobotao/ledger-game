@@ -9,9 +9,9 @@ describe('Asset Operations', () => {
     localStorage.clear()
   })
 
-  function createConfig(): GameConfig {
+  function createConfig(playerCount = 1): GameConfig {
     return {
-      playerCount: 1,
+      playerCount,
       insurance: false,
       bigFamily: false,
       mortgage: false,
@@ -103,5 +103,24 @@ describe('Asset Operations', () => {
     expect(asset?.quantity).toBe(1)
     expect(player.cash).toBe(beforeCash - 5000)
     expect(player.passiveIncome).toBe(220)
+  })
+
+  it('should auction a multiplayer opportunity to the strongest affordable bidder', () => {
+    const store = useGameStore()
+    store.startGame(createConfig(2), [
+      { name: '发现者', colorId: 'red', careerId: 'cleaner', dreamId: '' },
+      { name: '竞得者', colorId: 'blue', careerId: 'doctor', dreamId: '' },
+    ])
+    const seller = store.players[0]!
+    const bidder = store.players[1]!
+    bidder.cash = 30_000
+    const sellerCash = seller.cash
+    const card = createRealEstateCard()
+    store.setPending('opportunity', '多人机会', card)
+
+    expect(store.auctionOpportunity()).toBe(true)
+    expect(store.players[1]!.assets.some((asset) => asset.type === 'real_estate')).toBe(true)
+    expect(store.players[0]!.cash).toBeGreaterThan(sellerCash)
+    expect(store.pendingAction.type).toBeNull()
   })
 })
