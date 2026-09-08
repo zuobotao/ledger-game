@@ -52,4 +52,16 @@ test.describe('梦想下拉选择', () => {
     await page.setViewportSize({ width: 375, height: 812 })
     await assertDreamSelector(page)
   })
+
+  test('手机端开始游戏按钮可点击并进入棋盘', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/ledger-game/#/')
+    await page.getByTestId('game-start').click()
+    await page.waitForURL(/#\/setup/)
+
+    const startButton = page.getByTestId('begin-game')
+    await expect(startButton).toBeEnabled()
+    await startButton.click()
+    await expect(page).toHaveURL(/#\/rat-race/)
+  })
 })

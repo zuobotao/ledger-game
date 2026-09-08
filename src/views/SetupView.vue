@@ -584,11 +584,12 @@ const dockSummary = computed(() => {
               <ArrowLeft class="w-5 h-5" />
             </button>
             <button
-              type="submit"
+              type="button"
               data-dom-id="btn-begin"
               data-testid="begin-game"
               class="inline-flex items-center justify-center h-12 flex-1 md:flex-none md:px-8 rounded-[var(--radius-md)] bg-primary text-primary-foreground text-base font-semibold shadow-sm hover:brightness-[0.96] transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed"
               :disabled="!canStart"
+              @click="beginGame"
             >
               开始游戏
             </button>
