@@ -48,7 +48,7 @@ import {
   drawStoryCard,
   TRADABLE_STOCKS,
 } from '@/data/cards'
-import { getDreamById, getRandomDream } from '@/data/dreams'
+import { getDreamById, getRandomDream, getDreamPassiveIncomeRequirement } from '@/data/dreams'
 import type { CardDeck } from '@/types/game'
 import { AIDecision } from '@/utils/aiDecision'
 import type { AIDifficulty } from '@/utils/aiDecision'
@@ -2576,6 +2576,7 @@ export const useGameStore = defineStore('game', () => {
     const dream = player.dream
     if (!dream) return false
     if (player.cash < dream.price) return false
+    if (player.passiveIncome < getDreamPassiveIncomeRequirement(dream)) return false
 
     player.cash -= dream.price
     winnerId.value = player.id

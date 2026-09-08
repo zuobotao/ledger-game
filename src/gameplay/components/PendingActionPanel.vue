@@ -18,6 +18,7 @@ import type {
 } from '@/types/game'
 import { evaluateOpportunity } from '@/engine/opportunityEvaluator'
 import { TRADABLE_STOCKS } from '@/data/cards'
+import { getDreamPassiveIncomeRequirement } from '@/data/dreams'
 import QuantitySelector from '@/components/QuantitySelector.vue'
 import {
   formatMoney,
@@ -198,6 +199,20 @@ function onDeclineFtOpportunity() {
 
 const ftDreamPending = computed(() => pa.value?.type === 'fast_track_dream')
 const dream = computed(() => player.value.dream ?? null)
+const dreamPassiveRequirement = computed(() => (dream.value ? getDreamPassiveIncomeRequirement(dream.value) : 0))
+const dreamCanBuy = computed(() => {
+  const p = player.value
+  const d = dream.value
+  return Boolean(p && d && p.cash >= d.price && p.passiveIncome >= dreamPassiveRequirement.value)
+})
+const dreamBlockReason = computed(() => {
+  const p = player.value
+  const d = dream.value
+  if (!p || !d) return ''
+  if (p.cash < d.price) return `还差 ${formatMoney(d.price - p.cash)} 现金`
+  if (p.passiveIncome < dreamPassiveRequirement.value) return `还需月被动收入 ${formatMoney(dreamPassiveRequirement.value - p.passiveIncome)}`
+  return '现金与被动收入均已达标'
+})
 
 function onBuyDream() {
   run(props.commands.resolvePendingAction({ kind: 'fast_track_dream', accepted: true }))
@@ -807,11 +822,20 @@ const typeBadge = computed(() => {
             {{ formatMoney(player.cash ?? 0) }}
           </span>
         </div>
+        <div class="mt-1 text-xs text-muted-foreground">
+          年度覆盖要求：
+          <span :class="(player.passiveIncome ?? 0) >= dreamPassiveRequirement ? 'text-success' : 'text-amber-300'">
+            月被动收入 {{ formatMoney(dreamPassiveRequirement) }}
+          </span>
+        </div>
+        <div class="mt-2 text-xs" :class="dreamCanBuy ? 'text-success' : 'text-amber-300'">
+          {{ dreamBlockReason }}
+        </div>
       </div>
       <div class="flex gap-2">
         <button
           type="button"
-          :disabled="(player ? player.cash < (dream?.price ?? Infinity) : true) || disabled"
+          :disabled="!dreamCanBuy || disabled"
           class="flex-1 rounded-full bg-success px-4 py-2.5 text-sm font-semibold text-success-foreground hover:opacity-90 disabled:opacity-40"
           @click="onBuyDream"
         >

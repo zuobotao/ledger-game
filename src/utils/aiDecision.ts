@@ -1,6 +1,7 @@
 import type { Player, OpportunityCard, Asset, Dream } from '@/types/game'
 import { BANK_CONFIG } from '@/types/game'
 import { RandomSource, defaultRandom } from '@/engine/randomSource'
+import { getDreamPassiveIncomeRequirement } from '@/data/dreams'
 
 // AI 难度
 export type AIDifficulty = 'easy' | 'medium' | 'hard'
@@ -509,6 +510,7 @@ export function decideBuyDream(
 ): boolean {
   const cash = player.cash
   const dreamPrice = dream.price
+  if (player.passiveIncome < getDreamPassiveIncomeRequirement(dream)) return false
 
   switch (difficulty) {
     case 'easy':

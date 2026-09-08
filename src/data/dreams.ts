@@ -152,8 +152,15 @@ export const DREAMS: Dream[] = [
   },
 ]
 
-export function getRandomDream(): Dream {
-  return defaultRandom.pick(DREAMS)
+/** 梦想购买除了现金，还要求一年的被动收入能够覆盖目标成本。 */
+export const DREAM_FUNDING_MONTHS = 12
+
+export function getDreamPassiveIncomeRequirement(dream: Dream): number {
+  return Math.ceil(dream.price / DREAM_FUNDING_MONTHS)
+}
+
+export function getRandomDream(random: { pick<T>(items: T[]): T } = defaultRandom): Dream {
+  return random.pick(DREAMS)
 }
 
 export function getDreamById(id: string): Dream | undefined {
