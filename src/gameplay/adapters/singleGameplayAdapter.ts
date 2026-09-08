@@ -172,6 +172,12 @@ export function createSingleGameplayAdapter(store: SingleGameStore): GameplayAda
           return input.accepted
             ? toResult(store.acceptCharity(), 'ACTION_NOT_ALLOWED', '捐赠失败')
             : toResult(store.declineCharity(), 'ACTION_NOT_ALLOWED', '操作失败')
+        case 'child_gift': {
+          const pending = store.pendingAction
+          const recipientId = String(pending?.meta?.recipientId ?? '')
+          const playerId = store.viewingPlayer?.id ?? store.currentPlayer?.id ?? ''
+          return toResult(store.handleChildGift(playerId, recipientId, input.accepted), 'ACTION_NOT_ALLOWED', '随礼失败')
+        }
         case 'market':
           if (input.sells.length === 0) return toResult(store.dismissMarketEvent(), 'ACTION_NOT_ALLOWED', '结束市场事件失败')
           return toResult(store.sellAssetToMarket(input.sells[0]!.assetId, input.sells[0]!.quantity), 'ACTION_NOT_ALLOWED', '卖出失败')

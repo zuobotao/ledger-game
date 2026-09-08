@@ -59,6 +59,16 @@ export function createMultiplayerGameplayAdapter(store: MultiplayerStore): Gamep
     const elig = getFastTrackEligibility(viewing)
     const finished = store.finished
     const isMyTurn = store.isMyTurn
+    const giftMeta = state.pendingAction?.type === 'child_gift' ? state.pendingAction.meta : undefined
+    const giftEligibleIds = Array.isArray(giftMeta?.eligiblePlayerIds)
+      ? giftMeta.eligiblePlayerIds.filter((id): id is string => typeof id === 'string')
+      : []
+    const giftRespondedIds = Array.isArray(giftMeta?.respondedIds)
+      ? giftMeta.respondedIds.filter((id): id is string => typeof id === 'string')
+      : []
+    const canRespondToChildGift = Boolean(
+      myId && giftEligibleIds.includes(myId) && !giftRespondedIds.includes(myId),
+    )
     return {
       gameState: state,
       currentPlayer: cur,
@@ -66,7 +76,7 @@ export function createMultiplayerGameplayAdapter(store: MultiplayerStore): Gamep
       turnNumber: store.sessionInfo?.turnNumber ?? 0,
       roundNumber: store.sessionInfo?.turnNumber ?? 0,
       phase: state.phase,
-      canAct: isMyTurn && !store.roomPaused && !finished && cur.id === myId,
+      canAct: (!store.roomPaused && !finished && cur.id === myId && isMyTurn) || canRespondToChildGift,
       isMyTurn,
       pendingAction: state.pendingAction?.type ? state.pendingAction : null,
       finance: {
@@ -180,6 +190,13 @@ export function createMultiplayerGameplayAdapter(store: MultiplayerStore): Gamep
     switch (input.kind) {
       case 'charity':
         return { type: 'handle_charity', playerId: myPid(), accepted: input.accepted }
+      case 'child_gift':
+        return {
+          type: 'handle_child_gift',
+          playerId: myPid(),
+          recipientId: String(store.gameState?.pendingAction?.meta?.recipientId ?? ''),
+          accepted: input.accepted,
+        }
       case 'market': {
         if (input.sells.length === 0) {
           return { type: 'handle_market', playerId: myPid(), card: pendingCard<MarketEventCard>(), sellAssets: [] }

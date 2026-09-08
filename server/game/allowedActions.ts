@@ -28,6 +28,8 @@ export function deriveAllowedActions(store: GameStore): string[] {
       return ['handle_story']
     case 'charity':
       return ['handle_charity']
+    case 'child_gift':
+      return ['handle_child_gift']
     case 'need_loan':
       return ['take_bank_loan', 'decline_opportunity']
     case 'fast_track_opportunity':

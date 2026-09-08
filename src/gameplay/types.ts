@@ -165,6 +165,7 @@ export interface InsuranceInput {
 
 export type ResolveActionInput =
   | { kind: 'charity'; accepted: boolean }
+  | { kind: 'child_gift'; accepted: boolean }
   | { kind: 'market'; sells: { assetId: string; quantity: number }[] }
   | { kind: 'doodad' }
   | { kind: 'story' }

@@ -195,6 +195,17 @@ export function projectPendingAction(vm: GameplayViewModel): PendingActionPresen
         risk: '捐赠后 10 回合内失业免疫',
       }
     }
+    case 'child_gift': {
+      const amount = Number(pa.meta?.giftAmount ?? 100)
+      return {
+        ...base,
+        name: '添丁随礼',
+        description: pa.message || `其他玩家可选择随礼 ${formatMoney(amount)}，表达心意。`,
+        cost: amount,
+        risk: '随礼会减少现金，但不会改变月现金流',
+        afterCash: player.cash - amount,
+      }
+    }
     case 'layoff':
       return { ...base, name: '失业', risk: '失去工作收入' }
     case 'need_loan':

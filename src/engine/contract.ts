@@ -35,6 +35,7 @@ export type GameAction =
   | ResolveCellAction
   | HandlePaydayAction
   | HandleCharityAction
+  | HandleChildGiftAction
   | BuyOpportunityAction
   | AuctionOpportunityAction
   | SellOpportunityAction
@@ -101,6 +102,14 @@ export interface HandlePaydayAction {
 export interface HandleCharityAction {
   type: 'handle_charity'
   playerId: string
+  accepted: boolean
+}
+
+/** 多人添丁事件：其他玩家选择是否随礼。 */
+export interface HandleChildGiftAction {
+  type: 'handle_child_gift'
+  playerId: string
+  recipientId: string
   accepted: boolean
 }
 
@@ -703,7 +712,9 @@ export const GAME_ACTION_TYPES = [
   'resolve_cell',
   'handle_payday',
   'handle_charity',
+  'handle_child_gift',
   'buy_opportunity',
+  'auction_opportunity',
   'sell_opportunity',
   'skip_stock_sell',
   'decline_opportunity',

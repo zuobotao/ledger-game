@@ -198,6 +198,7 @@ export type PendingActionType =
   | 'market'
   | 'doodad'
   | 'charity'
+  | 'child_gift'
   | 'layoff'
   | 'need_loan'
   | 'fast_track_opportunity'

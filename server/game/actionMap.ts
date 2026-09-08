@@ -53,7 +53,7 @@ export function applyGameAction(store: GameStore, action: GameAction): ActionOut
 
 function requiresNoPlayer(type: string): boolean {
   // 以下动作不针对单一行动玩家（目仅 end_turn 这类推进型会带 playerId，保留校验）
-  return false
+  return type === 'handle_child_gift'
 }
 
 type StoreDict = Record<string, (...args: never[]) => unknown>
@@ -74,6 +74,12 @@ function execute(store: GameStore, action: GameAction): ActionOutcome {
       if (a.accepted) store.acceptCharity()
       else store.declineCharity()
       return { ok: true }
+    }
+
+    case 'handle_child_gift': {
+      const a = action as { playerId: string; recipientId: string; accepted: boolean }
+      const ok = store.handleChildGift(a.playerId, a.recipientId, a.accepted)
+      return ok === false ? fail() : { ok: true }
     }
 
     case 'buy_opportunity': {

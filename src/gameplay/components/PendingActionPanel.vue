@@ -353,6 +353,22 @@ function onCharity(accepted: boolean) {
   run(props.commands.resolvePendingAction({ kind: 'charity', accepted }))
 }
 
+const childGiftPending = computed(() => pa.value?.type === 'child_gift')
+const childGiftMeta = computed(() => (childGiftPending.value ? pa.value?.meta ?? {} : {}))
+const childGiftAmount = computed(() => Number(childGiftMeta.value.giftAmount ?? 100))
+const childGiftEligible = computed(() => {
+  const ids = childGiftMeta.value.eligiblePlayerIds
+  const responded = childGiftMeta.value.respondedIds
+  return Array.isArray(ids)
+    && Array.isArray(responded)
+    && ids.includes(player.value.id)
+    && !responded.includes(player.value.id)
+})
+
+function onChildGift(accepted: boolean) {
+  run(props.commands.resolvePendingAction({ kind: 'child_gift', accepted }))
+}
+
 function onLoanDecision(accept: boolean) {
   run(props.commands.resolvePendingAction({ kind: 'loan_decision', accept }))
 }
@@ -379,6 +395,7 @@ const typeBadge = computed(() => {
     market: '市场风云',
     doodad: '生活意外',
     charity: '慈善捐赠',
+    child_gift: '随礼',
     layoff: '失业',
     story: '故事',
     need_loan: '贷款需求',
@@ -1161,6 +1178,36 @@ const typeBadge = computed(() => {
       >
         放弃
       </button>
+    </div>
+
+    <!-- ========== 多人添丁随礼 ========== -->
+    <div v-else-if="childGiftPending" class="mt-3 space-y-3">
+      <div class="rounded-xl border border-pink-500/30 bg-pink-500/10 p-3">
+        <div class="text-base font-semibold text-pink-300">新生命降临</div>
+        <p class="mt-1 text-sm leading-relaxed text-foreground">{{ pa?.message }}</p>
+        <p class="mt-2 text-xs text-muted-foreground">随礼建议：{{ formatMoney(childGiftAmount) }}。随礼只影响现金，不改变你的月现金流。</p>
+      </div>
+      <div v-if="childGiftEligible" class="flex gap-2">
+        <button
+          data-testid="child-gift-accept"
+          type="button"
+          :disabled="disabled"
+          class="flex-1 rounded-full bg-pink-500 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+          @click="onChildGift(true)"
+        >
+          随礼 {{ formatMoney(childGiftAmount) }}
+        </button>
+        <button
+          data-testid="child-gift-decline"
+          type="button"
+          :disabled="disabled"
+          class="flex-1 rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-40"
+          @click="onChildGift(false)"
+        >
+          暂不随礼
+        </button>
+      </div>
+      <p v-else class="text-center text-xs text-muted-foreground">等待其他玩家完成随礼选择…</p>
     </div>
 
     <!-- ========== 贷款需求 ========== -->

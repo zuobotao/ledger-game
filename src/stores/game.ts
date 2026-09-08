@@ -109,6 +109,7 @@ import {
 const STORAGE_KEY = 'ledger101-game-state'
 /** 存档 schema 版本：升级时递增并编写迁移逻辑 */
 const SAVE_SCHEMA_VERSION = 1
+const CHILD_GIFT_AMOUNT = 100
 
 function createId(): string {
   return defaultRandom.generateId('s-')
@@ -783,6 +784,59 @@ export const useGameStore = defineStore('game', () => {
       message,
       messageType,
     }
+  }
+
+  /**
+   * 多人添丁事件的随礼响应。每位符合资格的真人玩家只能响应一次，
+   * 现金由服务端/权威 store 结算，避免客户端伪造金额或重复扣款。
+   */
+  function handleChildGift(gifterId: string, recipientId: string, accepted: boolean): boolean {
+    const pending = pendingAction.value
+    if (pending.type !== 'child_gift') return false
+    if (String(pending.meta?.recipientId ?? '') !== recipientId) return false
+
+    const eligibleIds = Array.isArray(pending.meta?.eligiblePlayerIds)
+      ? pending.meta.eligiblePlayerIds.filter((id): id is string => typeof id === 'string')
+      : []
+    const respondedIds = Array.isArray(pending.meta?.respondedIds)
+      ? pending.meta.respondedIds.filter((id): id is string => typeof id === 'string')
+      : []
+    if (!eligibleIds.includes(gifterId) || respondedIds.includes(gifterId)) return false
+
+    const amount = Math.max(0, Number(pending.meta?.giftAmount ?? CHILD_GIFT_AMOUNT))
+    const gifter = players.value.find((p) => p.id === gifterId)
+    const recipient = players.value.find((p) => p.id === recipientId)
+    if (!gifter || !recipient || gifter.isBankrupt || recipient.isBankrupt) return false
+
+    let detail = `${gifter.name} 暂未随礼。`
+    if (accepted && gifter.cash >= amount) {
+      gifter.cash -= amount
+      recipient.cash += amount
+      recalcPlayerFinancials(gifter)
+      recalcPlayerFinancials(recipient)
+      recordTransaction('other', -amount, `随礼给 ${recipient.name}`, gifter.id, { amount })
+      recordTransaction('other', amount, `收到 ${gifter.name} 的随礼`, recipient.id, { amount })
+      detail = `${gifter.name} 已随礼 ${formatMoney(amount)}。`
+    } else if (accepted) {
+      detail = `${gifter.name} 现金不足，本次未随礼。`
+    }
+
+    const nextRespondedIds = [...respondedIds, gifterId]
+    const remaining = eligibleIds.length - nextRespondedIds.length
+    if (remaining <= 0) {
+      setPending(null, `随礼环节结束。${detail}`)
+      turnStatus.value = 'resolving'
+    } else {
+      setPending(
+        'child_gift',
+        `${detail} 还有 ${remaining} 位玩家可以响应。`,
+        null,
+        { ...pending.meta, respondedIds: nextRespondedIds },
+        'major',
+      )
+    }
+    saveState()
+    return true
   }
 
   function clearPending() {
@@ -1601,10 +1655,28 @@ export const useGameStore = defineStore('game', () => {
           player.lastChildTurn = turnNumber.value
           recalcPlayerFinancials(player)
           recordTransaction('child', -perChildExpense, `家庭新添人口：孩子 ${oldCount} → ${player.childrenCount}`, player.id)
-          setMessageToast(
-            `👶 家庭变化\n孩子数量 ${oldCount} → ${player.childrenCount}\n每月支出 +${formatMoney(perChildExpense)}\n新的月现金流 ${formatMoney(player.cashFlow)}`,
-            'major',
-          )
+          const eligibleGifters = players.value
+            .filter((other) => other.id !== player.id && !other.isAI && !other.isBankrupt)
+            .map((other) => other.id)
+          if (players.value.length > 1 && !player.isAI && eligibleGifters.length > 0) {
+            setPending(
+              'child_gift',
+              `👶 ${player.name} 家庭添丁！其他玩家可选择随礼 ${formatMoney(CHILD_GIFT_AMOUNT)}，表达心意。`,
+              null,
+              {
+                recipientId: player.id,
+                giftAmount: CHILD_GIFT_AMOUNT,
+                eligiblePlayerIds: eligibleGifters,
+                respondedIds: [],
+              },
+              'major',
+            )
+          } else {
+            setMessageToast(
+              `👶 家庭变化\n孩子数量 ${oldCount} → ${player.childrenCount}\n每月支出 +${formatMoney(perChildExpense)}\n新的月现金流 ${formatMoney(player.cashFlow)}`,
+              'major',
+            )
+          }
         }
         break
       }
@@ -3261,6 +3333,7 @@ export const useGameStore = defineStore('game', () => {
     dismissStockSellOpportunity,
     acceptCharity,
     declineCharity,
+    handleChildGift,
     dismissDoodad,
     dismissStoryCard,
     takeBankLoan,
