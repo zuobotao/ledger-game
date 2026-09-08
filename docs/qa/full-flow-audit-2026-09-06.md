@@ -68,7 +68,7 @@
 - Vitest：反馈弹窗和重复提示回归先在旧代码上复现失败（同一失业提示渲染 2 次），修复后 `gameplay-feedback.spec.ts`、`gameplay-single-adapter.spec.ts`、`financial-delta.spec.ts` 共 30/30 通过；`npm run build` 通过。
 - Vitest：多人适配器与共享反馈回归 9/9 通过，`vue-tsc --build` 通过。
 - Vitest：市场状态桥短暂缺少 `pendingAction` 时，动作解析器仍保留可见的 `market-dismiss`；状态正常结束时回退到 `end-turn`，3/3 通过。
-- 随机 Bot 长链路：修复前在市场事件后回合 41 停止；加入状态桥兜底后单局仍在回合 39 的另一市场状态停止，说明长链路还存在新的状态同步分支，证据保存在 `playtest/runs/20260908-065010-mobile/`，暂不计入通过。
+- 随机 Bot 长链路：移动端单局已越过此前回合 39/41 的市场事件卡死点，50 回合内无按钮缺失、无卡住回合，`playtest/runs/20260908-205238-mobile/report.md` 通过；当前仍在测试回合上限触发 `max-turns`，尚未自然进入胜利/结束页，随机策略收尾仍需后续优化。
 
 ## 下一轮排队需求
 
