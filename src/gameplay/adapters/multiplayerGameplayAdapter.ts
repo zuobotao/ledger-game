@@ -131,6 +131,7 @@ export function createMultiplayerGameplayAdapter(store: MultiplayerStore): Gamep
       title: first ? EVENT_TITLES[first.type] ?? `事件 ${first.type}` : r.success ? '操作成功' : (r.error ?? '操作失败'),
       delta: pid ? ((r.financialDeltas[pid] ?? null) as FinancialDelta | null) : null,
       warnings: [],
+      timestamp: r.sequence,
     }
   }
 

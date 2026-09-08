@@ -168,11 +168,12 @@ const feedbackVisible = ref(false)
 let fbTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(
-  () => vm.value.lastAction,
-  (la, prev) => {
+  () => vm.value.lastAction?.timestamp,
+  (timestamp, previousTimestamp) => {
     if (props.adapter.meta.mode !== 'multiplayer') return
-    if (la && la !== prev && la.title) {
-      feedbackText.value = la.title
+    const feedback = vm.value.lastAction
+    if (timestamp && timestamp !== previousTimestamp && feedback?.title) {
+      feedbackText.value = feedback.title
       feedbackVisible.value = false
       nextTick(() => {
         feedbackVisible.value = true
