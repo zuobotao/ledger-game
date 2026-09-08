@@ -42,7 +42,7 @@ const advice = computed<Advice | null>(() => {
     case 'doodad': {
       return {
         analysis: '支出分析',
-        reason: '生活意外是不可避免的支出。这提醒我们：应急基金很重要，通常建议保留3-6个月支出的现金储备以应对突发情况。',
+        reason: '生活意外会带来游戏内支出。你可以观察保留现金对本局决策的影响。',
         type: 'info',
       }
     }
@@ -50,14 +50,14 @@ const advice = computed<Advice | null>(() => {
       const donation = Math.round(player.totalIncome * 0.1)
       return {
         analysis: '慈善选项分析',
-        reason: `捐赠 ${formatMoney(donation)}（收入的10%）可获得一次免裁员保护和掷双骰机会。在游戏模拟中，如果现金充足，这是一个风险回报比不错的选择。`,
+        reason: `捐赠 ${formatMoney(donation)}（收入的10%）可获得一次免裁员保护和掷双骰机会。请根据当前游戏状态比较这项规则的影响。`,
         type: 'info',
       }
     }
     case 'layoff': {
       return {
         analysis: '风险提示',
-        reason: '裁员会导致失业，失去工资收入。这是一个重要的财商教育点：被动收入才是财务安全的保障，而不仅仅依赖工资。',
+        reason: '裁员会导致失业，失去工资收入。你可以观察模拟被动收入与工资收入的差异。',
         type: 'avoid',
       }
     }
@@ -84,7 +84,7 @@ const advice = computed<Advice | null>(() => {
     case 'stock_sell_opportunity': {
       return {
         analysis: '卖出时机分析',
-        reason: '股票卖出机会出现了！这是练习投资决策的好时机——对比你的买入成本和当前价格，思考是否达到了你设定的盈利目标。',
+        reason: '股票卖出机会出现了。对比游戏内买入成本和当前价格，观察不同选择的结果。',
         type: 'info',
       }
     }
@@ -99,7 +99,7 @@ function getOpportunityAnalysis(player: Player, card: OpportunityCard, difficult
   if (card.splitRatio !== undefined) {
     return {
       analysis: '股票拆分/合股',
-      reason: '这是股票结构调整，不涉及买卖决策。在模拟中，拆分通常被视为利好信号——这也是一个值得了解的金融概念。',
+      reason: '这是股票结构调整，不涉及买卖决策。你可以在模拟中观察拆分对数量和价格的影响。',
       type: 'info',
     }
   }
@@ -107,7 +107,7 @@ function getOpportunityAnalysis(player: Player, card: OpportunityCard, difficult
   if (card.type === 'stock' && card.action === 'sell') {
     return {
       analysis: '卖出机会分析',
-      reason: `当前价格 ${formatMoney(card.cost)}。在游戏模拟中，你可以对比买入成本，思考是否达到了预期盈利目标。这是练习止盈策略的好机会。`,
+      reason: `当前模拟价格 ${formatMoney(card.cost)}。你可以对比游戏内买入成本，观察卖出选择的结果。`,
       type: 'sell',
     }
   }
@@ -126,11 +126,11 @@ function getOpportunityAnalysis(player: Player, card: OpportunityCard, difficult
   } else {
     let reason = ''
     if (card.type === 'stock' && card.cost > 40) {
-      reason = `模拟分析：股票价格 ${formatMoney(card.cost)} 偏高，在游戏模型中下跌风险较大。可以等待更低价格的机会——这也是价值投资的基本思路。`
+      reason = `模拟分析：这只股票的游戏内价格为 ${formatMoney(card.cost)}，当前模型显示的波动风险较高。可以继续观察本局价格变化。`
     } else if (player.cash < card.cost) {
       reason = `模拟分析：当前现金不足（${formatMoney(player.cash)}），无法进行这笔投资。这说明本金积累是投资的基础。`
     } else {
-      reason = `模拟分析：按照当前游戏模型，这笔投资的回报不够理想。可以保留现金，等待更好的机会——耐心也是投资的重要品质。`
+      reason = `模拟分析：按照当前游戏模型，这笔交易的模拟结果有限。可以保留游戏内现金，继续比较后续机会。`
     }
     return { analysis: '模拟分析：可放弃', reason, type: 'avoid' }
   }
@@ -150,7 +150,7 @@ function getFastTrackOpportunityAnalysis(player: Player, card: OpportunityCard, 
   } else {
     return {
       analysis: '模拟分析：可放弃',
-      reason: '按照游戏模型，这笔投资的回报率不够高，或者会过度消耗现金。可以保留现金等待更好的机会或用于购买梦想。',
+      reason: '按照游戏模型，这笔交易的模拟结果有限，或者会过度消耗游戏内现金。你可以继续比较后续机会或梦想目标。',
       type: 'avoid',
     }
   }
@@ -160,15 +160,15 @@ function getLoanAnalysis(player: Player, amount: number): Advice {
   const shortfall = amount - player.cash
   if (player.passiveIncome >= player.totalExpenses) {
     return {
-      analysis: '贷款分析：可考虑',
-      reason: `在当前模拟状态下，你已实现财务自由（被动收入覆盖支出）。贷款 ${formatMoney(shortfall)} 的利息支出在可承受范围内。请注意：这是游戏模拟分析，现实中贷款需谨慎。`,
+      analysis: '贷款分析：游戏内可比较',
+      reason: `在当前模拟状态下，被动收入覆盖了游戏内支出。贷款 ${formatMoney(shortfall)} 的利息支出在本局模型中可承受。请注意：这是游戏模拟分析，不适用于现实贷款判断。`,
       type: 'loan',
     }
   } else {
     const remainingMonths = player.cash > 0 ? Math.floor(player.cash / (player.totalExpenses - player.passiveIncome)) : 0
     return {
       analysis: '贷款分析：需谨慎',
-      reason: `在游戏模拟中，贷款会增加每月支出，延缓财务自由进程。如果这笔支出是必要的，建议尽快还清。你目前的现金约能支撑 ${remainingMonths} 个月的支出。`,
+      reason: `在游戏模拟中，贷款会增加每月支出，延后阶段目标。你目前的现金约能支撑 ${remainingMonths} 个月的游戏内支出；可据此比较还款影响。`,
       type: 'avoid',
     }
   }

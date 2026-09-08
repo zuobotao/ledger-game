@@ -116,8 +116,7 @@ function goTo(route: string) {
           © 2026 Ledger Project Contributors. Licensed under Apache 2.0.
         </p>
         <p class="text-xs text-muted-foreground/60">
-          本游戏为教育与娱乐模拟工具，不构成任何投资建议。
-          所有金融数据均为虚构。
+          本游戏仅作教育与娱乐模拟，数据均为虚构，不构成任何投资建议。
         </p>
       </div>
     </div>

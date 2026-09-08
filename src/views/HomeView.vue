@@ -97,8 +97,8 @@ function goToMultiplayer() {
         <p
           class="mx-auto mb-10 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg"
         >
-          通过模拟真实的个人财务与投资场景，学习资产负债管理，
-          完成原始资本积累，练习投资决策、建立被动收入，走向财务自由。
+          通过虚构的个人财务场景，学习资产负债管理，
+          在游戏中练习决策，观察现金流与资产变化。
         </p>
 
         <!-- v2.3: 继续游戏卡片 -->

@@ -96,10 +96,9 @@ function goHome() {
                 <h2 class="text-lg font-semibold">游戏目标</h2>
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
-                Ledger 是一款财商教育模拟游戏，通过模拟真实的个人财务与投资场景，
-                帮助玩家学习如何管理个人财务、进行投资决策、积累资产，
-                最终实现<strong class="text-foreground">财务自由</strong>——
-                即被动收入超过总支出，从而完成「原始资本积累」，进入「资本游戏」。
+                Ledger 是一款财商教育模拟游戏，使用虚构的个人财务与资产场景。
+                玩家可以在游戏内练习决策、观察现金流变化，
+                当被动收入超过总支出时完成「原始资本积累」，进入「资本游戏」。
               </p>
             </div>
 
@@ -128,11 +127,11 @@ function goHome() {
                 <ol class="list-decimal space-y-2 pl-5">
                   <li>
                     <strong class="text-foreground">第一阶段（原始资本积累）：</strong>
-                    通过投资和资产配置，使你的被动收入大于等于总支出，即可进入资本游戏。
+                    通过游戏内的资产配置，使模拟被动收入大于等于总支出，即可进入资本游戏。
                   </li>
                   <li>
                     <strong class="text-foreground">第二阶段（资本游戏）：</strong>
-                    在资本游戏中，你需要购买自己的「梦想」来赢得游戏。同时也可以通过投资进一步扩大财富。
+                    在资本游戏中，你需要购买自己的「梦想」来赢得游戏。你也可以继续调整游戏内资产。
                   </li>
                 </ol>
               </div>
@@ -150,7 +149,7 @@ function goHome() {
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
                 每位玩家有一份<strong class="text-foreground">损益表</strong>，记录每月的收入和支出。
-                收入包括工资（主动收入）和投资收益（被动收入）。支出包括税金、房贷、车贷、信用卡还款、其他支出和子女支出。
+                收入包括工资（主动收入）和模拟资产现金流（被动收入）。支出包括游戏内税金、房贷、车贷、信用卡还款、其他支出和子女支出。
                 每月现金流 = 总收入 - 总支出。当你经过「发工资」格子时，会获得等于当月现金流的现金。
               </p>
             </div>
@@ -163,9 +162,9 @@ function goHome() {
                 <h2 class="text-lg font-semibold">资产负债表</h2>
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
-                <strong class="text-foreground">资产</strong>是能把钱放进你口袋的东西，如股票、房地产、企业等，它们产生现金流。
-                <strong class="text-foreground">负债</strong>是把钱从你口袋取走的东西，如房贷、车贷、信用卡、银行贷款等，它们增加支出。
-                理解资产与负债的区别，是实现财务自由的第一步。
+                在本游戏中，<strong class="text-foreground">资产</strong>会产生模拟现金流，如股票、房地产、企业等。
+                <strong class="text-foreground">负债</strong>会增加游戏内支出，如房贷、车贷、信用卡、银行贷款等。
+                这组分类用于理解本局的资产负债表。
               </p>
             </div>
 
@@ -237,7 +236,7 @@ function goHome() {
                 <h2 class="text-lg font-semibold">进入资本游戏条件</h2>
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
-                当你的<strong class="text-foreground">被动收入 ≥ 总支出</strong>时，恭喜你！你已经实现了财务自由，
+                当你的<strong class="text-foreground">被动收入 ≥ 总支出</strong>时，你完成了本局的阶段条件，
                 可以完成原始资本积累，进入资本游戏。进入资本游戏后，你将获得 100 倍月现金流的起始现金，
                 并获得一个随机的梦想目标。
               </p>
@@ -255,7 +254,7 @@ function goHome() {
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
                 落在被动收入日格子时，你将获得<strong class="text-foreground">月现金流 × 100</strong>的巨额现金收入。
-                这是资本游戏中最有价值的格子之一，代表着财务自由带来的被动财富增长。
+                这是资本游戏中的一个高额模拟现金流事件。
               </p>
             </div>
 
@@ -280,8 +279,8 @@ function goHome() {
                 <h2 class="text-lg font-semibold">投资</h2>
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
-                投资格子提供高风险高回报的投资机会。你可以选择参与或放弃，
-                成功的投资能大幅增加你的现金流和资产价值。
+                投资格子提供不同数值的模拟机会。你可以选择参与或放弃，
+                对局结果会改变游戏内现金流和资产数值。
               </p>
             </div>
 
@@ -337,8 +336,7 @@ function goHome() {
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
                 大生意卡涉及更高额的投资，通常需要数万美元以上的资金。
-                但相应地，它们带来的现金流也更为可观。大生意是加速实现财务自由的关键，
-                当你有了一定的资本积累后，应该积极把握大生意机会。
+                但相应地，它们带来的模拟现金流也可能更高。请根据本局现金和规则自行比较。
               </p>
             </div>
 
@@ -351,7 +349,7 @@ function goHome() {
               </div>
               <p class="text-sm leading-relaxed text-muted-foreground">
                 房地产投资卡包括单户住宅、多户公寓、商业地产等。房地产既能产生月度租金现金流，
-                又能在市场行情好时通过出售获得资本利得。是游戏中实现财务自由最常见的途径之一。
+                又能在游戏内市场变化时通过出售改变资产数值。它是本游戏中的一种模拟路径。
               </p>
             </div>
 
