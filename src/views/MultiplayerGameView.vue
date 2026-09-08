@@ -84,6 +84,7 @@ function onGameOver() {
   <div class="flex h-screen w-full flex-col overflow-hidden bg-background">
     <!-- 会话细条（房间码 / 连接状态 / 离开） -->
     <div
+      data-testid="mp-players"
       class="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border bg-secondary/40 px-3 sm:px-4"
     >
       <div class="flex min-w-0 items-center gap-2">

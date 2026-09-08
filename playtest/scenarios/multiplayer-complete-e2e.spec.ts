@@ -50,6 +50,7 @@ type MPView = {
   allowedActions: string[]
   isMyTurn: boolean
   finished: boolean
+  canRespondChildGift: boolean
   players: {
     id: string
     name: string
@@ -70,6 +71,10 @@ async function mp(page: Page): Promise<MPView | null> {
       const gs = s.gameState
       const cur = gs.players[gs.currentPlayerIndex] ?? null
       const card = gs.pendingAction?.card ?? {}
+      const giftMeta = gs.pendingAction?.type === 'child_gift' ? gs.pendingAction.meta ?? {} : {}
+      const eligibleIds = Array.isArray(giftMeta.eligiblePlayerIds) ? giftMeta.eligiblePlayerIds : []
+      const respondedIds = Array.isArray(giftMeta.respondedIds) ? giftMeta.respondedIds : []
+      const myId = s.myGamePlayerId ?? null
       return {
         stateHash: s.stateHash ?? '',
         myGamePlayerId: s.myGamePlayerId ?? null,
@@ -81,6 +86,7 @@ async function mp(page: Page): Promise<MPView | null> {
         allowedActions: (s.turn?.allowedActions ?? []).slice(),
         isMyTurn: Boolean(s.isMyTurn),
         finished: Boolean(s.finished),
+        canRespondChildGift: Boolean(myId && eligibleIds.includes(myId) && !respondedIds.includes(myId)),
         players: gs.players.map((p: any) => ({
           id: p.id,
           name: p.name,
@@ -135,7 +141,46 @@ async function settleSync(pageA: Page, pageB: Page): Promise<{ a: string; b: str
 }
 
 async function clickActive(page: Page, testid: string): Promise<void> {
-  const btn = page.locator(`[data-testid="act-${testid}"]`)
+  // 共享玩法组件使用语义化 testid；保留 act-* 兼容旧版房间壳测试。
+  const semantic: Record<string, string> = {
+    roll_dice: 'roll-dice',
+    end_turn: 'end-turn',
+    buy_opportunity: 'opportunity-buy',
+    decline_opportunity: 'opportunity-decline',
+    handle_market: 'market-dismiss',
+    handle_doodad: 'known-dismiss',
+    handle_story: 'known-dismiss',
+    charity_y: 'charity-accept',
+    take_bank_loan: 'loan-take',
+    declare_bankruptcy: 'known-dismiss',
+    sell_opportunity: 'stock-sell-dismiss',
+    handle_child_gift: 'child-gift-accept',
+    ft_opp: 'opportunity-buy',
+    ft_dream: 'known-dismiss',
+  }
+  const semanticTestids = [semantic[testid] ?? testid]
+  if (testid === 'buy_opportunity') semanticTestids.push('opportunity-stock-buy', 'opportunity-confirm')
+  const selectors = [
+    `[data-testid="act-${testid}"]`,
+    ...semanticTestids.map((id) => `[data-testid="${id}"]`),
+  ]
+  const enabledSelector = selectors.map((selector) => `${selector}:not([disabled])`).join(', ')
+  const btn = page.locator(enabledSelector).first()
+  if (await btn.count() === 0 && testid === 'buy_opportunity') {
+    const decline = page.locator('[data-testid="opportunity-decline"]:not([disabled])').first()
+    await decline.waitFor({ state: 'visible', timeout: 10_000 })
+    await decline.click()
+    return
+  }
+  // 重连后允许动作快照可能先于按钮渲染；若回测认为该回合已掷骰，
+  // 用已经可用的“结束回合”推进，避免旧按钮状态把房间误判为死锁。
+  if (await btn.count() === 0 && testid === 'roll_dice') {
+    const end = page.locator('[data-testid="end-turn"]:not([disabled])').first()
+    if (await end.count() > 0) {
+      await end.click()
+      return
+    }
+  }
   await btn.waitFor({ state: 'visible', timeout: 10_000 })
   await btn.click()
 }
@@ -144,8 +189,11 @@ async function clickActive(page: Page, testid: string): Promise<void> {
 async function activePage(pageA: Page, pageB: Page): Promise<Page | null> {
   for (let i = 0; i < 40; i++) {
     const [va, vb] = await Promise.all([mp(pageA), mp(pageB)])
-    if (va?.isMyTurn && va?.finished === false) return pageA
-    if (vb?.isMyTurn && vb?.finished === false) return pageB
+    // 随礼是跨回合响应：先选有资格响应的玩家，收礼人此时会显示“等待”。
+    if (va?.canRespondChildGift && va.finished === false) return pageA
+    if (vb?.canRespondChildGift && vb.finished === false) return pageB
+    if (va?.isMyTurn && va.finished === false) return pageA
+    if (vb?.isMyTurn && vb.finished === false) return pageB
     if (va?.finished || vb?.finished) return null
     await sleep(200)
   }
@@ -369,6 +417,7 @@ test.describe('Phase 9 · 完整多人 E2E（Desktop）', () => {
         continue
       }
       cRolled = cRolled || btn === 'roll_dice'
+      await clickActive(active, btn)
       const chashBefore = pre.stateHash
       let cApplied = await mp(active)
       const t1 = Date.now()
