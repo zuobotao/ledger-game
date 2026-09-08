@@ -34,6 +34,20 @@ describe('Asset Operations', () => {
     } as OpportunityCard
   }
 
+  function createRealEstateCard(): OpportunityCard {
+    return {
+      id: 'test-real-estate',
+      type: 'real_estate',
+      size: 'small',
+      title: 'Test Rental',
+      description: 'Test rental',
+      cost: 5000,
+      downPayment: 5000,
+      totalValue: 50000,
+      cashFlow: 220,
+    } as OpportunityCard
+  }
+
   it('should buy stock and create asset', () => {
     const store = useGameStore()
     store.startGame(createConfig(), [
@@ -72,5 +86,22 @@ describe('Asset Operations', () => {
     const asset = store.players[0].assets.find((a) => a.type === 'stock' && a.symbol === 'NOVA')
     expect(asset).toBeDefined()
     expect(asset!.quantity).toBe(10)
+  })
+
+  it('should cap real estate purchases at one unit even when a larger quantity is requested', () => {
+    const store = useGameStore()
+    store.startGame(createConfig(), [
+      { name: 'Cleaner', colorId: 'red', careerId: 'cleaner', dreamId: '' },
+    ])
+    const player = store.players[0]
+    player.cash = 10000
+    const beforeCash = player.cash
+    store.setPending('opportunity', 'test', createRealEstateCard())
+
+    expect(store.buyOpportunity(3)).toBe(true)
+    const asset = player.assets.find((a) => a.type === 'real_estate')
+    expect(asset?.quantity).toBe(1)
+    expect(player.cash).toBe(beforeCash - 5000)
+    expect(player.passiveIncome).toBe(220)
   })
 })

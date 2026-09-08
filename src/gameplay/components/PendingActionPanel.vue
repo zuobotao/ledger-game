@@ -78,11 +78,15 @@ const maxOppQty = computed(() => {
   }
   const unitCost = c.downPayment ?? c.cost
   if (unitCost <= 0) return 1
+  // 房产和企业一次机会只能买一份，界面约束必须与引擎一致。
+  if (c.type === 'real_estate' || c.type === 'business') return 1
   if (c.maxQuantity) {
     return Math.max(1, Math.min(c.maxQuantity, Math.floor(player.value.cash / unitCost)))
   }
   return Math.max(1, Math.floor(player.value.cash / unitCost))
 })
+
+const oppUnitLabel = computed(() => unitLabel(oppCard.value?.type ?? 'other'))
 
 const oppQty = ref(1)
 const buyQty = ref(1)
@@ -446,6 +450,9 @@ const typeBadge = computed(() => {
               {{ formatMoney((oppCard.cost - (currentStockHolding?.cost ?? 0)) * (currentStockHolding?.quantity ?? 0)) }}
             </span>
           </div>
+          <div class="mt-2 border-t border-border/60 pt-2 text-xs text-muted-foreground">
+            股票不产生固定月现金流，买入后结果取决于后续价格变化。
+          </div>
         </div>
 
         <div class="mb-3 flex rounded-xl bg-secondary/50 p-1">
@@ -474,6 +481,10 @@ const typeBadge = computed(() => {
           <div class="mb-2 flex items-center justify-between">
             <span class="text-sm font-semibold text-primary">买入</span>
             <span class="text-xs text-muted-foreground">买入价 {{ formatMoney(oppCard.cost) }}/股</span>
+          </div>
+          <div class="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+            <span>本次买入增加月现金流</span>
+            <span class="font-semibold text-success">+{{ formatMoney(oppCard.cashFlow * buyQty) }}/月</span>
           </div>
           <QuantitySelector
             v-if="maxBuyQuantity > 0"
@@ -601,7 +612,7 @@ const typeBadge = computed(() => {
               <span class="text-lg font-bold">+</span>
             </button>
           </div>
-          <span v-if="maxOppQty > 1" class="text-xs text-muted-foreground">最多 {{ maxOppQty }} 份</span>
+          <span class="text-xs text-muted-foreground">最多 {{ maxOppQty }} {{ oppUnitLabel }}</span>
         </div>
 
         <div v-if="oppCard.type !== 'stock'" class="mb-3 space-y-2 rounded-lg bg-muted px-3 py-2">

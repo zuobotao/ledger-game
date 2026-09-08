@@ -6,7 +6,7 @@
  * 指标取当前行动玩家（currentPlayer）：现金 / 存款 / 月现金流 / 净资产 / 梦想进度。
  */
 import { computed } from 'vue'
-import { Banknote, Gem, Target, TrendingUp, Trophy, Wallet } from 'lucide-vue-next'
+import { Banknote, Gem, Target, TrendingUp, Trophy, Wallet, PiggyBank } from 'lucide-vue-next'
 import type { GameplayAdapter } from '@/gameplay/gameplayAdapter'
 import { formatMoney } from '@/gameplay/presentation'
 
@@ -95,6 +95,17 @@ const dreamProgress = computed(() => {
         <span class="metric-value" :class="cashFlowPositive ? 'cashflow' : 'cashflow-negative'">
           {{ cashFlowDisplay }}/月
         </span>
+      </div>
+    </div>
+
+    <!-- 被动收入 -->
+    <div class="metric-item" title="资产带来的月度收入，不含工资">
+      <div class="metric-icon passive-income">
+        <PiggyBank class="h-4 w-4" />
+      </div>
+      <div class="metric-content">
+        <span class="metric-label">被动收入</span>
+        <span class="metric-value passive-income">{{ formatMoney(player?.passiveIncome ?? 0) }}/月</span>
       </div>
     </div>
 
@@ -217,8 +228,17 @@ const dreamProgress = computed(() => {
   color: #10b981;
 }
 
+.metric-icon.passive-income {
+  background: rgba(20, 184, 166, 0.15);
+  color: #14b8a6;
+}
+
 .metric-value.savings {
   color: #10b981;
+}
+
+.metric-value.passive-income {
+  color: #14b8a6;
 }
 
 .metric-content {
