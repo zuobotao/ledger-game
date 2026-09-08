@@ -12,6 +12,7 @@ import {
   assetPnL,
   assetPnLPercent,
   formatMoney,
+  netWorthOf,
   unitLabel,
 } from '@/gameplay/presentation'
 
@@ -33,6 +34,16 @@ const businessValue = computed(() =>
   p.value.assets.filter((a) => a.type === 'business').reduce((s, a) => s + (a.marketPrice ?? a.cost) * a.quantity, 0),
 )
 
+const totalAssets = computed(() => p.value.cash + p.value.savings + stockValue.value + realEstateValue.value + businessValue.value)
+const totalLiabilities = computed(() => p.value.liabilities.reduce((sum, loan) => sum + loan.amount, 0))
+const passiveCoverage = computed(() => (p.value.totalExpenses > 0 ? (p.value.passiveIncome / p.value.totalExpenses) * 100 : 0))
+const taxShare = computed(() => (p.value.totalExpenses > 0 ? (p.value.expenses.taxes / p.value.totalExpenses) * 100 : 0))
+const financialSignal = computed(() => {
+  if (p.value.passiveIncome >= p.value.totalExpenses && p.value.totalExpenses > 0) return '被动收入已覆盖总支出，可优先积累资产。'
+  if (p.value.cashFlow > 0) return '现金流为正，可寻找增加被动收入的机会。'
+  return '现金流为负，先控制支出或偿还负债。'
+})
+
 defineSlots<{
   /** 负债操作区（还贷/还清按钮） */
   'liability-actions'?: (props: { loan: { id: string; name: string; amount: number; category?: string } }) => unknown
@@ -41,6 +52,44 @@ defineSlots<{
 
 <template>
   <div class="space-y-4">
+    <!-- 财务导航：先给结论，再看明细 -->
+    <section class="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+      <div class="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-bold text-foreground">财务导航</h2>
+          <p class="mt-1 text-xs text-muted-foreground">先看结果，再定位成本和机会</p>
+        </div>
+        <span class="rounded-full bg-background/70 px-2 py-1 text-[10px] font-semibold text-primary">当前状态</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div class="rounded-xl bg-background/80 p-3">
+          <div class="text-[10px] uppercase tracking-wider text-muted-foreground">净资产</div>
+          <div class="mt-1 text-base font-bold tabular-nums" :class="netWorthOf(p) >= 0 ? 'text-foreground' : 'text-destructive'">
+            {{ formatMoney(netWorthOf(p)) }}
+          </div>
+          <div class="mt-1 text-[10px] text-muted-foreground">资产 {{ formatMoney(totalAssets) }} · 负债 {{ formatMoney(totalLiabilities) }}</div>
+        </div>
+        <div class="rounded-xl bg-background/80 p-3">
+          <div class="text-[10px] uppercase tracking-wider text-muted-foreground">月现金流</div>
+          <div class="mt-1 text-base font-bold tabular-nums" :class="p.cashFlow >= 0 ? 'text-success' : 'text-destructive'">
+            {{ p.cashFlow >= 0 ? '+' : '' }}{{ formatMoney(p.cashFlow) }}
+          </div>
+          <div class="mt-1 text-[10px] text-muted-foreground">收入减去支出</div>
+        </div>
+        <div class="rounded-xl bg-background/80 p-3">
+          <div class="text-[10px] uppercase tracking-wider text-muted-foreground">被动收入覆盖</div>
+          <div class="mt-1 text-base font-bold tabular-nums text-foreground">{{ passiveCoverage.toFixed(0) }}%</div>
+          <div class="mt-1 text-[10px] text-muted-foreground">支出 {{ formatMoney(p.totalExpenses) }}/月</div>
+        </div>
+        <div class="rounded-xl bg-background/80 p-3">
+          <div class="text-[10px] uppercase tracking-wider text-muted-foreground">税负占比</div>
+          <div class="mt-1 text-base font-bold tabular-nums text-foreground">{{ taxShare.toFixed(0) }}%</div>
+          <div class="mt-1 text-[10px] text-muted-foreground">税金 {{ formatMoney(p.expenses.taxes) }}/月</div>
+        </div>
+      </div>
+      <p class="mt-3 border-t border-primary/10 pt-3 text-xs text-muted-foreground">{{ financialSignal }}</p>
+    </section>
+
     <!-- 收入 -->
     <section class="rounded-2xl border border-border bg-background p-4 shadow-sm">
       <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">收入</h3>
