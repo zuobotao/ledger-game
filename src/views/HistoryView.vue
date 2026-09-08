@@ -34,6 +34,7 @@ import { useGameHistoryStore } from '@/stores/gameHistory'
 import { useProfileStore, DEFAULT_PROFILE_ID } from '@/stores/profile'
 import type { GameHistoryRecord, GameHistoryDetail, GameResult } from '@/types/game'
 import { START_AGE } from '@/types/game'
+import { buildTurnReviews } from '@/utils/historyReview'
 
 const router = useRouter()
 const historyStore = useGameHistoryStore()
@@ -107,7 +108,7 @@ function profileEmoji(id: string | null | undefined): string {
 
 // 展开的详情 section
 const expandedSections = ref<Set<string>>(
-  new Set(['overview', 'finance', 'trades', 'tips']),
+  new Set(['overview', 'turns', 'finance', 'trades', 'tips']),
 )
 
 function toggleSection(key: string) {
@@ -197,7 +198,7 @@ async function viewDetail(record: GameHistoryRecord) {
   const detail = await historyStore.loadRecordDetail(record.id)
   if (detail) {
     selectedRecord.value = detail
-    expandedSections.value = new Set(['overview', 'finance', 'trades', 'tips'])
+    expandedSections.value = new Set(['overview', 'turns', 'finance', 'trades', 'tips'])
   } else {
     // 即使没有详情也显示基本信息
     selectedRecord.value = {
@@ -242,6 +243,24 @@ const finalAge = computed(() => {
     months: turns % 12,
   }
 })
+
+const turnReviews = computed(() => {
+  if (!selectedRecord.value) return []
+  return buildTurnReviews(
+    selectedRecord.value.mainPlayerTransactions,
+    selectedRecord.value.mainPlayerCardHistory,
+    selectedRecord.value.mainPlayerSnapshots,
+  )
+})
+
+function formatSignedMoney(value?: number): string {
+  if (value === undefined) return '暂无'
+  return `${value >= 0 ? '+' : ''}${formatMoneyCompact(value)}`
+}
+
+function getActionLabel(action: 'accepted' | 'declined' | 'sold' | 'ignored'): string {
+  return { accepted: '接受', declined: '拒绝', sold: '卖出', ignored: '忽略' }[action]
+}
 
 // ========== 财务分析 ==========
 const stockTradeStats = computed(() => {
@@ -806,7 +825,54 @@ onMounted(() => {
               </div>
             </section>
 
-            <!-- 2. 财务分析 -->
+            <!-- 2. 逐回合回顾 -->
+            <section class="summary-section">
+              <button class="section-header" @click="toggleSection('turns')">
+                <div class="section-title">
+                  <Clock class="h-4 w-4 text-primary" />
+                  <span>逐回合回顾</span>
+                  <span class="section-count">{{ turnReviews.length }} 回合</span>
+                </div>
+                <ChevronDown
+                  class="h-4 w-4 text-muted-foreground transition-transform"
+                  :class="{ 'rotate-180': expandedSections.has('turns') }"
+                />
+              </button>
+              <div v-show="expandedSections.has('turns')" class="section-body">
+                <div v-if="turnReviews.length" class="turn-review-list">
+                  <article v-for="review in turnReviews" :key="review.turn" class="turn-review-item">
+                    <div class="turn-review-marker">{{ review.turn }}</div>
+                    <div class="turn-review-main">
+                      <div class="turn-review-heading">
+                        <span class="turn-review-title">第 {{ review.turn }} 回合</span>
+                        <span v-if="review.landings.length" class="turn-review-landing">
+                          {{ review.landings.join(' · ') }}
+                        </span>
+                      </div>
+                      <div v-if="review.actions.length" class="turn-review-actions">
+                        <span v-for="(action, index) in review.actions" :key="`${review.turn}-${index}`" class="turn-review-action">
+                          <span v-if="action.kind === 'card' && action.action" class="action-kind">
+                            {{ getActionLabel(action.action) }}
+                          </span>
+                          {{ action.label }}
+                          <span v-if="action.amount !== undefined" class="action-amount">{{ formatSignedMoney(action.amount) }}</span>
+                        </span>
+                      </div>
+                      <div class="turn-review-finance">
+                        <span>现金 {{ formatSignedMoney(review.financial.cashDelta) }}</span>
+                        <span v-if="review.financial.netWorthDelta !== undefined">净值 {{ formatSignedMoney(review.financial.netWorthDelta) }}</span>
+                        <span v-if="review.financial.assetsDelta !== undefined">资产 {{ formatSignedMoney(review.financial.assetsDelta) }}</span>
+                        <span v-if="review.financial.liabilitiesDelta !== undefined">负债 {{ formatSignedMoney(review.financial.liabilitiesDelta) }}</span>
+                        <span v-if="review.financial.monthlyCashFlow !== undefined">月现金流 {{ formatSignedMoney(review.financial.monthlyCashFlow) }}</span>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+                <p v-else class="turn-review-empty">这局记录没有可回看的逐回合明细。</p>
+              </div>
+            </section>
+
+            <!-- 3. 财务分析 -->
             <section class="summary-section">
               <button class="section-header" @click="toggleSection('finance')">
                 <div class="section-title">
@@ -852,7 +918,7 @@ onMounted(() => {
               </div>
             </section>
 
-            <!-- 3. 交易回顾 -->
+            <!-- 4. 交易回顾 -->
             <section class="summary-section">
               <button class="section-header" @click="toggleSection('trades')">
                 <div class="section-title">
@@ -981,7 +1047,7 @@ onMounted(() => {
               </div>
             </section>
 
-            <!-- 4. 财商建议 -->
+            <!-- 5. 财商建议 -->
             <section class="summary-section">
               <button class="section-header" @click="toggleSection('tips')">
                 <div class="section-title">
@@ -1777,6 +1843,104 @@ onMounted(() => {
 
 .section-body {
   padding: 0 8px 16px;
+}
+
+.section-count {
+  color: var(--color-muted-foreground);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.turn-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.turn-review-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.turn-review-marker {
+  flex: 0 0 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.14);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.turn-review-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.turn-review-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.turn-review-title {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.turn-review-landing {
+  color: var(--color-primary);
+  font-size: 12px;
+}
+
+.turn-review-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 5px;
+}
+
+.turn-review-action {
+  color: var(--color-muted-foreground);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.action-kind {
+  display: inline-block;
+  margin-right: 4px;
+  color: var(--color-foreground);
+  font-weight: 500;
+}
+
+.action-amount {
+  margin-left: 5px;
+  color: var(--color-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.turn-review-finance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  margin-top: 7px;
+  color: var(--color-muted-foreground);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.turn-review-empty {
+  margin: 0;
+  color: var(--color-muted-foreground);
+  font-size: 12px;
 }
 
 /* Ranking */
