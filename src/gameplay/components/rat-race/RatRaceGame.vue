@@ -76,10 +76,11 @@ function hasNonZeroDelta(delta: FinancialDelta): boolean {
 }
 
 watch(
-  () => vm.value.lastAction,
-  (la, prev) => {
+  () => vm.value.lastAction?.timestamp,
+  (timestamp, previousTimestamp) => {
     if (!isSingle.value) return
-    if (la && la !== prev && la.delta && hasNonZeroDelta(la.delta)) {
+    const feedback = vm.value.lastAction
+    if (timestamp && timestamp !== previousTimestamp && feedback?.delta && hasNonZeroDelta(feedback.delta)) {
       feedbackOpen.value = true
     }
   },

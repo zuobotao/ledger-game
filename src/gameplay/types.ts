@@ -79,6 +79,8 @@ export interface LastActionFeedback {
   title: string
   delta: FinancialDelta | null
   warnings: GameWarning[]
+  /** 单机动作结果的稳定标识；用于避免状态刷新重复打开同一个反馈弹窗。 */
+  timestamp?: number
 }
 
 export interface GameplayViewModel {

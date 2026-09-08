@@ -328,11 +328,7 @@ function boardSlots() {
           class="pointer-events-auto mx-auto max-h-[calc(100%-1rem)] max-w-[680px] overflow-y-auto overscroll-contain rounded-2xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur-md"
         >
           <div class="flex items-start gap-3">
-            <AlertCircle v-if="!showBoardCard" class="mt-0.5 h-5 w-5 text-primary" />
             <div class="flex-1">
-              <p v-if="!showBoardCard" class="text-sm font-medium">
-                {{ vm.pendingAction?.message }}
-              </p>
               <slot name="pending-panel">
                 <PendingActionPanel :vm="vm" :commands="props.adapter.commands" :disabled="disabled" />
               </slot>

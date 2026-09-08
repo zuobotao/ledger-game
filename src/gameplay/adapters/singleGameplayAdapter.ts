@@ -29,7 +29,7 @@ export type SingleGameStore = ReturnType<typeof useGameStore>
 function feedbackOf(store: SingleGameStore): LastActionFeedback | null {
   const r = store.lastActionResult
   if (!r) return null
-  return { success: r.success, title: r.title, delta: r.delta, warnings: r.warnings }
+  return { success: r.success, title: r.title, delta: r.delta, warnings: r.warnings, timestamp: r.timestamp }
 }
 
 export function createSingleGameplayAdapter(store: SingleGameStore): GameplayAdapter {

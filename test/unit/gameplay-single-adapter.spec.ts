@@ -53,6 +53,19 @@ describe('Single Gameplay Adapter', () => {
     expect(vm.canAct).toBe(true)
   })
 
+  it('keeps the same feedback timestamp across unrelated state refreshes', () => {
+    const { store, adapter } = setup()
+    store.takeBankLoan(5000)
+
+    const first = adapter.viewModel.value.lastAction
+    expect(first?.timestamp).toBe(store.lastActionResult?.timestamp)
+
+    store.lastRoll = 2
+    const refreshed = adapter.viewModel.value.lastAction
+    expect(refreshed).not.toBe(first)
+    expect(refreshed?.timestamp).toBe(first?.timestamp)
+  })
+
   it('rollDice succeeds on idle turn', async () => {
     const { adapter } = setup()
     const r = await adapter.commands.rollDice()
