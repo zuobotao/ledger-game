@@ -41,6 +41,7 @@
 | `3d6c79a` | 房间意外断线重连 | 旧 socket 关闭时先从客户端解绑，再触发重连；忽略过期 socket 的事件，重连沿用 10 秒超时边界，避免界面无期限停在恢复状态 |
 | `9f3f455` | 浏览器刷新后恢复多人对局 | 对局路由刷新自动重连；大厅刷新在 `playing` 房间快照与游戏状态快照分先后到达后自动跳回对局；新增 store 顺序回归与双浏览器刷新路径 |
 | `4b76b77` | 移动端股票购买信息 | 待处理动作层限定在棋盘区域高度内，内容过长时在面板内滚动，资产名称、教育说明、买入价和确认按钮均可见且不被资格栏遮挡 |
+| `e936520` | 购买规则与财务指标说明 | 房产/企业面板与引擎统一为单次 1 套/家；购买区展示单位月现金流；股票说明不产生固定月现金流；老鼠圈与资本游戏顶部均展示被动收入 |
 | `4f06475` | 市场弹层状态桥兜底 | 市场弹层按钮已经出现在 DOM、但状态桥短暂缺少 `pendingAction` 时，动作解析器仍能识别并点击“结束”；纯逻辑回归 4/4 通过 |
 | `92d3d3f` | 响应式重复节点扫描 | 同一 `data-testid` 存在隐藏桌面节点和可见手机节点时，扫描器选择任一可见且启用的节点；新增双节点回归 |
 | `8df4201` | 移动端反馈弹窗与重复提示 | 决策反馈改用动作时间戳识别，关闭后掷骰或结束回合不会再次打开同一弹窗；失业提示统一由共享面板渲染，重复文本回归通过 |
@@ -62,6 +63,7 @@
 - Vitest：`npx vitest run test/unit/v24-join-flow.spec.ts`，11/11 通过，覆盖 `room_snapshot(status=playing)` 先到、`reconnect_snapshot(state)` 后到的恢复顺序。
 - `npm run build`：类型检查与 Vite 生产构建通过。Playwright `multiplayer-room.spec.ts` 已加入对局页与 `/lobby` 硬刷新回归，但当前受沙箱禁止监听 `0.0.0.0:8787` 的 `listen EPERM` 阻断，未计入通过。
 - Playwright：`mobile-opportunity-details.spec.ts` 在 390×844 真机尺寸先复现资产标题被资格栏覆盖，修复后确认标题、教育说明、买入价和确认按钮可见；标题中心点由自身接收指针事件。`npm run build` 通过。
+- Vitest：`test/unit/asset.spec.ts` 4/4 通过，确认即使请求购买 3 份房产，引擎也只落账 1 套并增加对应的单份月现金流；Playwright：`mobile-opportunity-details.spec.ts` 2/2 通过，确认移动端显示“最多 1 套”、每套月现金流和顶部被动收入。
 - Playwright：`mobile-sidebar-board-info.spec.ts` 在 390×844 先记录修复前侧栏内容高度 1182px、可视高度仅 32px，红测失败；修复后侧栏可视高度 383px，财务面板可滚动到底部，历史和统计 Tab 可切换，棋盘格子保留可读名称与说明；定向回归 1/1 通过。
 - Vitest：反馈弹窗和重复提示回归先在旧代码上复现失败（同一失业提示渲染 2 次），修复后 `gameplay-feedback.spec.ts`、`gameplay-single-adapter.spec.ts`、`financial-delta.spec.ts` 共 30/30 通过；`npm run build` 通过。
 - Vitest：多人适配器与共享反馈回归 9/9 通过，`vue-tsc --build` 通过。
