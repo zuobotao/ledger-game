@@ -6,6 +6,19 @@ import { getDreamPassiveIncomeRequirement } from '@/data/dreams'
 // AI 难度
 export type AIDifficulty = 'easy' | 'medium' | 'hard'
 
+export interface AIOpportunityEvaluation {
+  /** 综合机会评分，越高越值得当前 AI 参与。 */
+  score: number
+  /** 购买后仍保留的现金。 */
+  cashAfter: number
+  /** 建议保留的应急现金。 */
+  reserve: number
+  /** 机会带来的月现金流变化。 */
+  monthlyCashFlowGain: number
+  /** 面向调试和复盘的简短原因。 */
+  reason: 'cashflow_gap' | 'high_roi' | 'cash_reserve' | 'leverage' | 'stock_risk' | 'balanced'
+}
+
 // ==================== 内部辅助函数 ====================
 
 /**
@@ -60,6 +73,44 @@ function getMaxAdditionalLoan(player: Player): number {
 function randomFactor(base: number, variance: number, random: RandomSource = defaultRandom): number {
   const factor = 1 - variance + random.next() * variance * 2
   return Math.max(0, base * factor)
+}
+
+/**
+ * 用财务安全垫和现金流缺口评估机会，而不是只看卡面 ROI。
+ * 这是 AI 的“思考层”，保持纯函数，方便回放和单测。
+ */
+export function evaluateAIOpportunity(
+  player: Player,
+  card: OpportunityCard,
+  difficulty: AIDifficulty,
+): AIOpportunityEvaluation {
+  const cost = card.downPayment ?? card.cost
+  const reserveMonths = difficulty === 'hard' ? 2 : difficulty === 'medium' ? 3 : 4
+  const reserve = Math.max(0, player.totalExpenses * reserveMonths)
+  const cashAfter = player.cash - cost
+  const monthlyCashFlowGain = card.cashFlow * (card.type === 'stock' ? 0 : 1)
+  const roi = estimateROI(card)
+  const debtRatio = player.totalIncome > 0
+    ? player.liabilities.reduce((sum, l) => sum + l.amount, 0) / (player.totalIncome * 12)
+    : 0
+  const cashFlowGap = Math.max(0, player.totalExpenses - player.passiveIncome)
+
+  let score = roi * 100
+  if (monthlyCashFlowGain > 0 && cashFlowGap > 0) score += 22
+  if (monthlyCashFlowGain >= cashFlowGap * 0.25) score += 12
+  if (cashAfter < reserve) score -= difficulty === 'hard' && roi >= 0.15 ? 18 : 35
+  if (player.cashFlow < 0 && monthlyCashFlowGain === 0) score -= 18
+  if (debtRatio > 6) score -= difficulty === 'hard' ? 12 : 24
+  if (card.type === 'stock' && player.cashFlow < 0) score -= 8
+
+  let reason: AIOpportunityEvaluation['reason'] = 'balanced'
+  if (cashAfter < reserve) reason = 'cash_reserve'
+  else if (debtRatio > 6) reason = 'leverage'
+  else if (player.cashFlow < 0 && monthlyCashFlowGain === 0) reason = 'stock_risk'
+  else if (cashFlowGap > 0 && monthlyCashFlowGain > 0) reason = 'cashflow_gap'
+  else if (roi >= 0.2) reason = 'high_roi'
+
+  return { score, cashAfter, reserve, monthlyCashFlowGain, reason }
 }
 
 // ==================== 1. 买入机会决策 ====================
@@ -126,12 +177,28 @@ export function decideBuyOpportunity(
   // 计算单位成本（有首付用首付，否则用 cost）
   const unitCost = card.downPayment ?? card.cost
 
+  const evaluation = evaluateAIOpportunity(player, card, difficulty)
+  const minScore = difficulty === 'easy' ? 8 : difficulty === 'medium' ? 5 : 2
+  if (evaluation.score < minScore) {
+    return { buy: false, quantity: 0 }
+  }
+
+  // 现金流为负时不能把应急储备买空；困难 AI 只有在高回报机会下才允许轻微突破。
+  const safeCash = evaluation.cashAfter >= evaluation.reserve || (difficulty === 'hard' && evaluation.score >= 35)
+  if (!safeCash && player.cashFlow <= 0) {
+    return { buy: false, quantity: 0 }
+  }
+
   // 买不起一份
   if (investableFunds < unitCost) {
     return { buy: false, quantity: 0 }
   }
 
   // 计算可买数量
+  const reserveAwareFunds = Math.max(0, player.cash - evaluation.reserve)
+  if (reserveAwareFunds > 0) {
+    investableFunds = Math.min(investableFunds, reserveAwareFunds)
+  }
   let quantity = Math.floor(investableFunds / unitCost)
 
   // 股票受 maxQuantity 限制
