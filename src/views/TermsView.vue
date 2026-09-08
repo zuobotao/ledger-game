@@ -130,13 +130,13 @@ function goBack() {
           </ul>
 
           <h2>9. 知识产权</h2>
-          <h3>8.1 Ledger 内容</h3>
+          <h3>9.1 Ledger 内容</h3>
           <p>
             Ledger 的源代码、游戏设计、卡牌内容、UI 设计、视觉素材和文档
             归 Ledger 项目贡献者所有，依据 Apache License, Version 2.0 授权。
             详见 <code>LICENSE</code> 文件。
           </p>
-          <h3>8.2 第三方内容</h3>
+          <h3>9.2 第三方内容</h3>
           <p>
             本服务包含第三方软件、图标和库。
             完整归属和许可详情请见 <code>THIRD_PARTY_NOTICES.md</code>。
