@@ -34,6 +34,7 @@ const colorOptions = [
   { id: 'random', name: '随机颜色' },
   ...PLAYER_COLORS.map((c) => ({ id: c.id, name: c.name })),
 ]
+const randomPlayerNames = ['小明', '小雨', '阿杰', '安然', '晨曦', '星河', '知行', '远山']
 
 const config = reactive<GameConfig>({
   playerCount: 2,
@@ -145,6 +146,11 @@ function openDreamDetail(dream: Dream) {
   dreamDetailModalOpen.value = true
 }
 
+function openDreamDetailForPlayer(index: number) {
+  const dream = DREAMS.find((item) => item.id === playerSetups[index]?.dreamId)
+  if (dream) openDreamDetail(dream)
+}
+
 function closeDreamDetail() {
   dreamDetailModalOpen.value = false
   dreamDetailDream.value = null
@@ -155,9 +161,19 @@ function randomCareerForPlayer(index: number) {
   playerSetups[index]!.careerId = career.id
 }
 
+function randomNameForPlayer(index: number) {
+  const currentName = playerSetups[index]?.name
+  const candidates = randomPlayerNames.filter((name) => name !== currentName)
+  playerSetups[index]!.name = candidates[Math.floor(Math.random() * candidates.length)] ?? randomPlayerNames[0]!
+}
+
 function randomDreamForPlayer(index: number) {
   const dream = getRandomDream()
   playerSetups[index]!.dreamId = dream.id
+}
+
+function randomColorForPlayer(index: number) {
+  playerSetups[index]!.colorId = getRandomColorId()
 }
 
 function randomDreamForAll() {
@@ -290,30 +306,43 @@ const dockSummary = computed(() => {
           <div
             v-for="(setup, index) in activeSetups"
             :key="index"
-            class="grid grid-cols-1 sm:grid-cols-12 gap-3 p-3 rounded-[var(--radius-md)] border border-border bg-background"
+            :data-testid="`player-setup-${index}`"
+            class="grid min-w-0 grid-cols-1 gap-3 rounded-[var(--radius-md)] border border-border bg-background p-3 sm:grid-cols-12"
           >
-            <div class="sm:col-span-3">
+            <div class="min-w-0 sm:col-span-3">
               <label
                 :for="`player-name-${index}`"
                 class="block text-xs font-medium text-muted-foreground mb-1.5"
                 >姓名</label
               >
-              <input
-                :id="`player-name-${index}`"
-                v-model="setup.name"
-                type="text"
-                :placeholder="`玩家 ${index + 1}`"
-                class="w-full h-10 px-3 bg-background border border-input rounded-[var(--radius-md)] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
-              />
+              <div class="flex min-w-0 gap-2">
+                <input
+                  :id="`player-name-${index}`"
+                  v-model="setup.name"
+                  type="text"
+                  :placeholder="`玩家 ${index + 1}`"
+                  class="min-w-0 flex-1 h-10 px-3 bg-background border border-input rounded-[var(--radius-md)] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
+                />
+                <button
+                  type="button"
+                  :data-testid="`random-name-${index}`"
+                  title="随机姓名"
+                  class="flex-shrink-0 w-10 h-10 inline-flex items-center justify-center rounded-[var(--radius-md)] border border-input bg-background text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  @click="randomNameForPlayer(index)"
+                >
+                  <Shuffle class="w-4 h-4" />
+                </button>
+              </div>
             </div>
-            <div class="sm:col-span-5">
+            <div class="min-w-0 sm:col-span-9">
               <label
                 class="block text-xs font-medium text-muted-foreground mb-1.5"
                 >职业</label
               >
-              <div class="flex gap-2">
+              <div class="flex min-w-0 gap-2">
                 <button
                   type="button"
+                  :data-testid="`open-career-selector-${index}`"
                   class="flex-1 h-10 px-3 bg-background border border-input rounded-[var(--radius-md)] text-foreground text-left text-sm hover:border-ring hover:ring-2 hover:ring-ring/20 transition-colors flex items-center justify-between"
                   @click="openCareerSelector(index)"
                 >
@@ -324,6 +353,7 @@ const dockSummary = computed(() => {
                 </button>
                 <button
                   type="button"
+                  :data-testid="`career-info-${index}`"
                   title="查看职业详情"
                   class="flex-shrink-0 w-10 h-10 inline-flex items-center justify-center rounded-[var(--radius-md)] border border-input bg-background text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                   @click="openCareerDetail(setup.careerId)"
@@ -332,6 +362,7 @@ const dockSummary = computed(() => {
                 </button>
                 <button
                   type="button"
+                  :data-testid="`random-career-${index}`"
                   title="随机职业"
                   class="flex-shrink-0 w-10 h-10 inline-flex items-center justify-center rounded-[var(--radius-md)] border border-input bg-background text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                   @click="randomCareerForPlayer(index)"
@@ -340,30 +371,41 @@ const dockSummary = computed(() => {
                 </button>
               </div>
             </div>
-            <div class="sm:col-span-2">
-              <label
-                :for="`player-color-${index}`"
-                class="block text-xs font-medium text-muted-foreground mb-1.5"
-                >颜色</label
-              >
-              <div class="relative">
-                <select
-                  :id="`player-color-${index}`"
-                  v-model="setup.colorId"
-                  class="w-full h-10 px-3 pr-8 appearance-none bg-background border border-input rounded-[var(--radius-md)] text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
+            <!-- 梦想选择 -->
+            <div class="min-w-0 sm:col-span-12">
+              <label class="block text-xs font-medium text-muted-foreground mb-1.5">梦想</label>
+              <div class="flex min-w-0 gap-2">
+                <button
+                  type="button"
+                  :data-testid="`open-dream-selector-${index}`"
+                  class="flex-1 h-10 px-3 bg-background border border-input rounded-[var(--radius-md)] text-foreground text-left text-sm hover:border-ring hover:ring-2 hover:ring-ring/20 transition-colors flex items-center justify-between"
+                  @click="openDreamSelector(index)"
                 >
-                  <option v-for="color in colorOptions" :key="color.id" :value="color.id">
-                    {{ color.name }}
-                  </option>
-                </select>
-                <span
-                  class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  <span class="truncate">{{ getDreamName(setup.dreamId) }}</span>
+                  <ChevronDown class="w-4 h-4 text-muted-foreground shrink-0" />
+                </button>
+                <button
+                  type="button"
+                  :data-testid="`dream-info-${index}`"
+                  title="查看梦想详情"
+                  :disabled="!setup.dreamId"
+                  class="flex-shrink-0 w-10 h-10 inline-flex items-center justify-center rounded-[var(--radius-md)] border border-input bg-background text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                  @click="openDreamDetailForPlayer(index)"
                 >
-                  <ChevronDown class="w-4 h-4" />
-                </span>
+                  <Info class="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  :data-testid="`random-dream-${index}`"
+                  title="随机梦想"
+                  class="flex-shrink-0 w-10 h-10 inline-flex items-center justify-center rounded-[var(--radius-md)] border border-input bg-background text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  @click="randomDreamForPlayer(index)"
+                >
+                  <Shuffle class="w-4 h-4" />
+                </button>
               </div>
             </div>
-            <div class="sm:col-span-2">
+            <div class="min-w-0 sm:col-span-6">
               <label
                 :for="`player-type-${index}`"
                 class="block text-xs font-medium text-muted-foreground mb-1.5"
@@ -399,25 +441,35 @@ const dockSummary = computed(() => {
                 </span>
               </div>
             </div>
-            <!-- 梦想选择 -->
-            <div class="sm:col-span-12">
-              <label class="block text-xs font-medium text-muted-foreground mb-1.5">梦想</label>
-              <div class="flex gap-2">
+            <div class="min-w-0 sm:col-span-6">
+              <label
+                :for="`player-color-${index}`"
+                class="block text-xs font-medium text-muted-foreground mb-1.5"
+                >颜色</label
+              >
+              <div class="flex min-w-0 gap-2">
+                <div class="relative min-w-0 flex-1">
+                  <select
+                    :id="`player-color-${index}`"
+                    v-model="setup.colorId"
+                    class="w-full h-10 px-3 pr-8 appearance-none bg-background border border-input rounded-[var(--radius-md)] text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
+                  >
+                    <option v-for="color in colorOptions" :key="color.id" :value="color.id">
+                      {{ color.name }}
+                    </option>
+                  </select>
+                  <span
+                    class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  >
+                    <ChevronDown class="w-4 h-4" />
+                  </span>
+                </div>
                 <button
                   type="button"
-                  :data-testid="`open-dream-selector-${index}`"
-                  class="flex-1 h-10 px-3 bg-background border border-input rounded-[var(--radius-md)] text-foreground text-left text-sm hover:border-ring hover:ring-2 hover:ring-ring/20 transition-colors flex items-center justify-between"
-                  @click="openDreamSelector(index)"
-                >
-                  <span class="truncate">{{ getDreamName(setup.dreamId) }}</span>
-                  <ChevronDown class="w-4 h-4 text-muted-foreground shrink-0" />
-                </button>
-                <button
-                  type="button"
-                  :data-testid="`random-dream-${index}`"
-                  title="随机梦想"
+                  :data-testid="`random-color-${index}`"
+                  title="随机颜色"
                   class="flex-shrink-0 w-10 h-10 inline-flex items-center justify-center rounded-[var(--radius-md)] border border-input bg-background text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                  @click="randomDreamForPlayer(index)"
+                  @click="randomColorForPlayer(index)"
                 >
                   <Shuffle class="w-4 h-4" />
                 </button>
