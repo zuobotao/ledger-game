@@ -81,7 +81,8 @@ export interface UXIssue {
 export interface GameResult {
   gameId: string
   botType: 'random' | 'conservative' | 'aggressive'
-  status: 'completed' | 'victory' | 'game-over' | 'failed' | 'timeout'
+  /** completed means the playtest reached a product terminal state; test-limit is an imposed harness stop. */
+  status: 'completed' | 'victory' | 'game-over' | 'test-limit' | 'failed' | 'timeout'
   totalTurns: number
   totalTimeMs: number
   totalActions: number
@@ -101,6 +102,7 @@ export interface PlaytestReport {
   timestamp: string
   totalGames: number
   completedGames: number
+  testLimitGames: number
   failedGames: number
   averageTurns: number
   averageTimeMs: number

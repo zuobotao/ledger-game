@@ -227,6 +227,7 @@ async function main() {
   console.log(`   Report: ${reportPath}`)
   console.log(`   Total games: ${report.totalGames}`)
   console.log(`   Completed: ${report.completedGames}`)
+  console.log(`   Test limit: ${report.testLimitGames}`)
   console.log(`   Failed: ${report.failedGames}`)
   console.log(`   Avg turns: ${report.averageTurns}`)
   console.log(`   Total issues: ${report.allIssues.length}`)

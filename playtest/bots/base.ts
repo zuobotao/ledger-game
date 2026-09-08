@@ -196,7 +196,7 @@ export abstract class BaseBot {
 
   // === Resolver-driven main loop ===
 
-  protected async playGame(): Promise<{ status: 'completed' | 'victory' | 'game-over' | 'failed' | 'timeout'; turns: number }> {
+  protected async playGame(): Promise<{ status: 'completed' | 'victory' | 'game-over' | 'test-limit' | 'failed' | 'timeout'; turns: number }> {
     const start = Date.now()
     const guard = new ActionGuard(this.config.maxTurns, this.config.gameTimeoutMs, start)
     let turns = 0
@@ -296,7 +296,9 @@ export abstract class BaseBot {
         await this.screenshots.captureError(this.page, turn, err.outcome)
         this.logger.logEvent(`Guard stopped game: ${err.outcome} (${err.message})`)
         if (err.outcome === 'max-turns') {
-          return { status: 'completed', turns }
+          // The harness stopped the run before the game reached a product terminal state.
+          // Keep this distinct from completed so reports do not call an imposed cap a win.
+          return { status: 'test-limit', turns }
         }
         return { status: 'failed', turns }
       }

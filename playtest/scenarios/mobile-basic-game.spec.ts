@@ -214,7 +214,7 @@ test.afterAll(async () => {
   const reportPath = path.join(RUN_DIR, 'report.md')
   writeReportMarkdown(report, reportPath)
   console.log(`\n📱 Mobile Playtest report generated: ${reportPath}`)
-  console.log(`   Games: ${report.totalGames} (${report.completedGames} completed, ${report.failedGames} failed)`)
+  console.log(`   Games: ${report.totalGames} (${report.completedGames} completed, ${report.testLimitGames} test-limit, ${report.failedGames} failed)`)
   console.log(`   Avg turns: ${report.averageTurns}`)
   console.log(`   Issues: ${report.allIssues.length}`)
 })

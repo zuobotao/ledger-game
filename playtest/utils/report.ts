@@ -7,6 +7,7 @@ import type { PlaytestReport, GameResult, UXIssue } from '../types'
  */
 export function generateReport(runId: string, games: GameResult[]): PlaytestReport {
   const completedGames = games.filter((g) => g.status === 'completed' || g.status === 'victory' || g.status === 'game-over')
+  const testLimitGames = games.filter((g) => g.status === 'test-limit')
   const failedGames = games.filter((g) => g.status === 'failed' || g.status === 'timeout')
 
   const totalTurns = completedGames.reduce((s, g) => s + g.totalTurns, 0)
@@ -73,6 +74,7 @@ export function generateReport(runId: string, games: GameResult[]): PlaytestRepo
     timestamp: new Date().toISOString(),
     totalGames: games.length,
     completedGames: completedGames.length,
+    testLimitGames: testLimitGames.length,
     failedGames: failedGames.length,
     averageTurns: Math.round(averageTurns * 10) / 10,
     averageTimeMs: Math.round(averageTimeMs),
@@ -111,6 +113,7 @@ export function writeReportMarkdown(report: PlaytestReport, outputPath: string):
   lines.push(`|------|-----|`)
   lines.push(`| 总局数 | ${report.totalGames} |`)
   lines.push(`| 完成局数 | ${report.completedGames} |`)
+  lines.push(`| 测试上限局数 | ${report.testLimitGames} |`)
   lines.push(`| 失败局数 | ${report.failedGames} |`)
   lines.push(`| 平均回合数 | ${report.averageTurns} |`)
   lines.push(`| 平均游戏时间 (ms) | ${report.averageTimeMs} |`)
