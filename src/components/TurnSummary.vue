@@ -16,7 +16,9 @@ const cellTypeLabel: Record<string, string> = {
   opportunity: '投资机会',
   small_opportunity: '小机会',
   big_opportunity: '大机会',
-  market: '市场风云',
+  market: '市场事件',
+  story: '故事卡（历史故事）',
+  other: '其他事件',
   doodad: '生活支出',
   charity: '慈善',
   unemployment: '失业',
@@ -31,7 +33,7 @@ const cellTypeLabel: Record<string, string> = {
 }
 
 function getCellLabel(type: string): string {
-  return cellTypeLabel[type] || type
+  return cellTypeLabel[type] || '其他事件'
 }
 
 interface DeltaMetric {
