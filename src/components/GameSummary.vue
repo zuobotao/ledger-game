@@ -27,6 +27,7 @@ import {
 import { useGameStore } from '@/stores/game'
 import type { Player, TransactionRecord, CardHistoryRecord } from '@/types/game'
 import { START_AGE } from '@/types/game'
+import FinancialProfileReport from '@/components/FinancialProfileReport.vue'
 
 interface Props {
   player: Player
@@ -48,7 +49,7 @@ const emit = defineEmits<{
 const gameStore = useGameStore()
 
 // ========== 展开的部分 ==========
-const expandedSections = ref<Set<string>>(new Set(['overview', 'finance']))
+const expandedSections = ref<Set<string>>(new Set(['overview', 'profile', 'finance']))
 
 function toggleSection(key: string) {
   if (expandedSections.value.has(key)) {
@@ -814,7 +815,28 @@ const cashFlowSparkline = computed(() => {
           </div>
         </section>
 
-        <!-- 2. 财务分析 -->
+        <!-- 2. 本局行为画像 -->
+        <section class="summary-section">
+          <button class="section-header" @click="toggleSection('profile')">
+            <div class="section-title">
+              <Target class="h-4 w-4 text-primary" />
+              <span>本局行为画像</span>
+            </div>
+            <ChevronDown
+              class="h-4 w-4 text-muted-foreground transition-transform"
+              :class="{ 'rotate-180': expandedSections.has('profile') }"
+            />
+          </button>
+          <div v-show="expandedSections.has('profile')" class="section-body">
+            <FinancialProfileReport
+              :player="player"
+              :transactions="gameStore.transactions"
+              :card-history="gameStore.cardHistory"
+            />
+          </div>
+        </section>
+
+        <!-- 3. 财务分析 -->
         <section class="summary-section">
           <button class="section-header" @click="toggleSection('finance')">
             <div class="section-title">
