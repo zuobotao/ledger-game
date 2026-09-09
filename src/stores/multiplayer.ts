@@ -8,7 +8,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { RoomClient, type ConnectionStatus } from '@/network/RoomClient'
-import { roomWsUrl, roomHttpBase } from '@/network/endpoint'
+import { roomWsUrl, roomHttpBase, isRoomServerConfigured, roomServerConfigurationMessage } from '@/network/endpoint'
 import {
   loadSession,
   storeSession,
@@ -391,6 +391,10 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
     const sessId = opts.sessionId ?? genSessionId()
     nickname.value = opts.nickname
     lastError.value = null
+    if (!isRoomServerConfigured()) {
+      lastError.value = roomServerConfigurationMessage()
+      return false
+    }
     try {
       const res = await fetch(`${roomHttpBase()}/rooms`, {
         method: 'POST',
@@ -442,6 +446,11 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
     nickname.value = opts.nickname
     lastError.value = null
     lastErrorCode.value = null
+    if (!isRoomServerConfigured()) {
+      const error = roomServerConfigurationMessage()
+      lastError.value = error
+      return { ok: false, error }
+    }
     const sessId = opts.sessionId ?? genSessionId()
     session.value = { sessionId: sessId, playerId: '', roomId: '', token: '', nickname: opts.nickname }
     room.value = null

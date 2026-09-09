@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Users, LogIn, ArrowLeft, Loader2, ServerOff } from 'lucide-vue-next'
 import { useMultiplayerStore } from '@/stores/multiplayer'
+import { isRoomServerConfigured } from '@/network/endpoint'
 
 const router = useRouter()
 const store = useMultiplayerStore()
@@ -12,6 +13,7 @@ const roomName = ref('周末家庭局')
 const maxPlayers = ref(6)
 const roomCode = ref('')
 const busy = ref<'idle' | 'create' | 'join'>('idle')
+const roomServerReady = isRoomServerConfigured()
 
 const joinLabel = computed(() => {
   switch (store.joinStatus) {
@@ -99,6 +101,15 @@ onMounted(() => {
         与家人朋友共享同一个经济世界，一起迈向财务自由。
       </p>
 
+      <div
+        v-if="!roomServerReady"
+        data-testid="mp-server-unavailable"
+        class="mb-6 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm leading-6 text-warning"
+        role="status"
+      >
+        当前线上版本尚未配置公网房间服务，创建和加入多人房间暂不可用。请稍后重试或联系管理员完成房间服务部署。
+      </div>
+
       <label class="mb-1.5 block text-sm font-medium text-foreground" for="mp-nickname">昵称</label>
       <input
         id="mp-nickname"
@@ -139,7 +150,7 @@ onMounted(() => {
         <button
           type="button"
           data-testid="mp-create-btn"
-          :disabled="busy !== 'idle'"
+          :disabled="busy !== 'idle' || !roomServerReady"
           class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-md transition hover:brightness-[0.96] disabled:opacity-50"
           @click="doCreate"
         >
@@ -167,7 +178,7 @@ onMounted(() => {
         <button
           type="button"
           data-testid="mp-join-btn"
-          :disabled="busy !== 'idle'"
+          :disabled="busy !== 'idle' || !roomServerReady"
           class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-primary/40 px-6 text-sm font-semibold text-primary transition hover:bg-primary/5 disabled:opacity-50"
           @click="doJoin"
         >
@@ -178,7 +189,7 @@ onMounted(() => {
 
       <div class="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground/70">
         <ServerOff class="h-3.5 w-3.5" />
-        需要先启动房间服务器（npm run server），并在环境变量中配置 VITE_ROOM_HTTP。
+        本机开发请启动 npm run server；线上需要配置公网 HTTP / WebSocket 房间服务。
       </div>
     </div>
   </main>
