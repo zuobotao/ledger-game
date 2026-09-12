@@ -15,7 +15,6 @@ import type { GameplayAdapter } from '@/gameplay/gameplayAdapter'
 import type { BankPanelTab } from '@/gameplay/types'
 import GameHeader from './GameHeader.vue'
 import CoreMetricsBar from './CoreMetricsBar.vue'
-import FastTrackEligibilityBar from './FastTrackEligibilityBar.vue'
 import PlayerSidebar from './PlayerSidebar.vue'
 import RatRaceBoardPanel from './RatRaceBoardPanel.vue'
 import BankPanel from './BankPanel.vue'
@@ -140,15 +139,11 @@ function warningTitle(w: GameWarning): string {
 
     <!-- 核心指标栏 -->
     <div class="shrink-0 border-b border-border bg-card/50 px-3 py-2 sm:px-6 sm:py-2.5">
-      <CoreMetricsBar :adapter="adapter" />
-    </div>
-
-    <!-- 资本游戏资格面板 -->
-    <div
-      v-if="showEligibilityBar"
-      class="sticky top-0 z-20 shrink-0 border-b border-border/70 bg-background/95 px-2 py-1 backdrop-blur-sm sm:px-3 sm:pt-2 lg:static lg:border-0 lg:bg-transparent lg:px-6 lg:py-0 lg:pt-2 lg:backdrop-blur-none"
-    >
-      <FastTrackEligibilityBar :adapter="adapter" @enter="emit('enter-fast-track')" />
+      <CoreMetricsBar
+        :adapter="adapter"
+        :show-eligibility="showEligibilityBar"
+        @enter="emit('enter-fast-track')"
+      />
     </div>
 
     <!-- Game area -->

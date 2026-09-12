@@ -6,14 +6,33 @@
  * 指标取当前行动玩家（currentPlayer），与旧 CoreMetricsBar 行为一致。
  */
 import { computed } from 'vue'
-import { Wallet, TrendingUp, Gem, Target, Banknote, Baby, PiggyBank } from 'lucide-vue-next'
+import {
+  Wallet,
+  TrendingUp,
+  Gem,
+  Target,
+  Banknote,
+  Baby,
+  PiggyBank,
+  Rocket,
+  ArrowRight,
+} from 'lucide-vue-next'
 import type { GameplayAdapter } from '@/gameplay/gameplayAdapter'
 import { formatMoney } from '@/gameplay/presentation'
 import { calcFinancialFreedomRatio } from '@/engine/financialEngine'
+import { getFastTrackEligibility } from '@/engine/turnEngine'
 
-const props = defineProps<{
-  adapter: GameplayAdapter
-}>()
+const props = withDefaults(
+  defineProps<{
+    adapter: GameplayAdapter
+    showEligibility?: boolean
+  }>(),
+  {
+    showEligibility: false,
+  },
+)
+
+const emit = defineEmits<{ (e: 'enter'): void }>()
 
 const vm = computed(() => props.adapter.viewModel.value)
 const player = computed(() => vm.value.currentPlayer)
@@ -51,6 +70,12 @@ const passiveIncomeDisplay = computed(() => formatMoney(player.value?.passiveInc
 const totalExpensesDisplay = computed(() => formatMoney(player.value?.totalExpenses ?? 0))
 const savingsDisplay = computed(() => formatMoney(player.value?.savings ?? 0))
 const childrenCount = computed(() => player.value?.childrenCount ?? 0)
+const eligibility = computed(() => (player.value ? getFastTrackEligibility(player.value) : null))
+const eligibilityValue = computed(() => {
+  if (!eligibility.value) return '—'
+  if (eligibility.value.eligible) return '已达成'
+  return `还差 ${formatMoney(Math.round(eligibility.value.gap))}/月`
+})
 </script>
 
 <template>
@@ -124,6 +149,26 @@ const childrenCount = computed(() => player.value?.childrenCount ?? 0)
         <span class="metric-value children">{{ childrenCount }} 个</span>
       </div>
     </div>
+
+    <!-- 资本游戏资格 -->
+    <component
+      :is="eligibility?.eligible ? 'button' : 'div'"
+      v-if="props.showEligibility"
+      class="metric-item eligibility-metric"
+      :class="{ 'eligibility-ready': eligibility?.eligible }"
+      :title="eligibility?.eligible ? '点击进入资本游戏' : '进入资本游戏所需的被动收入进度'"
+      type="button"
+      @click="eligibility?.eligible && emit('enter')"
+    >
+      <div class="metric-icon eligibility">
+        <Rocket class="h-4 w-4" />
+      </div>
+      <div class="metric-content">
+        <span class="metric-label">资本资格</span>
+        <span class="metric-value eligibility-value">{{ eligibilityValue }}</span>
+      </div>
+      <ArrowRight v-if="eligibility?.eligible" class="eligibility-arrow h-3.5 w-3.5" />
+    </component>
 
     <!-- 分隔线 -->
     <div class="metric-divider"></div>
@@ -219,6 +264,35 @@ const childrenCount = computed(() => player.value?.childrenCount ?? 0)
 .metric-icon.passive-income {
   background: rgba(20, 184, 166, 0.15);
   color: #14b8a6;
+}
+
+.metric-icon.eligibility {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.eligibility-metric {
+  min-width: 0;
+}
+
+.eligibility-ready {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 2px 5px 2px 2px;
+  transition: background 0.2s ease;
+}
+
+.eligibility-ready:hover {
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.eligibility-value {
+  color: #10b981;
+  white-space: nowrap;
+}
+
+.eligibility-arrow {
+  color: #10b981;
 }
 
 .metric-value.savings {
