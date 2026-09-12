@@ -78,7 +78,8 @@ export function createMultiplayerGameplayAdapter(store: MultiplayerStore): Gamep
       phase: state.phase,
       canAct: (!store.roomPaused && !finished && cur.id === myId && isMyTurn) || canRespondToChildGift,
       isMyTurn,
-      pendingAction: state.pendingAction?.type ? state.pendingAction : null,
+      // 纯消息型落点（type=null）也必须透传给共享棋盘的 toast。
+      pendingAction: state.pendingAction?.type || state.pendingAction?.message ? state.pendingAction : null,
       finance: {
         cash: viewing.cash,
         savings: viewing.savings,

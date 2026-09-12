@@ -73,7 +73,8 @@ export function createSingleGameplayAdapter(store: SingleGameStore): GameplayAda
       phase: store.phase === 'setup' ? 'setup' : store.winnerId ? 'finished' : cur.phase,
       canAct,
       isMyTurn: !cur.isAI && !finished,
-      pendingAction: store.pendingAction?.type ? store.pendingAction : null,
+      // 纯消息型落点（type=null）也必须透传给共享棋盘的 toast。
+      pendingAction: store.pendingAction?.type || store.pendingAction?.message ? store.pendingAction : null,
       finance: {
         cash: viewing.cash,
         savings: viewing.savings,

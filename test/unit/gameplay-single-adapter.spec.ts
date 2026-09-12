@@ -53,6 +53,16 @@ describe('Single Gameplay Adapter', () => {
     expect(vm.canAct).toBe(true)
   })
 
+  it('projects message-only pending actions for landing-cell toast feedback', () => {
+    const { store, adapter } = setup()
+    store.setPending(null, '孩子数量已达上限。')
+
+    expect(adapter.viewModel.value.pendingAction).toEqual(expect.objectContaining({
+      type: null,
+      message: '孩子数量已达上限。',
+    }))
+  })
+
   it('keeps the same feedback timestamp across unrelated state refreshes', () => {
     const { store, adapter } = setup()
     store.takeBankLoan(5000)

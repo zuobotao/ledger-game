@@ -120,6 +120,16 @@ describe('Multiplayer Gameplay Adapter', () => {
     expect(vm.turnNumber).toBe(1)
   })
 
+  it('projects message-only pending actions for landing-cell toast feedback', () => {
+    const { store, adapter } = setup()
+    store.gameState!.pendingAction = { type: null, card: null, message: '被动收入日：获得 $2,500。' }
+
+    expect(adapter.viewModel.value.pendingAction).toEqual(expect.objectContaining({
+      type: null,
+      message: '被动收入日：获得 $2,500。',
+    }))
+  })
+
   it('isMyTurn false when other player acts', () => {
     const { store, adapter } = setup()
     // 服务器广播：gameState 与 turn 上下文同步切换（权威一致性）
