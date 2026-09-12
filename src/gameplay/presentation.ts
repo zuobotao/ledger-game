@@ -17,9 +17,24 @@ import type {
   GameplayViewModel,
   PendingActionPresentation,
 } from '@/gameplay/types'
+import { getDreamPassiveIncomeRequirement } from '@/data/dreams'
 
 export function formatMoney(n: number): string {
   return `$${Math.round(n).toLocaleString()}`
+}
+
+export function capitalGoalOf(p: Player) {
+  const dream = p.dream
+  const passiveRequired = dream ? getDreamPassiveIncomeRequirement(dream) : 0
+  return {
+    dream,
+    cash: p.cash,
+    cashRequired: dream?.price ?? 0,
+    passiveIncome: p.passiveIncome,
+    passiveRequired,
+    cashPercent: dream?.price ? Math.min(100, (p.cash / dream.price) * 100) : 0,
+    passivePercent: passiveRequired ? Math.min(100, (p.passiveIncome / passiveRequired) * 100) : 0,
+  }
 }
 
 export function netWorthOf(p: Player): number {

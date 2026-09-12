@@ -8,7 +8,7 @@
 import { computed } from 'vue'
 import { Banknote, Gem, Target, TrendingUp, Trophy, Wallet, PiggyBank } from 'lucide-vue-next'
 import type { GameplayAdapter } from '@/gameplay/gameplayAdapter'
-import { formatMoney } from '@/gameplay/presentation'
+import { capitalGoalOf, formatMoney } from '@/gameplay/presentation'
 
 const props = defineProps<{
   adapter: GameplayAdapter
@@ -17,17 +17,19 @@ const props = defineProps<{
 const vm = computed(() => props.adapter.viewModel.value)
 const player = computed(() => vm.value.currentPlayer)
 
-const FAST_TRACK_CASH_GOAL = 50_000_000
-
 const cashDisplay = computed(() => formatMoney(player.value?.cash ?? 0))
 
 const cashFlowDisplay = computed(() => {
-  const v = player.value?.cashFlow ?? 0
+  const p = player.value
+  const v = p ? p.passiveIncome - p.totalExpenses : 0
   const sign = v >= 0 ? '+' : '-'
   return `${sign}${formatMoney(Math.abs(v))}`
 })
 
-const cashFlowPositive = computed(() => (player.value?.cashFlow ?? 0) >= 0)
+const cashFlowPositive = computed(() => {
+  const p = player.value
+  return p ? p.passiveIncome - p.totalExpenses >= 0 : true
+})
 
 const netWorth = computed(() => vm.value.finance.netWorth)
 
@@ -43,20 +45,16 @@ const savingsDisplay = computed(() => formatMoney(player.value?.savings ?? 0))
 
 // ============ 梦想进度 ============
 const dreamProgress = computed(() => {
-  const p = player.value
-  const cash = p?.cash ?? 0
-  const dream = p?.dream
-  const dreamPrice = dream?.price ?? 0
-  const dreamPercent = dreamPrice > 0 ? Math.min(100, (cash / dreamPrice) * 100) : 0
-  const cashPercent = Math.min(100, (cash / FAST_TRACK_CASH_GOAL) * 100)
+  const goal = player.value ? capitalGoalOf(player.value) : null
   return {
-    dreamName: dream?.name ?? '',
-    dreamPercent,
-    dreamReached: dreamPercent >= 100,
-    cash,
-    dreamPrice,
-    cashPercent,
-    cashReached: cashPercent >= 100,
+    dreamName: goal?.dream?.name ?? '',
+    cash: goal?.cash ?? 0,
+    cashRequired: goal?.cashRequired ?? 0,
+    passiveIncome: goal?.passiveIncome ?? 0,
+    passiveRequired: goal?.passiveRequired ?? 0,
+    cashPercent: goal?.cashPercent ?? 0,
+    passivePercent: goal?.passivePercent ?? 0,
+    reached: goal ? goal.cashPercent >= 100 && goal.passivePercent >= 100 : false,
   }
 })
 </script>
@@ -136,14 +134,12 @@ const dreamProgress = computed(() => {
         <span
           class="dream-percent"
           :class="{
-            'text-amber-400': dreamProgress.dreamName && !dreamProgress.dreamReached,
-            'text-success': dreamProgress.dreamReached,
+            'text-amber-400': dreamProgress.dreamName && !dreamProgress.reached,
+            'text-success': dreamProgress.reached,
           }"
         >
           {{
-            dreamProgress.dreamName
-              ? `${dreamProgress.dreamPercent.toFixed(0)}%`
-              : `${dreamProgress.cashPercent.toFixed(0)}%`
+            dreamProgress.dreamName ? `${Math.min(dreamProgress.cashPercent, dreamProgress.passivePercent).toFixed(0)}%` : '—'
           }}
         </span>
       </div>
@@ -151,20 +147,18 @@ const dreamProgress = computed(() => {
         <div
           class="dream-bar"
           :class="{
-            'dream-bar-amber': dreamProgress.dreamName && !dreamProgress.dreamReached,
-            'dream-bar-green': !dreamProgress.dreamName || dreamProgress.dreamReached,
+            'dream-bar-amber': dreamProgress.dreamName && !dreamProgress.reached,
+            'dream-bar-green': dreamProgress.reached,
           }"
-          :style="{
-            width: `${dreamProgress.dreamName ? dreamProgress.dreamPercent : dreamProgress.cashPercent}%`,
-          }"
+          :style="{ width: `${Math.min(dreamProgress.cashPercent, dreamProgress.passivePercent)}%` }"
         ></div>
       </div>
       <div class="dream-detail">
         <span class="text-xs text-muted-foreground">
           {{
             dreamProgress.dreamName
-              ? `现金 ${formatMoney(dreamProgress.cash)} / ${formatMoney(dreamProgress.dreamPrice)}`
-              : `现金 ${formatMoney(dreamProgress.cash)} / ${formatMoney(FAST_TRACK_CASH_GOAL)}`
+              ? `现金 ${formatMoney(dreamProgress.cash)} / ${formatMoney(dreamProgress.cashRequired)} · 被动收入 ${formatMoney(dreamProgress.passiveIncome)} / ${formatMoney(dreamProgress.passiveRequired)}`
+              : '进入资本游戏后生成梦想目标'
           }}
         </span>
       </div>

@@ -71,6 +71,11 @@ const cellColorBarClass: Record<FastTrackCellType, string> = {
   stock: 'bg-teal-500',
 }
 
+const cellShortName: Record<FastTrackCellType, string> = {
+  cashflow: '现金流', opportunity: '机会', investment: '地产', doodad: '意外',
+  dream: '梦想', market: '市场', charity: '慈善', deal: '大宗', stock: '股票',
+}
+
 // 获取格子的样式绑定对象
 function getCellStyle(index: number): Record<string, string> {
   const { row, col } = getCellGridArea(index)
@@ -98,8 +103,8 @@ const currentPlayerCash = computed(() => {
 
 const currentPlayerCashFlow = computed(() => {
   const currentPlayer = props.players.find((p) => p.name === props.currentPlayerName)
-  // 快车道的现金流放大 100 倍
-  return (currentPlayer?.cashFlow ?? 0) * 100
+  // 资本阶段只使用资产被动收入减支出，并按资本阶段规则放大。
+  return ((currentPlayer?.passiveIncome ?? 0) - (currentPlayer?.totalExpenses ?? 0)) * 100
 })
 
 function formatMoney(n: number): string {
@@ -135,7 +140,8 @@ const opportunityAccentClass = computed(() => {
         <div class="cell-color-bar rounded-full" :class="cellColorBarClass[cell.type]" />
         <component :is="cellIconMap[cell.type]" class="cell-icon" />
         <div class="cell-name font-semibold leading-tight">
-          {{ cell.name }}
+          <span class="cell-name-full">{{ cell.name }}</span>
+          <span class="cell-name-short">{{ cell.shortName ?? cellShortName[cell.type] }}</span>
         </div>
         <!-- 玩家棋子 -->
         <div v-if="playersOnCell[cell.index]?.length" class="cell-players flex">
@@ -476,6 +482,10 @@ const opportunityAccentClass = computed(() => {
   text-overflow: clip;
 }
 
+.cell-name-short {
+  display: none;
+}
+
 @media (min-width: 640px) {
   .cell-name {
     margin-top: 2px;
@@ -708,6 +718,27 @@ const opportunityAccentClass = computed(() => {
 
 .dream-side-price {
   font-size: 10px;
+}
+
+/* 移动端只保留外围格子和中心操作区，财务/梦想信息已在页面指标与顶栏展示。 */
+@media (max-width: 640px) {
+  .decor-row,
+  .decor-col {
+    display: none;
+  }
+
+  .center-info {
+    grid-column: 2 / span 5;
+    grid-row: 2 / span 5;
+  }
+
+  .cell-name-full {
+    display: none;
+  }
+
+  .cell-name-short {
+    display: inline;
+  }
 }
 
 @media (min-width: 640px) {

@@ -137,6 +137,7 @@ export interface FastTrackCell {
   index: number
   type: FastTrackCellType
   name: string
+  shortName?: string
   color: string
 }
 

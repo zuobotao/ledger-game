@@ -212,8 +212,6 @@ function boardSlots() {
     ...base,
     currentPosition: p?.fastTrackPosition ?? 0,
     dream: p?.dream ?? null,
-    showOpportunity: showBoardCard.value,
-    opportunityCard: ftBoardOpportunity.value,
   }
 }
 </script>
@@ -251,7 +249,7 @@ function boardSlots() {
     <div v-if="isMobile" class="mobile-board-pane">
       <MobileBoardScroller
         :board-size="props.mobileBoardSize"
-        :active-index="currentPlayer?.ratRacePosition ?? (props.boardKind === 'fast_track' ? currentPlayer?.fastTrackPosition ?? 0 : 0)"
+        :active-index="props.boardKind === 'fast_track' ? currentPlayer?.fastTrackPosition ?? 0 : currentPlayer?.ratRacePosition ?? 0"
         :cell-gap="props.cellGap"
       >
         <RatRaceBoard

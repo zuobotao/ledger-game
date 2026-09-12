@@ -2,7 +2,7 @@
 /**
  * PlayerSidebar — 共享玩法左侧栏（v2.4.3 Phase 4/5）
  *
- * 玩家切换（单机多人局）/ 目标进度（老鼠圈财务自由 / 资本游戏梦想+现金目标）/
+ * 玩家切换（单机多人局）/ 目标进度（老鼠圈财务自由）/
  * 财务-历史-统计 Tab。只依赖 GameplayAdapter；Single 专属内容（阶段切换、学习模式）
  * 由父层经 sidebar-extra 插槽注入。
  */
@@ -72,26 +72,6 @@ const ratRaceProgress = computed(() => {
   const passive = p.passiveIncome
   const percent = expenses > 0 ? Math.min(100, (passive / expenses) * 100) : 0
   return { percent, passive, expenses, reached: passive >= expenses }
-})
-
-// ============ 目标进度（资本游戏：梦想 + 现金目标） ============
-const FAST_TRACK_CASH_GOAL = 50_000_000
-
-const fastTrackProgress = computed(() => {
-  const p = vm.value.viewingPlayer
-  const cash = p.cash
-  const dream = p.dream
-  const dreamPrice = dream?.price ?? 0
-  const dreamPercent = dreamPrice > 0 ? Math.min(100, (cash / dreamPrice) * 100) : 0
-  const cashPercent = Math.min(100, (cash / FAST_TRACK_CASH_GOAL) * 100)
-  return {
-    dreamPercent,
-    cashPercent,
-    cash,
-    dreamPrice,
-    dreamName: dream?.name ?? '',
-    hasDream: !!dream,
-  }
 })
 
 function formatMoneyFn(n: number): string {
@@ -169,7 +149,7 @@ function formatMoneyFn(n: number): string {
       </Transition>
     </div>
 
-    <!-- 目标进度：老鼠圈 = 财务自由；资本游戏 = 梦想 + 现金目标 -->
+    <!-- 目标进度：资本游戏目标已集中到顶部指标栏 -->
     <div v-if="vm.viewingPlayer && phase === 'rat_race'" class="goal-progress rat-race-goal mx-4 mt-3 lg:mx-5">
       <div class="goal-header">
         <div class="goal-title">
@@ -200,55 +180,6 @@ function formatMoneyFn(n: number): string {
       </div>
     </div>
 
-    <div v-if="vm.viewingPlayer && phase === 'fast_track'" class="goal-progress fast-track-goal mx-4 mt-3 lg:mx-5">
-      <!-- 梦想目标 -->
-      <div v-if="fastTrackProgress.hasDream" class="goal-section">
-        <div class="goal-header">
-          <div class="goal-title">
-            <Target class="goal-icon fast-track-icon" />
-            <span class="goal-label">梦想：{{ fastTrackProgress.dreamName }}</span>
-          </div>
-          <div class="goal-percent" :class="{ reached: fastTrackProgress.dreamPercent >= 100 }">
-            {{ fastTrackProgress.dreamPercent.toFixed(0) }}%
-          </div>
-        </div>
-        <div class="progress-bar">
-          <div
-            class="progress-fill fast-track-fill"
-            :style="{ width: `${fastTrackProgress.dreamPercent}%` }"
-          />
-        </div>
-        <div class="goal-details">
-          <span class="detail-item">现金 {{ formatMoneyFn(fastTrackProgress.cash) }}</span>
-          <span class="detail-sep">/</span>
-          <span class="detail-item">{{ formatMoneyFn(fastTrackProgress.dreamPrice) }}</span>
-        </div>
-      </div>
-
-      <!-- 50M 现金目标 -->
-      <div class="goal-section">
-        <div class="goal-header">
-          <div class="goal-title">
-            <Trophy class="goal-icon cash-goal-icon" />
-            <span class="goal-label">现金目标</span>
-          </div>
-          <div class="goal-percent" :class="{ reached: fastTrackProgress.cashPercent >= 100 }">
-            {{ fastTrackProgress.cashPercent.toFixed(0) }}%
-          </div>
-        </div>
-        <div class="progress-bar">
-          <div
-            class="progress-fill cash-goal-fill"
-            :style="{ width: `${fastTrackProgress.cashPercent}%` }"
-          />
-        </div>
-        <div class="goal-details">
-          <span class="detail-item">现金 {{ formatMoneyFn(fastTrackProgress.cash) }}</span>
-          <span class="detail-sep">/</span>
-          <span class="detail-item">{{ formatMoneyFn(FAST_TRACK_CASH_GOAL) }}</span>
-        </div>
-      </div>
-    </div>
 
     <!-- 单机专属内容（阶段切换 / 学习模式）由父层注入 -->
     <div class="px-4 pt-3 lg:px-5">

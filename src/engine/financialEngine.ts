@@ -30,6 +30,11 @@ export function totalExpenses(expenses: Player['expenses']): number {
   )
 }
 
+/** 资本游戏专用月现金流：只计算资产被动收入与支出，不再叠加工资。 */
+export function capitalCashFlowOf(player: Player): number {
+  return player.passiveIncome - player.totalExpenses
+}
+
 /**
  * Recalculate a player's financial derived fields:
  * passive income, total income, total expenses, and cash flow.

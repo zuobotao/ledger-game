@@ -74,6 +74,7 @@ import {
   isCardAffordable,
 } from '@/engine/cardEngine'
 import {
+  capitalCashFlowOf,
   totalExpenses,
   recalcPlayerFinancials,
   calcPlayerNetWorth,
@@ -1161,7 +1162,17 @@ export const useGameStore = defineStore('game', () => {
   }
 
   // 资本游戏阶段的市场事件：仅更新价格，不进入多玩家轮询
-  function applyMarketEventFastTrack(card: MarketEventCard, _player: Player): string {
+  function applyMarketEventFastTrack(card: MarketEventCard, player: Player): string {
+    if (card.targetType === 'stock' && card.targetSymbol) {
+      stockPrices.value[card.targetSymbol] = Math.max(
+        1,
+        card.fixedPrice ?? Math.round((stockPrices.value[card.targetSymbol] ?? 1) * card.multiplier),
+      )
+    } else if (card.targetType === 'all' || card.targetType === 'stock') {
+      for (const symbol of Object.keys(stockPrices.value)) {
+        stockPrices.value[symbol] = Math.max(1, Math.round(stockPrices.value[symbol]! * card.multiplier))
+      }
+    }
     for (const p of players.value) {
       p.assets
         .filter((a) => card.targetType === 'all' || a.type === card.targetType ||
@@ -1169,6 +1180,14 @@ export const useGameStore = defineStore('game', () => {
         .forEach((a) => {
           a.marketPrice = (a.marketPrice ?? a.cost) * card.multiplier
         })
+    }
+    // 资本阶段只给当前玩家一个“卖出或持有”的决策，不开启全桌轮询。
+    marketEvent.value = card
+    marketEventState.value = {
+      card,
+      responderIndex: currentPlayerIndex.value,
+      respondedIds: players.value.filter((p) => p.id !== player.id).map((p) => p.id),
+      phase: 'current_player',
     }
     if (card.multiplier < 1) {
       return `资产贬值 ${Math.round((1 - card.multiplier) * 100)}%`
@@ -2602,7 +2621,7 @@ export const useGameStore = defineStore('game', () => {
 
     player.phase = 'fast_track'
     player.fastTrackPosition = 0
-    player.cash += player.cashFlow * 100
+    player.cash += capitalCashFlowOf(player) * 100
     player.dream = getRandomDream()
     player.isUnemployed = false
     player.unemploymentTurns = 0
@@ -2646,9 +2665,9 @@ export const useGameStore = defineStore('game', () => {
 
     switch (cell.type) {
       case 'cashflow': {
-        const payout = player.cashFlow * 100
+        const payout = capitalCashFlowOf(player) * 100
         player.cash += payout
-        recordTransaction('salary', payout, '被动收入日', player.id)
+        recordTransaction('passive_income', payout, '资本游戏被动收入日', player.id)
         // FastTrack 被动收入日也推进年龄（按当前玩家自身 ageMonths）
         const result = advanceMonth(player.ageMonths, config.value.ageLimit)
         player.ageMonths = result.ageMonths
@@ -2683,12 +2702,12 @@ export const useGameStore = defineStore('game', () => {
         const { card, remaining } = drawMarketCard(decks.value.market)
         decks.value.market = remaining
         recordCardDrawn('market', card)
-        const result = applyMarketEvent(card, player)
+        const result = applyMarketEventFastTrack(card, player)
         setPending('market', `市场风云：${result}`, card)
         break
       }
       case 'charity': {
-        const donation = Math.floor(player.cashFlow * 5)
+        const donation = Math.max(0, Math.floor(capitalCashFlowOf(player) * 5))
         if (player.cash >= donation) {
           player.cash -= donation
           setPending(null, `慈善捐赠：捐赠了 ${formatMoney(donation)}，获得心灵满足。`)
@@ -2698,7 +2717,7 @@ export const useGameStore = defineStore('game', () => {
         break
       }
       case 'doodad': {
-        const cost = Math.max(5000, player.cashFlow * 10)
+        const cost = Math.max(5000, capitalCashFlowOf(player) * 10)
         const paid = requireLoanForPayment(cost, '资本游戏 生活意外', 'fast_track_doodad')
         if (!paid) return
         break
